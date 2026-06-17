@@ -1,0 +1,47 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+
+import teamRoutes from './routes/teams';
+import playerRoutes from './routes/players';
+import matchRoutes from './routes/matches';
+import eventRoutes from './routes/events';
+import analyticsRoutes from './routes/analytics';
+import { errorHandler } from './middleware/errorHandler';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// ─── Middleware ───────────────────────────────────────────────────────────────
+app.use(helmet());
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+app.use(morgan('dev'));
+app.use(express.json());
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+// All routes versioned under /api/v1 so Phase 2+ can introduce /api/v2 without
+// breaking existing clients (e.g. a tablet app locked on an old version).
+app.use('/api/v1/teams', teamRoutes);
+app.use('/api/v1/players', playerRoutes);
+app.use('/api/v1/matches', matchRoutes);
+app.use('/api/v1/events', eventRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+
+// Health check — useful for deployment monitoring and CI pipelines
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'VolleyVision API', version: '1.0.0' });
+});
+
+// ─── Error Handler ────────────────────────────────────────────────────────────
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  console.log(`\n⚡ VolleyVision API running on http://localhost:${PORT}`);
+  console.log(`   Health: http://localhost:${PORT}/health\n`);
+});
+
+export default app;

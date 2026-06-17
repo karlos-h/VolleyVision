@@ -1,0 +1,204 @@
+// Types mirror the Prisma schema. Keeping them in sync manually is fine for
+// Phase 1. Phase 2 can introduce tRPC or OpenAPI codegen to automate this.
+
+export type Position =
+  | 'SETTER'
+  | 'OUTSIDE_HITTER'
+  | 'OPPOSITE'
+  | 'MIDDLE_BLOCKER'
+  | 'LIBERO'
+  | 'DEFENSIVE_SPECIALIST';
+
+export type EventType =
+  // Attacking
+  | 'KILL'
+  | 'ATTACK_ERROR'
+  | 'ATTACK_ATTEMPT'
+  // Serving
+  | 'ACE'
+  | 'SERVICE_ERROR'
+  | 'SERVE_IN'
+  // Passing
+  | 'PASS_3'
+  | 'PASS_2'
+  | 'PASS_1'
+  | 'PASS_0'
+  // Blocking
+  | 'SOLO_BLOCK'
+  | 'BLOCK_ASSIST'
+  | 'BLOCK_ERROR'
+  // Defence
+  | 'DIG'
+  | 'DIG_ERROR'
+  // Setting
+  | 'ASSIST'
+  | 'SETTING_ERROR';
+
+export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export interface Team {
+  id: string;
+  name: string;
+  division?: string;
+  season: string;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { players: number; matches: number };
+  players?: Player[];
+  matches?: Match[];
+}
+
+export interface Player {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jerseyNumber: number;
+  position: Position;
+  teamId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Match {
+  id: string;
+  matchDate: string;
+  opponent: string;
+  competition?: string;
+  venue?: string;
+  status: MatchStatus;
+  teamId: string;
+  team?: Team;
+  setScores?: SetScore[];
+  createdAt: string;
+  updatedAt: string;
+  _count?: { events: number };
+}
+
+export interface SetScore {
+  set: number;
+  home: number;
+  away: number;
+}
+
+export interface Event {
+  id: string;
+  eventType: EventType;
+  setNumber: number;
+  rallyNumber?: number;
+  notes?: string;
+  matchId: string;
+  playerId: string;
+  player?: Pick<Player, 'firstName' | 'lastName' | 'jerseyNumber'>;
+  recordedAt: string;
+}
+
+export interface StatLine {
+  totalEvents: number;
+  kills: number;
+  attackErrors: number;
+  attackAttempts: number;
+  hittingPercentage: number | null;
+  aces: number;
+  serviceErrors: number;
+  serveAttempts: number;
+  serveInPercentage: number | null;
+  passAttempts: number;
+  passingRating: number | null;
+  soloBlocks: number;
+  blockAssists: number;
+  totalBlocks: number;
+  blockErrors: number;
+  digs: number;
+  digErrors: number;
+  assists: number;
+  settingErrors: number;
+}
+
+export interface PlayerStatLine extends StatLine {
+  player: Pick<Player, 'id' | 'firstName' | 'lastName' | 'jerseyNumber' | 'position'>;
+}
+
+export interface MatchAnalytics {
+  match: Pick<
+    Match,
+    'id' | 'matchDate' | 'opponent' | 'competition' | 'venue' | 'status' | 'setScores' | 'teamId'
+  > & { teamName: string };
+  teamStats: StatLine;
+  playerStats: PlayerStatLine[];
+  setStats: Array<StatLine & { setNumber: number }>;
+}
+
+export interface TeamAnalytics {
+  team: Pick<Team, 'id' | 'name' | 'division' | 'season'>;
+  matchSummary: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    scheduled: number;
+  };
+  teamStats: StatLine;
+  playerStats: PlayerStatLine[];
+}
+
+export interface PlayerAnalytics {
+  player: Pick<
+    Player,
+    'id' | 'firstName' | 'lastName' | 'jerseyNumber' | 'position' | 'teamId'
+  >;
+
+  matchId: string | null;
+
+  stats: StatLine;
+
+  setStats: Array<StatLine & { setNumber: number }>;
+}
+
+export interface TeamInsight {
+  type: 'positive' | 'warning' | 'neutral';
+  message: string;
+}
+
+// ─── Event metadata (UI helpers) ─────────────────────────────────────────────
+
+export interface EventMeta {
+  type: EventType;
+  label: string;
+  category: 'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'set';
+  // positive = adds a point / good outcome; negative = error; neutral = attempt
+  outcome: 'positive' | 'negative' | 'neutral';
+}
+
+export const EVENT_META: EventMeta[] = [
+  // Attacking
+  { type: 'KILL', label: 'Kill', category: 'attack', outcome: 'positive' },
+  { type: 'ATTACK_ERROR', label: 'Att. Error', category: 'attack', outcome: 'negative' },
+  { type: 'ATTACK_ATTEMPT', label: 'Attempt', category: 'attack', outcome: 'neutral' },
+  // Serving
+  { type: 'ACE', label: 'Ace', category: 'serve', outcome: 'positive' },
+  { type: 'SERVICE_ERROR', label: 'Svc Error', category: 'serve', outcome: 'negative' },
+  { type: 'SERVE_IN', label: 'Serve In', category: 'serve', outcome: 'neutral' },
+  // Passing
+  { type: 'PASS_3', label: 'Pass 3', category: 'pass', outcome: 'positive' },
+  { type: 'PASS_2', label: 'Pass 2', category: 'pass', outcome: 'neutral' },
+  { type: 'PASS_1', label: 'Pass 1', category: 'pass', outcome: 'neutral' },
+  { type: 'PASS_0', label: 'Pass 0', category: 'pass', outcome: 'negative' },
+  // Blocking
+  { type: 'SOLO_BLOCK', label: 'Solo Block', category: 'block', outcome: 'positive' },
+  { type: 'BLOCK_ASSIST', label: 'Blk Assist', category: 'block', outcome: 'positive' },
+  { type: 'BLOCK_ERROR', label: 'Blk Error', category: 'block', outcome: 'negative' },
+  // Defence
+  { type: 'DIG', label: 'Dig', category: 'defence', outcome: 'positive' },
+  { type: 'DIG_ERROR', label: 'Dig Error', category: 'defence', outcome: 'negative' },
+  // Setting
+  { type: 'ASSIST', label: 'Assist', category: 'set', outcome: 'positive' },
+  { type: 'SETTING_ERROR', label: 'Set Error', category: 'set', outcome: 'negative' },
+];
+
+export const POSITION_LABELS: Record<Position, string> = {
+  SETTER: 'S',
+  OUTSIDE_HITTER: 'OH',
+  OPPOSITE: 'OPP',
+  MIDDLE_BLOCKER: 'MB',
+  LIBERO: 'L',
+  DEFENSIVE_SPECIALIST: 'DS',
+};

@@ -1,0 +1,159 @@
+// VolleyVision — Prisma Schema
+// Phase 1: Match Tracking System
+//
+// Architectural decisions:
+// - Events table is intentionally simple (no score state, no rotation) so Phase 1
+//   stays lean, but includes set_number and rally_number to unlock Phase 3 heat maps.
+// - Player positions stored as enum so future dashboards can filter by role.
+// - Match stores home_score/away_score per set as JSON to avoid a separate SetScore
+//   table in Phase 1, while still being queryable in Phase 2+.
+// - All timestamps use @default(now()) and @updatedAt so audit trails work for free.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Position {
+  SETTER
+  OUTSIDE_HITTER
+  OPPOSITE
+  MIDDLE_BLOCKER
+  LIBERO
+  DEFENSIVE_SPECIALIST
+}
+
+enum EventType {
+  // Attacking
+  KILL
+  ATTACK_ERROR
+  ATTACK_ATTEMPT
+
+  // Serving
+  ACE
+  SERVICE_ERROR
+  SERVE_IN
+
+  // Passing
+  PASS_3
+  PASS_2
+  PASS_1
+  PASS_0
+
+  // Blocking
+  SOLO_BLOCK
+  BLOCK_ASSIST
+  BLOCK_ERROR
+
+  // Defence
+  DIG
+  DIG_ERROR
+
+  // Setting
+  ASSIST
+  SETTING_ERROR
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  division  String?
+  season    String
+
+  players   Player[]
+  matches   Match[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("teams")
+}
+
+model Player {
+  id           String   @id @default(cuid())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  jerseyNumber Int      @map("jersey_number")
+  position     Position
+
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId       String   @map("team_id")
+
+  events       Event[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([teamId, jerseyNumber])
+  @@map("players")
+}
+
+model Match {
+  id          String      @id @default(cuid())
+  matchDate   DateTime    @map("match_date")
+  opponent    String
+  competition String?
+  venue       String?
+  status      MatchStatus @default(SCHEDULED)
+
+  // Stores per-set scores: [{ set: 1, home: 25, away: 23 }, ...]
+  // Kept as JSON in Phase 1 for speed; easy to normalise in Phase 2.
+  setScores   Json?       @map("set_scores")
+
+  team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId      String      @map("team_id")
+
+  events      Event[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("matches")
+}
+
+// Event is the central fact table. Every analytics calculation in Phases 2–5
+// aggregates from this table, so the schema must be both minimal (fast to write
+// courtside) and rich enough to slice by player, match, set, and event type.
+model Event {
+  id          String    @id @default(cuid())
+
+  eventType   EventType @map("event_type")
+  setNumber   Int       @map("set_number")             // 1–5
+  rallyNumber Int?      @map("rally_number")           // optional; enables Phase 3 patterns
+  notes       String?                                   // optional coach annotation
+
+  match       Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId     String    @map("match_id")
+
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId    String    @map("player_id")
+
+  recordedAt  DateTime  @default(now()) @map("recorded_at")
+
+  // Indexes support the most common Phase 2 query patterns:
+  //   - "all events for player X in match Y"
+  //   - "all kills in set 3"
+  //   - "timeline of events ordered by time"
+  @@index([matchId])
+  @@index([playerId])
+  @@index([matchId, setNumber])
+  @@index([playerId, eventType])
+  @@index([recordedAt])
+
+  @@map("events")
+}

@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-court-950 text-chalk-100 antialiased;
+  }
+
+  /* Prevent text selection on event buttons during rapid tapping */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@layer components {
+  /* Event button base */
+  .btn-event {
+    @apply no-select relative flex flex-col items-center justify-center rounded-xl
+           font-semibold text-sm leading-tight transition-all duration-75
+           active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-spike-400;
+    min-height: 64px;
+    padding: 10px 8px;
+  }
+
+  .btn-event-positive {
+    @apply btn-event bg-emerald-600 hover:bg-emerald-500 text-white;
+  }
+
+  .btn-event-negative {
+    @apply btn-event bg-red-700 hover:bg-red-600 text-white;
+  }
+
+  .btn-event-neutral {
+    @apply btn-event bg-court-700 hover:bg-court-600 text-chalk-200 border border-court-600;
+  }
+
+  /* Nav link */
+  .nav-link {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-chalk-400
+           hover:text-chalk-100 hover:bg-court-800 transition-colors text-sm font-medium;
+  }
+
+  .nav-link-active {
+    @apply nav-link text-spike-400 bg-court-800;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-court-900 border border-court-700 rounded-2xl;
+  }
+
+  /* Form input */
+  .input {
+    @apply w-full bg-court-800 border border-court-700 rounded-xl px-4 py-2.5
+           text-chalk-100 placeholder-chalk-600 focus:outline-none
+           focus:border-spike-500 focus:ring-1 focus:ring-spike-500 transition-colors;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply bg-spike-500 hover:bg-spike-400 text-court-950 font-semibold
+           px-5 py-2.5 rounded-xl transition-colors focus:outline-none
+           focus-visible:ring-2 focus-visible:ring-spike-400 disabled:opacity-50;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply bg-court-800 hover:bg-court-700 text-chalk-200 font-medium
+           px-5 py-2.5 rounded-xl border border-court-700 transition-colors;
+  }
+
+  /* Danger button */
+  .btn-danger {
+    @apply bg-red-800 hover:bg-red-700 text-white font-medium
+           px-4 py-2 rounded-xl transition-colors text-sm;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-mono;
+  }
+
+  .stat-cell {
+    @apply px-3 py-3 text-center font-mono text-chalk-200;
+  }
+}
