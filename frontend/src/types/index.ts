@@ -80,11 +80,15 @@ export interface SetScore {
   away: number;
 }
 
+export type HeatmapData = Record<'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'all', Record<string, number>>;
+export type ZoneCounts = Record<string, number>;
+
 export interface Event {
   id: string;
   eventType: EventType;
   setNumber: number;
   rallyNumber?: number;
+  courtZone?: number | null;
   notes?: string;
   matchId: string;
   playerId: string;

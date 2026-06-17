@@ -1,9 +1,9 @@
 import clsx from 'clsx';
 
-// Standard volleyball court zones:
-//  4 | 3 | 2
-//  5 | 6 | 1
-// Zone 1 = back-right (serve position), zones go counter-clockwise.
+// Standard volleyball court zones (viewed from home team end):
+//   4 | 3 | 2   ← front row
+//   5 | 6 | 1   ← back row
+// Zone 1 = back-right serve position; zones continue counter-clockwise.
 
 const ZONE_LAYOUT = [
   [4, 3, 2],
@@ -16,19 +16,15 @@ interface Props {
 }
 
 export default function CourtZoneSelector({ value, onChange }: Props) {
-  function handleClick(zone: number) {
-    // Tap the same zone again to deselect
-    onChange(value === zone ? null : zone);
-  }
-
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between px-1 mb-0.5">
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between px-0.5">
         <span className="text-xs font-semibold text-chalk-500 uppercase tracking-widest">
-          Court Zone
+          Court Zone <span className="normal-case font-normal text-chalk-600">(optional)</span>
         </span>
         {value !== null && (
           <button
+            type="button"
             onClick={() => onChange(null)}
             className="text-xs text-chalk-500 hover:text-chalk-300 transition-colors"
           >
@@ -37,12 +33,11 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
         )}
       </div>
 
-      {/* Net line */}
-      <div className="relative border border-court-700 rounded-xl overflow-hidden bg-court-900">
-        {/* Net indicator */}
-        <div className="absolute top-1/2 left-0 right-0 h-px bg-spike-500/60 z-10" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20
-                        text-[9px] font-bold text-spike-400/70 bg-court-900 px-1 select-none">
+      <div className="relative border border-court-700 rounded-xl overflow-hidden bg-court-900 select-none">
+        {/* NET divider */}
+        <div className="absolute inset-x-0 top-1/2 h-px bg-spike-500/50 z-10 pointer-events-none" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20
+                        text-[9px] font-bold tracking-widest text-spike-400/60 bg-court-900 px-1.5 pointer-events-none">
           NET
         </div>
 
@@ -51,15 +46,14 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
             {row.map((zone) => (
               <button
                 key={zone}
-                onClick={() => handleClick(zone)}
+                type="button"
+                onClick={() => onChange(value === zone ? null : zone)}
                 className={clsx(
-                  'relative h-14 flex items-center justify-center',
-                  'text-lg font-mono font-bold transition-all',
-                  'border border-court-700/50',
-                  'active:scale-95',
+                  'h-12 flex items-center justify-center border border-court-700/40',
+                  'text-lg font-mono font-bold transition-all active:scale-95',
                   value === zone
                     ? 'bg-spike-500 text-court-950 shadow-inner'
-                    : 'bg-court-800 text-chalk-400 hover:bg-court-700 hover:text-chalk-200'
+                    : 'bg-court-800 text-chalk-500 hover:bg-court-700 hover:text-chalk-200'
                 )}
               >
                 {zone}
@@ -69,8 +63,10 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
         ))}
       </div>
 
-      <p className="text-[10px] text-chalk-600 px-1">
-        {value !== null ? `Zone ${value} selected` : 'Optional — tap a zone to record location'}
+      <p className="text-[10px] text-chalk-600 px-0.5">
+        {value !== null
+          ? `Zone ${value} selected — tap again to deselect`
+          : 'Tap a zone to record attack/serve location'}
       </p>
     </div>
   );

@@ -1,11 +1,14 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap } from '../hooks';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
+import CourtVisualization from '../components/court/CourtVisualization';
+import HeatMapCourt from '../components/court/HeatMapCourt';
 
 export default function MatchDashboardPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const { data, isLoading, isError } = useMatchAnalytics(matchId!);
+  const { data: heatmapData } = useMatchHeatmap(matchId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load match analytics.</p>;
@@ -54,6 +57,22 @@ export default function MatchDashboardPage() {
           </div>
         )}
       </section>
+
+      {/* Sprint 2 — Court Activity */}
+      {heatmapData && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Court Activity</h2>
+          <CourtVisualization heatmapData={heatmapData} />
+        </section>
+      )}
+
+      {/* Sprint 3 — Heat Map */}
+      {heatmapData && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Heat Map</h2>
+          <HeatMapCourt data={heatmapData} />
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold text-chalk-100 mb-3">Player Statistics</h2>

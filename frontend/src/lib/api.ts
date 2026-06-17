@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -65,6 +65,7 @@ export const eventsApi = {
     eventType: string;
     setNumber: number;
     rallyNumber?: number;
+    courtZone?: number | null;
     notes?: string;
   }) => api.post<Event>('/events', data).then((r) => r.data),
   undoLast: (matchId: string) =>
@@ -85,9 +86,18 @@ export const analyticsApi = {
     .then((r) => r.data),
     
   trends: (teamId: string) =>
-  api
-    .get<TeamTrend[]>(`/analytics/teams/${teamId}/trends`)
-    .then((r) => r.data),
+    api.get<TeamTrend[]>(`/analytics/teams/${teamId}/trends`).then((r) => r.data),
+
+  matchZones: (matchId: string, category?: string) =>
+    api.get<ZoneCounts>(`/analytics/matches/${matchId}/zones`, {
+      params: category ? { category } : {},
+    }).then((r) => r.data),
+
+  matchHeatmap: (matchId: string) =>
+    api.get<HeatmapData>(`/analytics/matches/${matchId}/heatmap`).then((r) => r.data),
+
+  teamHeatmap: (teamId: string) =>
+    api.get<HeatmapData>(`/analytics/teams/${teamId}/heatmap`).then((r) => r.data),
 };
 
 export default api;

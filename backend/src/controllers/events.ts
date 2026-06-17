@@ -8,10 +8,17 @@ import { AppError } from '../middleware/errorHandler';
 // pattern efficient for Phase 2 aggregations.
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
-    const { matchId, playerId, eventType, setNumber, rallyNumber, notes } = req.body;
+    const { matchId, playerId, eventType, setNumber, rallyNumber, courtZone, notes } = req.body;
 
     if (!matchId || !playerId || !eventType || !setNumber) {
       throw new AppError(400, 'matchId, playerId, eventType, and setNumber are required.');
+    }
+
+    if (courtZone != null) {
+      const zone = Number(courtZone);
+      if (!Number.isInteger(zone) || zone < 1 || zone > 6) {
+        throw new AppError(400, 'courtZone must be an integer between 1 and 6.');
+      }
     }
 
     const event = await prisma.event.create({
@@ -20,7 +27,8 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
         playerId,
         eventType,
         setNumber: Number(setNumber),
-        rallyNumber: rallyNumber ? Number(rallyNumber) : null,
+        rallyNumber: rallyNumber != null ? Number(rallyNumber) : null,
+        courtZone: courtZone != null ? Number(courtZone) : null,
         notes: notes || null,
       },
       // Return player name so the client can confirm without a separate request

@@ -135,6 +135,124 @@ export async function getTeamTrends(
   }
 }
 
+// Sprint 2 — zone counts for a match, optionally filtered by event type category
+// Returns { "1": 12, "2": 8, ... } for zones 1–6
+export async function getMatchZones(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+    const { category } = req.query; // optional: attack | serve | pass | block | defence | set
+
+    const CATEGORY_TYPES: Record<string, string[]> = {
+      attack: ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+      serve:  ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
+      pass:   ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
+      block:  ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
+      defence:['DIG', 'DIG_ERROR'],
+      set:    ['ASSIST', 'SETTING_ERROR'],
+    };
+
+    const typeFilter =
+      category && CATEGORY_TYPES[category as string]
+        ? { eventType: { in: CATEGORY_TYPES[category as string] as any } }
+        : {};
+
+    const events = await prisma.event.findMany({
+      where: { matchId, courtZone: { not: null }, ...typeFilter },
+      select: { courtZone: true, eventType: true },
+    });
+
+    // Build counts for zones 1–6
+    const counts: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 };
+    for (const e of events) {
+      if (e.courtZone != null) counts[String(e.courtZone)]++;
+    }
+
+    res.json(counts);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Sprint 3 — per-category zone breakdown for heat maps (match scope)
+export async function getMatchHeatmap(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+
+    const CATEGORIES = {
+      attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+      serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
+      pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
+      block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
+      defence: ['DIG', 'DIG_ERROR'],
+    } as const;
+
+    const events = await prisma.event.findMany({
+      where: { matchId, courtZone: { not: null } },
+      select: { courtZone: true, eventType: true },
+    });
+
+    const empty = () => ({ '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 });
+    const result: Record<string, Record<string, number>> = {
+      attack: empty(), serve: empty(), pass: empty(), block: empty(), defence: empty(), all: empty(),
+    };
+
+    for (const e of events) {
+      if (e.courtZone == null) continue;
+      const z = String(e.courtZone);
+      result.all[z]++;
+      for (const [cat, types] of Object.entries(CATEGORIES)) {
+        if ((types as readonly string[]).includes(e.eventType)) {
+          result[cat][z]++;
+        }
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Sprint 3 — per-category zone breakdown for heat maps (team/season scope)
+export async function getTeamHeatmap(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { teamId } = req.params;
+
+    const CATEGORIES = {
+      attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+      serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
+      pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
+      block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
+      defence: ['DIG', 'DIG_ERROR'],
+    } as const;
+
+    const events = await prisma.event.findMany({
+      where: { match: { teamId }, courtZone: { not: null } },
+      select: { courtZone: true, eventType: true },
+    });
+
+    const empty = () => ({ '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 });
+    const result: Record<string, Record<string, number>> = {
+      attack: empty(), serve: empty(), pass: empty(), block: empty(), defence: empty(), all: empty(),
+    };
+
+    for (const e of events) {
+      if (e.courtZone == null) continue;
+      const z = String(e.courtZone);
+      result.all[z]++;
+      for (const [cat, types] of Object.entries(CATEGORIES)) {
+        if ((types as readonly string[]).includes(e.eventType)) {
+          result[cat][z]++;
+        }
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getPlayerAnalytics(req: Request, res: Response, next: NextFunction) {
   try {
     const player = await prisma.player.findUnique({

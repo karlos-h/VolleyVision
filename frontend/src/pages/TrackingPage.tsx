@@ -5,6 +5,7 @@ import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch } fro
 import type { EventType, Player } from '../types';
 import { EVENT_META, POSITION_LABELS } from '../types';
 import clsx from 'clsx';
+import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
 
 // Event buttons grouped by category for the tablet layout
 const CATEGORIES = [
@@ -51,6 +52,7 @@ export default function TrackingPage() {
 
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
+  const [selectedZone, setSelectedZone] = useState<number | null>(null);
   const [flash, setFlash] = useState<FlashState>(null);
   const [justRecorded, setJustRecorded] = useState<string | null>(null);
 
@@ -80,6 +82,7 @@ export default function TrackingPage() {
         playerId: selectedPlayer.id,
         eventType,
         setNumber: currentSet,
+        courtZone: selectedZone,
       });
       showFlash(`${meta.label} → #${selectedPlayer.jerseyNumber}`, true);
       setTimeout(() => setJustRecorded(null), 300);
@@ -299,6 +302,11 @@ export default function TrackingPage() {
           ))}
         </div>
 
+        {/* ── Court zone selector ── */}
+        <div className="card p-3">
+          <CourtZoneSelector value={selectedZone} onChange={setSelectedZone} />
+        </div>
+
         {/* ── Recent events feed ── */}
         {recentEvents.length > 0 && (
           <div className="card overflow-hidden mt-2">
@@ -329,6 +337,11 @@ export default function TrackingPage() {
                     {event.player && (
                       <span className="text-xs text-chalk-400 font-mono">
                         #{event.player.jerseyNumber} {event.player.lastName}
+                      </span>
+                    )}
+                    {event.courtZone != null && (
+                      <span className="badge bg-court-800 text-spike-400 border border-court-700">
+                        Z{event.courtZone}
                       </span>
                     )}
                     <span className="text-xs text-chalk-600">

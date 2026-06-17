@@ -185,3 +185,19 @@ export function useTeamTrends(teamId: string) {
     enabled: !!teamId,
   });
 }
+
+export function useMatchHeatmap(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'heatmap', 'match', matchId],
+    queryFn: () => analyticsApi.matchHeatmap(matchId),
+    enabled: !!matchId,
+  });
+}
+
+export function useTeamHeatmap(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'heatmap', 'team', teamId],
+    queryFn: () => analyticsApi.teamHeatmap(teamId),
+    enabled: !!teamId,
+  });
+}
