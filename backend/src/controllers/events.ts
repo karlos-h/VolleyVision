@@ -2,6 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 
+// Phase 4 Sprint 1 — event types that score a point for the home team (our team)
+const HOME_SCORE_EVENTS = new Set(['KILL', 'ACE', 'SOLO_BLOCK', 'BLOCK_ASSIST']);
+// Event types that concede a point to the opponent
+const AWAY_SCORE_EVENTS = new Set(['ATTACK_ERROR', 'SERVICE_ERROR']);
+
 // Record a single event. This endpoint must be fast — it's called on every
 // button tap courtside. Validation is intentionally minimal; the client
 // enforces most rules. The DB indexes on matchId + setNumber make this query
@@ -34,6 +39,19 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
       // Return player name so the client can confirm without a separate request
       include: { player: { select: { firstName: true, lastName: true, jerseyNumber: true } } },
     });
+
+    // Auto-update live score based on scoring events
+    if (HOME_SCORE_EVENTS.has(eventType)) {
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { homeScore: { increment: 1 } },
+      });
+    } else if (AWAY_SCORE_EVENTS.has(eventType)) {
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { awayScore: { increment: 1 } },
+      });
+    }
 
     res.status(201).json(event);
   } catch (err) {

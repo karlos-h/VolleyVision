@@ -113,7 +113,13 @@ model Match {
 
   // Stores per-set scores: [{ set: 1, home: 25, away: 23 }, ...]
   // Kept as JSON in Phase 1 for speed; easy to normalise in Phase 2.
-  setScores   Json?       @map("set_scores")
+  setScores    Json?       @map("set_scores")
+
+  // Phase 4 Sprint 1 — Live Scoring Engine
+  homeScore    Int         @default(0) @map("home_score")    // current set running score
+  awayScore    Int         @default(0) @map("away_score")    // current set running score
+  homeSetsWon  Int         @default(0) @map("home_sets_won")
+  awaySetsWon  Int         @default(0) @map("away_sets_won")
 
   team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId      String      @map("team_id")

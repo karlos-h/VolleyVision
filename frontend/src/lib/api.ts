@@ -49,6 +49,10 @@ export const matchesApi = {
   update: (id: string, data: Partial<Match>) =>
     api.patch<Match>(`/matches/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/matches/${id}`),
+  updateScore: (id: string, data: Partial<Pick<Match, 'homeScore' | 'awayScore' | 'homeSetsWon' | 'awaySetsWon'>>) =>
+    api.patch<Match>(`/matches/${id}/score`, data).then((r) => r.data),
+  resetSetScore: (id: string) =>
+    api.post<Match>(`/matches/${id}/score/reset`).then((r) => r.data),
 };
 
 // ─── Events ───────────────────────────────────────────────────────────────────

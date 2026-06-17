@@ -81,3 +81,35 @@ export async function deleteMatch(req: Request, res: Response, next: NextFunctio
     next(err);
   }
 }
+
+// Phase 4 Sprint 1 — manual score adjustment (home/away delta or absolute)
+export async function updateScore(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { homeScore, awayScore, homeSetsWon, awaySetsWon } = req.body;
+    const match = await prisma.match.update({
+      where: { id: req.params.id },
+      data: {
+        ...(homeScore != null ? { homeScore: Number(homeScore) } : {}),
+        ...(awayScore != null ? { awayScore: Number(awayScore) } : {}),
+        ...(homeSetsWon != null ? { homeSetsWon: Number(homeSetsWon) } : {}),
+        ...(awaySetsWon != null ? { awaySetsWon: Number(awaySetsWon) } : {}),
+      },
+    });
+    res.json(match);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Phase 4 Sprint 1 — reset current set score (called at end of set)
+export async function resetSetScore(req: Request, res: Response, next: NextFunction) {
+  try {
+    const match = await prisma.match.update({
+      where: { id: req.params.id },
+      data: { homeScore: 0, awayScore: 0 },
+    });
+    res.json(match);
+  } catch (err) {
+    next(err);
+  }
+}

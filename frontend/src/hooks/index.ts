@@ -122,6 +122,23 @@ export function useUpdateMatch() {
   });
 }
 
+export function useUpdateScore(matchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<Pick<Match, 'homeScore' | 'awayScore' | 'homeSetsWon' | 'awaySetsWon'>>) =>
+      matchesApi.updateScore(matchId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
+  });
+}
+
+export function useResetSetScore(matchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => matchesApi.resetSetScore(matchId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
+  });
+}
+
 // ─── Events ───────────────────────────────────────────────────────────────────
 export function useEvents(matchId: string, setNumber?: number) {
   return useQuery({

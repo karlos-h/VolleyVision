@@ -33,6 +33,37 @@ export default function MatchDashboardPage() {
         </Link>
       </div>
 
+      {/* Phase 4 — Final Score Summary */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 text-right">
+            <div className="text-sm text-chalk-400 mb-1">{data.match.teamName}</div>
+            <div className="font-mono text-3xl font-bold text-chalk-100">{data.match.homeScore}</div>
+          </div>
+          <div className="text-center shrink-0">
+            <div className="flex items-center gap-2 justify-center mb-1">
+              <span className="font-mono text-2xl font-bold text-spike-400">{data.match.homeSetsWon}</span>
+              <span className="text-chalk-500 text-sm">–</span>
+              <span className="font-mono text-2xl font-bold text-chalk-400">{data.match.awaySetsWon}</span>
+            </div>
+            <div className="text-xs text-chalk-500 uppercase tracking-wider">Sets Won</div>
+            {data.match.setScores && Array.isArray(data.match.setScores) && (data.match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
+              <div className="flex gap-2 justify-center mt-2">
+                {(data.match.setScores as {set:number;home:number;away:number}[]).map((s) => (
+                  <span key={s.set} className="text-xs font-mono text-chalk-400 bg-court-800 px-2 py-0.5 rounded">
+                    {s.home}–{s.away}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 text-left">
+            <div className="text-sm text-chalk-400 mb-1">{data.match.opponent}</div>
+            <div className="font-mono text-3xl font-bold text-chalk-400">{data.match.awayScore}</div>
+          </div>
+        </div>
+      </div>
+
       <StatsCards stats={data.teamStats} />
 
       <section>

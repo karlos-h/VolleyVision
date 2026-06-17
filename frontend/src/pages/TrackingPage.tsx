@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch } from '../hooks';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore } from '../hooks';
 import type { EventType, Player } from '../types';
 import { EVENT_META, POSITION_LABELS } from '../types';
 import clsx from 'clsx';
@@ -49,6 +49,9 @@ export default function TrackingPage() {
   const recordEvent = useRecordEvent(matchId!);
   const undoEvent = useUndoEvent(matchId!);
   const updateMatch = useUpdateMatch();
+
+  const updateScore = useUpdateScore(matchId!);
+  const resetSetScore = useResetSetScore(matchId!);
 
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
@@ -192,6 +195,72 @@ export default function TrackingPage() {
           </div>
         </div>
       </header>
+
+      {/* ── Live Scoreboard ── */}
+      <div className="bg-court-900 border-b border-court-800 px-4 py-3">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between gap-4">
+            {/* Home team */}
+            <div className="flex-1 text-right">
+              <div className="text-sm font-semibold text-chalk-300 truncate">{match.team?.name ?? 'Home'}</div>
+              <div className="font-mono text-4xl font-bold text-chalk-100 leading-none mt-1">{match.homeScore}</div>
+            </div>
+
+            {/* Centre — sets won + controls */}
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-xl font-bold text-spike-400">{match.homeSetsWon}</span>
+                <span className="text-chalk-500 text-xs font-semibold uppercase tracking-wider">Sets</span>
+                <span className="font-mono text-xl font-bold text-chalk-400">{match.awaySetsWon}</span>
+              </div>
+              <div className="text-xs text-chalk-500">Set {currentSet}</div>
+              <div className="flex gap-1 mt-1">
+                <button
+                  onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
+                  className="w-6 h-6 rounded bg-court-800 hover:bg-court-700 text-chalk-400 text-xs font-bold border border-court-700"
+                  title="Home −1"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
+                  className="w-6 h-6 rounded bg-court-800 hover:bg-court-700 text-chalk-400 text-xs font-bold border border-court-700"
+                  title="Home +1"
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => resetSetScore.mutate()}
+                  className="px-2 h-6 rounded bg-court-800 hover:bg-court-700 text-chalk-500 text-[10px] font-medium border border-court-700"
+                  title="Reset set score"
+                >
+                  RST
+                </button>
+                <button
+                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
+                  className="w-6 h-6 rounded bg-court-800 hover:bg-court-700 text-chalk-400 text-xs font-bold border border-court-700"
+                  title="Away −1"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
+                  className="w-6 h-6 rounded bg-court-800 hover:bg-court-700 text-chalk-400 text-xs font-bold border border-court-700"
+                  title="Away +1"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Away team */}
+            <div className="flex-1 text-left">
+              <div className="text-sm font-semibold text-chalk-300 truncate">{match.opponent}</div>
+              <div className="font-mono text-4xl font-bold text-chalk-400 leading-none mt-1">{match.awayScore}</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ── Main ── */}
       <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-4 flex flex-col gap-4 pb-6">

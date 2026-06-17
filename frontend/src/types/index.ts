@@ -69,6 +69,11 @@ export interface Match {
   teamId: string;
   team?: Team;
   setScores?: SetScore[];
+  // Phase 4 Sprint 1 — live scoring (default 0 on new matches)
+  homeScore?: number;
+  awayScore?: number;
+  homeSetsWon?: number;
+  awaySetsWon?: number;
   createdAt: string;
   updatedAt: string;
   _count?: { events: number };
@@ -126,7 +131,13 @@ export interface MatchAnalytics {
   match: Pick<
     Match,
     'id' | 'matchDate' | 'opponent' | 'competition' | 'venue' | 'status' | 'setScores' | 'teamId'
-  > & { teamName: string };
+  > & {
+    teamName: string;
+    homeScore: number;
+    awayScore: number;
+    homeSetsWon: number;
+    awaySetsWon: number;
+  };
   teamStats: StatLine;
   playerStats: PlayerStatLine[];
   setStats: Array<StatLine & { setNumber: number }>;
