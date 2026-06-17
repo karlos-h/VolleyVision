@@ -22,6 +22,10 @@ const eventSelect = {
   setNumber: true,
 } as const;
 
+// Only aggregate zones that passed validation on write (1–6).
+// Guards against any legacy rows or direct DB writes outside the API.
+const VALID_ZONE_FILTER = { gte: 1, lte: 6 } as const;
+
 export async function getMatchAnalytics(req: Request, res: Response, next: NextFunction) {
   try {
     const match = await prisma.match.findUnique({
@@ -157,7 +161,7 @@ export async function getMatchZones(req: Request, res: Response, next: NextFunct
         : {};
 
     const events = await prisma.event.findMany({
-      where: { matchId, courtZone: { not: null }, ...typeFilter },
+      where: { matchId, courtZone: VALID_ZONE_FILTER, ...typeFilter },
       select: { courtZone: true, eventType: true },
     });
 
@@ -173,41 +177,39 @@ export async function getMatchZones(req: Request, res: Response, next: NextFunct
   }
 }
 
+// Shared heatmap aggregation — reused by match, team, and player endpoints
+const HEATMAP_CATEGORIES = {
+  attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+  serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
+  pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
+  block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
+  defence: ['DIG', 'DIG_ERROR'],
+} as const;
+
+function buildHeatmap(events: { courtZone: number | null; eventType: string }[]) {
+  const empty = (): Record<string, number> => ({ '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 });
+  const result: Record<string, Record<string, number>> = {
+    attack: empty(), serve: empty(), pass: empty(), block: empty(), defence: empty(), all: empty(),
+  };
+  for (const e of events) {
+    if (e.courtZone == null) continue;
+    const z = String(e.courtZone);
+    result.all[z]++;
+    for (const [cat, types] of Object.entries(HEATMAP_CATEGORIES)) {
+      if ((types as readonly string[]).includes(e.eventType)) result[cat][z]++;
+    }
+  }
+  return result;
+}
+
 // Sprint 3 — per-category zone breakdown for heat maps (match scope)
 export async function getMatchHeatmap(req: Request, res: Response, next: NextFunction) {
   try {
-    const { matchId } = req.params;
-
-    const CATEGORIES = {
-      attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
-      serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
-      pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
-      block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
-      defence: ['DIG', 'DIG_ERROR'],
-    } as const;
-
     const events = await prisma.event.findMany({
-      where: { matchId, courtZone: { not: null } },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER },
       select: { courtZone: true, eventType: true },
     });
-
-    const empty = () => ({ '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 });
-    const result: Record<string, Record<string, number>> = {
-      attack: empty(), serve: empty(), pass: empty(), block: empty(), defence: empty(), all: empty(),
-    };
-
-    for (const e of events) {
-      if (e.courtZone == null) continue;
-      const z = String(e.courtZone);
-      result.all[z]++;
-      for (const [cat, types] of Object.entries(CATEGORIES)) {
-        if ((types as readonly string[]).includes(e.eventType)) {
-          result[cat][z]++;
-        }
-      }
-    }
-
-    res.json(result);
+    res.json(buildHeatmap(events));
   } catch (err) {
     next(err);
   }
@@ -216,38 +218,30 @@ export async function getMatchHeatmap(req: Request, res: Response, next: NextFun
 // Sprint 3 — per-category zone breakdown for heat maps (team/season scope)
 export async function getTeamHeatmap(req: Request, res: Response, next: NextFunction) {
   try {
-    const { teamId } = req.params;
-
-    const CATEGORIES = {
-      attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
-      serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
-      pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
-      block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
-      defence: ['DIG', 'DIG_ERROR'],
-    } as const;
-
     const events = await prisma.event.findMany({
-      where: { match: { teamId }, courtZone: { not: null } },
+      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER },
       select: { courtZone: true, eventType: true },
     });
+    res.json(buildHeatmap(events));
+  } catch (err) {
+    next(err);
+  }
+}
 
-    const empty = () => ({ '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 });
-    const result: Record<string, Record<string, number>> = {
-      attack: empty(), serve: empty(), pass: empty(), block: empty(), defence: empty(), all: empty(),
-    };
+// Phase 3.1 Task 3 — per-category zone breakdown for a single player
+export async function getPlayerHeatmap(req: Request, res: Response, next: NextFunction) {
+  try {
+    const player = await prisma.player.findUnique({
+      where: { id: req.params.playerId },
+      select: { id: true },
+    });
+    if (!player) throw new AppError(404, 'Player not found.');
 
-    for (const e of events) {
-      if (e.courtZone == null) continue;
-      const z = String(e.courtZone);
-      result.all[z]++;
-      for (const [cat, types] of Object.entries(CATEGORIES)) {
-        if ((types as readonly string[]).includes(e.eventType)) {
-          result[cat][z]++;
-        }
-      }
-    }
-
-    res.json(result);
+    const events = await prisma.event.findMany({
+      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER },
+      select: { courtZone: true, eventType: true },
+    });
+    res.json(buildHeatmap(events));
   } catch (err) {
     next(err);
   }

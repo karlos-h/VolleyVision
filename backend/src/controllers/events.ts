@@ -17,7 +17,7 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
     if (courtZone != null) {
       const zone = Number(courtZone);
       if (!Number.isInteger(zone) || zone < 1 || zone > 6) {
-        throw new AppError(400, 'courtZone must be an integer between 1 and 6.');
+        throw new AppError(400, 'Court zone must be between 1 and 6.');
       }
     }
 

@@ -25,7 +25,7 @@
     @apply no-select relative flex flex-col items-center justify-center rounded-xl
            font-semibold text-sm leading-tight transition-all duration-75
            active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-spike-400;
-    min-height: 64px;
+    min-height: 76px;
     padding: 10px 8px;
   }
 

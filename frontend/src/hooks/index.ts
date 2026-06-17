@@ -201,3 +201,11 @@ export function useTeamHeatmap(teamId: string) {
     enabled: !!teamId,
   });
 }
+
+export function usePlayerHeatmap(playerId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'heatmap', 'player', playerId],
+    queryFn: () => analyticsApi.playerHeatmap(playerId),
+    enabled: !!playerId,
+  });
+}

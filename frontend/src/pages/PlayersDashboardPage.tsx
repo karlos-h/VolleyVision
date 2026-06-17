@@ -1,13 +1,15 @@
 import { Link, useParams } from 'react-router-dom';
-import { usePlayerAnalytics } from '../hooks';
+import { usePlayerAnalytics, usePlayerHeatmap } from '../hooks';
 import { StatsCards } from '../components/analytics/StatsOverview';
 import { POSITION_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
+import HeatMapCourt from '../components/court/HeatMapCourt';
 import type { StatLine } from '../types';
 
 export default function PlayerDashboardPage() {
   const { playerId } = useParams<{ playerId: string }>();
   const { data, isLoading, isError } = usePlayerAnalytics(playerId!);
+  const { data: heatmapData } = usePlayerHeatmap(playerId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics…</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load player analytics.</p>;
@@ -32,6 +34,13 @@ export default function PlayerDashboardPage() {
 
       <StatsCards stats={data.stats} />
       <PlayerRadarChart stats={data.stats} />
+
+      {heatmapData && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Player Heat Map</h2>
+          <HeatMapCourt data={heatmapData} />
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold text-chalk-100 mb-3">Set Breakdown</h2>

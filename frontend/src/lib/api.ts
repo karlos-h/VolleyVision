@@ -98,6 +98,9 @@ export const analyticsApi = {
 
   teamHeatmap: (teamId: string) =>
     api.get<HeatmapData>(`/analytics/teams/${teamId}/heatmap`).then((r) => r.data),
+
+  playerHeatmap: (playerId: string) =>
+    api.get<HeatmapData>(`/analytics/players/${playerId}/heatmap`).then((r) => r.data),
 };
 
 export default api;

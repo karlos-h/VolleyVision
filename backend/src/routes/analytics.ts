@@ -4,6 +4,7 @@ import {
   getMatchZones,
   getMatchHeatmap,
   getPlayerAnalytics,
+  getPlayerHeatmap,
   getTeamAnalytics,
   getTeamTrends,
   getTeamHeatmap,
@@ -18,5 +19,6 @@ router.get('/teams/:teamId', getTeamAnalytics);
 router.get('/teams/:teamId/trends', getTeamTrends);
 router.get('/teams/:teamId/heatmap', getTeamHeatmap);
 router.get('/players/:playerId', getPlayerAnalytics);
+router.get('/players/:playerId/heatmap', getPlayerHeatmap);
 
 export default router;

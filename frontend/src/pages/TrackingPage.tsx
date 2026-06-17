@@ -53,6 +53,7 @@ export default function TrackingPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
   const [selectedZone, setSelectedZone] = useState<number | null>(null);
+  const [keepZone, setKeepZone] = useState(true);
   const [flash, setFlash] = useState<FlashState>(null);
   const [justRecorded, setJustRecorded] = useState<string | null>(null);
 
@@ -86,6 +87,7 @@ export default function TrackingPage() {
       });
       showFlash(`${meta.label} → #${selectedPlayer.jerseyNumber}`, true);
       setTimeout(() => setJustRecorded(null), 300);
+      if (!keepZone) setSelectedZone(null);
     } catch {
       showFlash('Failed to record', false);
       setJustRecorded(null);
@@ -304,6 +306,15 @@ export default function TrackingPage() {
 
         {/* ── Court zone selector ── */}
         <div className="card p-3">
+          <label className="flex items-center gap-2 text-xs text-chalk-400 mb-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={keepZone}
+              onChange={(e) => setKeepZone(e.target.checked)}
+              className="accent-spike-500 w-4 h-4"
+            />
+            Keep Selected Zone after recording
+          </label>
           <CourtZoneSelector value={selectedZone} onChange={setSelectedZone} />
         </div>
 
