@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -162,6 +162,20 @@ export const membershipsApi = {
   myTeams: () => api.get<UserTeamMembership[]>('/users/me/teams').then((r) => r.data),
   searchUsers: (q: string) =>
     api.get<UserSearchResult[]>('/users/search', { params: { q } }).then((r) => r.data),
+};
+
+// ─── Invitations (Phase 5 Sprint 4) ──────────────────────────────────────────
+export const invitationsApi = {
+  listByTeam: (teamId: string) =>
+    api.get<Invitation[]>(`/teams/${teamId}/invitations`).then((r) => r.data),
+  create: (teamId: string, data: { email: string; role: TeamRole }) =>
+    api.post<Invitation>(`/teams/${teamId}/invitations`, data).then((r) => r.data),
+  accept: (token: string) =>
+    api.post<Invitation>(`/invitations/${token}/accept`).then((r) => r.data),
+  decline: (token: string) =>
+    api.post<Invitation>(`/invitations/${token}/decline`).then((r) => r.data),
+  myInvitations: () =>
+    api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
 };
 
 export default api;

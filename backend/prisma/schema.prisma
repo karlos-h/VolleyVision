@@ -83,6 +83,14 @@ enum TeamRole {
   VIEWER
 }
 
+// Phase 5 Sprint 4 — Team Invitations
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Phase 5 Sprint 1 — Authentication
@@ -101,6 +109,9 @@ model User {
 
   // Phase 5 Sprint 3 — Team Memberships
   memberships  TeamMembership[]
+
+  // Phase 5 Sprint 4 — Invitations
+  sentInvitations Invitation[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -123,6 +134,9 @@ model Team {
 
   // Phase 5 Sprint 3 — Team Memberships
   memberships TeamMembership[]
+
+  // Phase 5 Sprint 4 — Invitations
+  invitations Invitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,6 +162,32 @@ model TeamMembership {
   @@index([userId])
 
   @@map("team_memberships")
+}
+
+// Phase 5 Sprint 4 — Team Invitation System
+model Invitation {
+  id          String           @id @default(cuid())
+  email       String
+  teamId      String           @map("team_id")
+  invitedById String           @map("invited_by_id")
+  role        TeamRole
+  status      InvitationStatus @default(PENDING)
+  token       String           @unique
+
+  expiresAt   DateTime         @map("expires_at")
+  acceptedAt  DateTime?        @map("accepted_at")
+
+  team        Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy   User             @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime         @default(now())
+
+  @@index([teamId])
+  @@index([invitedById])
+  @@index([token])
+  @@index([email])
+
+  @@map("invitations")
 }
 
 model Player {

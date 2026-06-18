@@ -9,6 +9,7 @@ import Layout from './components/ui/Layout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MyTeamsPage from './pages/MyTeamsPage';
+import InvitationsPage from './pages/InvitationsPage';
 import TeamsPage from './pages/TeamsPage';
 import TeamDetailPage from './pages/TeamDetailPage';
 import MatchesPage from './pages/MatchesPage';
@@ -39,6 +40,7 @@ function App() {
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/teams" replace />} />
             <Route path="/my-teams" element={<MyTeamsPage />} />
+            <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
             <Route path="/teams/:teamId/matches" element={<MatchesPage />} />

@@ -11,6 +11,7 @@ import eventRoutes from './routes/events';
 import analyticsRoutes from './routes/analytics';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
+import invitationRoutes from './routes/invitations';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use(express.json());
 // breaking existing clients (e.g. a tablet app locked on an old version).
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/invitations', invitationRoutes);
 app.use('/api/v1/teams', teamRoutes);
 app.use('/api/v1/players', playerRoutes);
 app.use('/api/v1/matches', matchRoutes);

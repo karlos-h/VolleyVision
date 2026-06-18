@@ -1,10 +1,123 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership } from '../hooks';
-import type { Position } from '../types';
+import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership, useTeamInvitations, useCreateInvitation } from '../hooks';
+import type { Position, TeamRole, InvitationStatus, Invitation } from '../types';
 import { POSITION_LABELS } from '../types';
 import { useAuth } from '../context/AuthContext';
 import TeamMembersCard from '../components/team/TeamMembersCard';
+
+const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
+  { value: 'HEAD_COACH',       label: 'Head Coach' },
+  { value: 'ASSISTANT_COACH',  label: 'Assistant Coach' },
+  { value: 'STATISTICIAN',     label: 'Statistician' },
+  { value: 'PLAYER',           label: 'Player' },
+  { value: 'VIEWER',           label: 'Viewer' },
+];
+
+const STATUS_COLORS: Record<InvitationStatus, string> = {
+  PENDING:  'bg-amber-800/30 text-amber-300',
+  ACCEPTED: 'bg-emerald-800/30 text-emerald-300',
+  DECLINED: 'bg-red-900/30 text-red-400',
+  EXPIRED:  'bg-court-700 text-chalk-500',
+};
+
+function TeamInvitationsCard({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
+  const { data: invitations, isLoading } = useTeamInvitations(teamId);
+  const createInv = useCreateInvitation(teamId);
+  const [showForm, setShowForm] = useState(false);
+  const [invEmail, setInvEmail] = useState('');
+  const [invRole, setInvRole] = useState<TeamRole>('PLAYER');
+  const [invError, setInvError] = useState('');
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setInvError('');
+    try {
+      await createInv.mutateAsync({ email: invEmail.trim(), role: invRole });
+      setInvEmail('');
+      setInvRole('PLAYER');
+      setShowForm(false);
+    } catch (err: any) {
+      setInvError(err?.response?.data?.error ?? 'Failed to send invitation.');
+    }
+  }
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3 border-b border-court-800 flex items-center justify-between">
+        <h2 className="font-semibold text-chalk-100">Invitations</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-chalk-400 font-mono">
+            {invitations?.filter((i) => i.status === 'PENDING').length ?? 0} pending
+          </span>
+          {isOwner && (
+            <button className="btn-primary text-xs px-3 py-1.5" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : '+ Invite'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showForm && isOwner && (
+        <form onSubmit={handleCreate} className="px-5 py-4 border-b border-court-800 bg-court-900/50 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs text-chalk-400 font-medium mb-1">Email address</label>
+              <input
+                className="input text-sm"
+                type="email"
+                placeholder="player@example.com"
+                value={invEmail}
+                onChange={(e) => setInvEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-chalk-400 font-medium mb-1">Role</label>
+              <select
+                className="input text-sm"
+                value={invRole}
+                onChange={(e) => setInvRole(e.target.value as TeamRole)}
+              >
+                {ROLE_OPTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {invError && <p className="text-red-400 text-xs">{invError}</p>}
+          <button type="submit" className="btn-primary text-sm" disabled={createInv.isPending}>
+            {createInv.isPending ? 'Sending…' : 'Send Invitation'}
+          </button>
+        </form>
+      )}
+
+      {isLoading ? (
+        <p className="text-chalk-400 text-sm p-5">Loading…</p>
+      ) : !invitations?.length ? (
+        <p className="text-chalk-500 text-sm p-5 italic">No invitations yet.</p>
+      ) : (
+        <div className="divide-y divide-court-800">
+          {invitations.map((inv: Invitation) => (
+            <div key={inv.id} className="flex items-center gap-4 px-5 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-chalk-100 text-sm font-medium truncate">{inv.email}</p>
+                <p className="text-chalk-500 text-xs">
+                  {ROLE_OPTIONS.find((r) => r.value === inv.role)?.label ?? inv.role}
+                  {' · '}
+                  {new Date(inv.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <span className={`badge text-xs ${STATUS_COLORS[inv.status]}`}>
+                {inv.status.charAt(0) + inv.status.slice(1).toLowerCase()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const POSITIONS: Position[] = [
   'SETTER',
@@ -207,6 +320,9 @@ export default function TeamDetailPage() {
 
       {/* Members */}
       <TeamMembersCard teamId={teamId!} ownerId={team.ownerId} />
+
+      {/* Invitations */}
+      <TeamInvitationsCard teamId={teamId!} isOwner={!!user && user.id === team.ownerId} />
 
       {/* Add player form */}
       {showForm && (

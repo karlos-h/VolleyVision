@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../controllers/teams';
 import { myTeams, claimTeam, transferTeam, teamOwner } from '../controllers/teamOwnership';
 import { listMembers, createMember, updateMember, deleteMember } from '../controllers/teamMembership';
+import { createTeamInvitation, listTeamInvitations } from '../controllers/invitation';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -26,5 +27,9 @@ router.get('/:id/members', listMembers);
 router.post('/:id/members', requireAuth, createMember);
 router.patch('/:id/members/:memberId', requireAuth, updateMember);
 router.delete('/:id/members/:memberId', requireAuth, deleteMember);
+
+// Invitation management
+router.get('/:id/invitations', requireAuth, listTeamInvitations);
+router.post('/:id/invitations', requireAuth, createTeamInvitation);
 
 export default router;

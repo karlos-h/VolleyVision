@@ -8,6 +8,7 @@ const NAV_PUBLIC = [
 const NAV_AUTH = [
   { to: '/teams', label: 'Teams' },
   { to: '/my-teams', label: 'My Teams' },
+  { to: '/invitations', label: 'Invitations' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

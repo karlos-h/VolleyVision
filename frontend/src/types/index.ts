@@ -410,3 +410,22 @@ export const POSITION_LABELS: Record<Position, string> = {
   LIBERO: 'L',
   DEFENSIVE_SPECIALIST: 'DS',
 };
+
+// ─── Invitations (Phase 5 Sprint 4) ──────────────────────────────────────────
+
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+
+export interface Invitation {
+  id: string;
+  email: string;
+  teamId: string;
+  invitedById: string;
+  role: TeamRole;
+  status: InvitationStatus;
+  token: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+  team?: { id: string; name: string; division?: string; season: string };
+  invitedBy?: { id: string; firstName: string; lastName: string; email: string };
+}

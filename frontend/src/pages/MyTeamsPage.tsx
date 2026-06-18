@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useMyTeams, useMyMemberships } from '../hooks';
+import { useMyTeams, useMyMemberships, useMyInvitations } from '../hooks';
 import { useAuth } from '../context/AuthContext';
 import type { TeamRole } from '../types';
 
@@ -58,6 +58,8 @@ export default function MyTeamsPage() {
   const { user } = useAuth();
   const { data: ownedTeams, isLoading: loadingOwned } = useMyTeams();
   const { data: memberships, isLoading: loadingMember } = useMyMemberships();
+  const { data: invitations } = useMyInvitations();
+  const pendingCount = invitations?.length ?? 0;
 
   // Filter out memberships where user is also the owner (already shown in owned section)
   const memberTeams = memberships?.filter((m) => m.team.ownerId !== user?.id) ?? [];
@@ -68,11 +70,24 @@ export default function MyTeamsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-chalk-100">My Teams</h1>
-        <p className="text-chalk-400 text-sm mt-0.5">
-          Teams you own or belong to, {user?.firstName} {user?.lastName}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-chalk-100">My Teams</h1>
+          <p className="text-chalk-400 text-sm mt-0.5">
+            Teams you own or belong to, {user?.firstName} {user?.lastName}
+          </p>
+        </div>
+        <Link
+          to="/invitations"
+          className="btn-secondary text-sm flex items-center gap-2 shrink-0"
+        >
+          Invitations
+          {pendingCount > 0 && (
+            <span className="bg-spike-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {pendingCount}
+            </span>
+          )}
+        </Link>
       </div>
 
       {isLoading ? (

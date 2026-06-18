@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi } from '../lib/api';
 import type { Team, Player, Match, TeamRole } from '../types';
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
@@ -354,5 +354,51 @@ export function useTransferOwnership() {
       qc.invalidateQueries({ queryKey: ['teams', vars.teamId] });
       qc.invalidateQueries({ queryKey: ['teams', 'my-teams'] });
     },
+  });
+}
+
+// ─── Invitations (Phase 5 Sprint 4) ──────────────────────────────────────────
+
+export function useTeamInvitations(teamId: string) {
+  return useQuery({
+    queryKey: ['invitations', 'team', teamId],
+    queryFn: () => invitationsApi.listByTeam(teamId),
+    enabled: !!teamId,
+  });
+}
+
+export function useMyInvitations() {
+  return useQuery({
+    queryKey: ['invitations', 'me'],
+    queryFn: invitationsApi.myInvitations,
+  });
+}
+
+export function useCreateInvitation(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { email: string; role: TeamRole }) =>
+      invitationsApi.create(teamId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', 'team', teamId] }),
+  });
+}
+
+export function useAcceptInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => invitationsApi.accept(token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invitations', 'me'] });
+      qc.invalidateQueries({ queryKey: ['members'] });
+      qc.invalidateQueries({ queryKey: ['memberships', 'me'] });
+    },
+  });
+}
+
+export function useDeclineInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => invitationsApi.decline(token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', 'me'] }),
   });
 }
