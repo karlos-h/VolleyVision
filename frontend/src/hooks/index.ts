@@ -235,6 +235,22 @@ export function useMatchMomentum(matchId: string) {
   });
 }
 
+export function useMatchAdvanced(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'advanced', 'match', matchId],
+    queryFn: () => analyticsApi.matchAdvanced(matchId),
+    enabled: !!matchId,
+  });
+}
+
+export function useTeamAdvanced(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'advanced', 'team', teamId],
+    queryFn: () => analyticsApi.teamAdvanced(teamId),
+    enabled: !!teamId,
+  });
+}
+
 export function useMatchRotations(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'rotations', 'match', matchId],

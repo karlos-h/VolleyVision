@@ -1,13 +1,14 @@
 import { Link, useParams } from 'react-router-dom';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import StatLeaderboardChart from '../components/charts/StatLeaderboardChart';
-import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations } from '../hooks';
+import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced } from '../hooks';
 import TeamTrendChart from '../components/charts/TeamTrendChart';
 import CoachInsights from '../components/analytics/CoachInsights';
 import { generateTeamInsights } from '../lib/insights';
 import PlayerInsights from '../components/analytics/PlayerInsights';
 import HeatMapCourt from '../components/court/HeatMapCourt';
 import RotationAnalytics from '../components/analytics/RotationAnalytics';
+import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
 
 export default function TeamDashboardPage() {
   const { teamId } = useParams<{ teamId: string }>();
@@ -15,6 +16,7 @@ export default function TeamDashboardPage() {
   const trends = useTeamTrends(teamId!);
   const { data: heatmapData } = useTeamHeatmap(teamId!);
   const { data: rotationData } = useTeamRotations(teamId!);
+  const { data: advancedData } = useTeamAdvanced(teamId!);
 
   const insights =
   trends.data
@@ -112,6 +114,14 @@ export default function TeamDashboardPage() {
         />
       </div>
       
+      {/* Phase 4 Sprint 5 — Advanced Metrics */}
+      {advancedData && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Advanced Performance Metrics</h2>
+          <AdvancedMetricsPanel data={advancedData} heatmapData={heatmapData} />
+        </section>
+      )}
+
       {/* Phase 4 — Rotation Analytics */}
       <section>
         <h2 className="text-lg font-semibold text-chalk-100 mb-3">Rotation Analytics</h2>

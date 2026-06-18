@@ -88,6 +88,41 @@ export interface SetScore {
 export type HeatmapData = Record<'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'all', Record<string, number>>;
 export type ZoneCounts = Record<string, number>;
 
+export interface AdvancedMetrics {
+  sideOut: {
+    attempts: number;
+    qualityPasses: number;
+    efficiencyPct: number | null;
+    perfectPassRate: number | null;
+    pass3: number;
+    pass2: number;
+    pass1: number;
+    pass0: number;
+  };
+  serve: {
+    attempts: number;
+    aces: number;
+    errors: number;
+    aceRate: number | null;
+    errorRate: number | null;
+    positiveRate: number | null;
+  };
+  attack: {
+    attempts: number;
+    kills: number;
+    errors: number;
+    killRate: number | null;
+    hittingPct: number | null;
+  };
+  blocking: {
+    soloBlocks: number;
+    blockAssists: number;
+    totalBlocks: number;
+    blocksPerSet: number | null;
+  };
+  setsPlayed: number;
+}
+
 export interface RotationStat {
   rotation: number;
   won: number;

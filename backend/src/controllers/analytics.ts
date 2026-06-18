@@ -251,6 +251,102 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
   }
 }
 
+// Phase 4 Sprint 5 — Advanced Performance Metrics
+function buildAdvancedMetrics(events: { eventType: string; setNumber: number }[]) {
+  const counts: Record<string, number> = {};
+  for (const e of events) {
+    counts[e.eventType] = (counts[e.eventType] ?? 0) + 1;
+  }
+
+  const c = (key: string) => counts[key] ?? 0;
+
+  // Side-out efficiency: quality passes (2 or 3) / total passes
+  const passAttempts = c('PASS_3') + c('PASS_2') + c('PASS_1') + c('PASS_0');
+  const qualityPasses = c('PASS_3') + c('PASS_2');
+  const sideOutEfficiency = passAttempts > 0 ? Math.round((qualityPasses / passAttempts) * 1000) / 10 : null;
+  const perfectPassRate = passAttempts > 0 ? Math.round((c('PASS_3') / passAttempts) * 1000) / 10 : null;
+
+  // Serve efficiency
+  const serveAttempts = c('ACE') + c('SERVICE_ERROR') + c('SERVE_IN');
+  const aceRate = serveAttempts > 0 ? Math.round((c('ACE') / serveAttempts) * 1000) / 10 : null;
+  const serveErrorRate = serveAttempts > 0 ? Math.round((c('SERVICE_ERROR') / serveAttempts) * 1000) / 10 : null;
+  const servePositiveRate = serveAttempts > 0 ? Math.round(((c('ACE') + c('SERVE_IN')) / serveAttempts) * 1000) / 10 : null;
+
+  // Attack metrics
+  const attackAttempts = c('KILL') + c('ATTACK_ERROR') + c('ATTACK_ATTEMPT');
+  const killRate = attackAttempts > 0 ? Math.round((c('KILL') / attackAttempts) * 1000) / 10 : null;
+  const hittingPct = attackAttempts > 0
+    ? Math.round(((c('KILL') - c('ATTACK_ERROR')) / attackAttempts) * 1000) / 1000
+    : null;
+
+  // Blocking efficiency
+  const soloBlocks = c('SOLO_BLOCK');
+  const blockAssists = c('BLOCK_ASSIST');
+  const totalBlocks = soloBlocks + blockAssists * 0.5;
+  const sets = new Set(events.map((e) => e.setNumber));
+  const setsPlayed = sets.size;
+  const blocksPerSet = setsPlayed > 0 ? Math.round((totalBlocks / setsPlayed) * 100) / 100 : null;
+
+  return {
+    sideOut: {
+      attempts: passAttempts,
+      qualityPasses,
+      efficiencyPct: sideOutEfficiency,
+      perfectPassRate,
+      pass3: c('PASS_3'),
+      pass2: c('PASS_2'),
+      pass1: c('PASS_1'),
+      pass0: c('PASS_0'),
+    },
+    serve: {
+      attempts: serveAttempts,
+      aces: c('ACE'),
+      errors: c('SERVICE_ERROR'),
+      aceRate,
+      errorRate: serveErrorRate,
+      positiveRate: servePositiveRate,
+    },
+    attack: {
+      attempts: attackAttempts,
+      kills: c('KILL'),
+      errors: c('ATTACK_ERROR'),
+      killRate,
+      hittingPct,
+    },
+    blocking: {
+      soloBlocks,
+      blockAssists,
+      totalBlocks,
+      blocksPerSet,
+    },
+    setsPlayed,
+  };
+}
+
+export async function getMatchAdvanced(req: Request, res: Response, next: NextFunction) {
+  try {
+    const events = await prisma.event.findMany({
+      where: { matchId: req.params.matchId },
+      select: { eventType: true, setNumber: true },
+    });
+    res.json(buildAdvancedMetrics(events));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getTeamAdvanced(req: Request, res: Response, next: NextFunction) {
+  try {
+    const events = await prisma.event.findMany({
+      where: { match: { teamId: req.params.teamId } },
+      select: { eventType: true, setNumber: true },
+    });
+    res.json(buildAdvancedMetrics(events));
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Phase 4 Sprint 4 — Rotation Analytics
 const VALID_ROTATION_FILTER = { gte: 1, lte: 6 } as const;
 
