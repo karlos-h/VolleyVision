@@ -3,11 +3,8 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion } from '../lib/scoring';
 import { scoringTeam } from '../lib/scoringRules';
+import { recalculateMatchState } from '../services/matchState.service';
 
-// Record a single event. This endpoint must be fast — it's called on every
-// button tap courtside. Validation is intentionally minimal; the client
-// enforces most rules. The DB indexes on matchId + setNumber make this query
-// pattern efficient for Phase 2 aggregations.
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
     const { matchId, playerId, eventType, setNumber, rallyNumber, courtZone, rotationNumber, notes } = req.body;
@@ -41,11 +38,9 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
         rotationNumber: rotationNumber != null ? Number(rotationNumber) : null,
         notes: notes || null,
       },
-      // Return player name so the client can confirm without a separate request
       include: { player: { select: { firstName: true, lastName: true, jerseyNumber: true } } },
     });
 
-    // Auto-update live score based on scoring events, then check set completion
     const team = scoringTeam(eventType);
     if (team === 'home') {
       await prisma.match.update({ where: { id: matchId }, data: { homeScore: { increment: 1 } } });
@@ -61,8 +56,6 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// Get all events for a match, ordered chronologically.
-// This feed powers the live ticker in the tracking screen.
 export async function getEventsByMatch(req: Request, res: Response, next: NextFunction) {
   try {
     const { setNumber } = req.query;
@@ -82,23 +75,7 @@ export async function getEventsByMatch(req: Request, res: Response, next: NextFu
   }
 }
 
-async function reverseScore(matchId: string, eventType: string): Promise<void> {
-  const team = scoringTeam(eventType);
-  if (team === 'home') {
-    const match = await prisma.match.findUnique({ where: { id: matchId }, select: { homeScore: true } });
-    if (match && match.homeScore > 0) {
-      await prisma.match.update({ where: { id: matchId }, data: { homeScore: { decrement: 1 } } });
-    }
-  } else if (team === 'away') {
-    const match = await prisma.match.findUnique({ where: { id: matchId }, select: { awayScore: true } });
-    if (match && match.awayScore > 0) {
-      await prisma.match.update({ where: { id: matchId }, data: { awayScore: { decrement: 1 } } });
-    }
-  }
-}
-
 // Delete the most recent event for a match (undo last entry).
-// Courtside mistakes happen — this prevents re-entering the whole sequence.
 export async function deleteLastEvent(req: Request, res: Response, next: NextFunction) {
   try {
     const latest = await prisma.event.findFirst({
@@ -107,7 +84,7 @@ export async function deleteLastEvent(req: Request, res: Response, next: NextFun
     });
     if (!latest) throw new AppError(404, 'No events to undo.');
     await prisma.event.delete({ where: { id: latest.id } });
-    await reverseScore(latest.matchId, latest.eventType);
+    await recalculateMatchState(latest.matchId);
     res.json({ deleted: latest.id });
   } catch (err) {
     next(err);
@@ -120,7 +97,7 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
     const event = await prisma.event.findUnique({ where: { id: req.params.id } });
     if (!event) throw new AppError(404, 'Event not found.');
     await prisma.event.delete({ where: { id: event.id } });
-    await reverseScore(event.matchId, event.eventType);
+    await recalculateMatchState(event.matchId);
     res.status(204).send();
   } catch (err) {
     next(err);
