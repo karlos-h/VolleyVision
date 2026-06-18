@@ -5,6 +5,44 @@
 
 export type UserRole = 'ADMIN' | 'COACH' | 'PLAYER' | 'VIEWER';
 
+export type TeamRole = 'HEAD_COACH' | 'ASSISTANT_COACH' | 'STATISTICIAN' | 'PLAYER' | 'VIEWER';
+
+export interface TeamMember {
+  id: string; // membership id
+  role: TeamRole;
+  joinedAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: UserRole;
+    profileImage: string | null;
+  };
+}
+
+export interface UserTeamMembership {
+  id: string;
+  role: TeamRole;
+  joinedAt: string;
+  team: {
+    id: string;
+    name: string;
+    division?: string;
+    season: string;
+    ownerId?: string | null;
+    _count?: { players: number; matches: number };
+  };
+}
+
+export interface UserSearchResult {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: UserRole;
+}
+
 export interface User {
   id: string;
   email: string;

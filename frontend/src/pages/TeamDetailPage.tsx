@@ -4,6 +4,7 @@ import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTea
 import type { Position } from '../types';
 import { POSITION_LABELS } from '../types';
 import { useAuth } from '../context/AuthContext';
+import TeamMembersCard from '../components/team/TeamMembersCard';
 
 const POSITIONS: Position[] = [
   'SETTER',
@@ -203,6 +204,9 @@ export default function TeamDetailPage() {
           </p>
         )}
       </div>
+
+      {/* Members */}
+      <TeamMembersCard teamId={teamId!} ownerId={team.ownerId} />
 
       {/* Add player form */}
       {showForm && (

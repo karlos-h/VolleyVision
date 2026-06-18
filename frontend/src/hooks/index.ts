@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi } from '../lib/api';
-import type { Team, Player, Match } from '../types';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi } from '../lib/api';
+import type { Team, Player, Match, TeamRole } from '../types';
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
 export function useTeams() {
@@ -272,6 +272,57 @@ export function useTeamRotations(teamId: string) {
     queryKey: ['analytics', 'rotations', 'team', teamId],
     queryFn: () => analyticsApi.teamRotations(teamId),
     enabled: !!teamId,
+  });
+}
+
+// ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────
+
+export function useTeamMembers(teamId: string) {
+  return useQuery({
+    queryKey: ['members', teamId],
+    queryFn: () => membershipsApi.listByTeam(teamId),
+    enabled: !!teamId,
+  });
+}
+
+export function useAddMember(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { userId: string; role: TeamRole }) =>
+      membershipsApi.add(teamId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+  });
+}
+
+export function useUpdateMemberRole(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, role }: { memberId: string; role: TeamRole }) =>
+      membershipsApi.updateRole(teamId, memberId, role),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+  });
+}
+
+export function useRemoveMember(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (memberId: string) => membershipsApi.remove(teamId, memberId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+  });
+}
+
+export function useMyMemberships() {
+  return useQuery({
+    queryKey: ['memberships', 'me'],
+    queryFn: membershipsApi.myTeams,
+  });
+}
+
+export function useUserSearch(q: string) {
+  return useQuery({
+    queryKey: ['users', 'search', q],
+    queryFn: () => membershipsApi.searchUsers(q),
+    enabled: q.trim().length >= 2,
   });
 }
 

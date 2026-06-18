@@ -74,6 +74,15 @@ enum UserRole {
   VIEWER
 }
 
+// Phase 5 Sprint 3 — Team Membership
+enum TeamRole {
+  HEAD_COACH
+  ASSISTANT_COACH
+  STATISTICIAN
+  PLAYER
+  VIEWER
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Phase 5 Sprint 1 — Authentication
@@ -89,6 +98,9 @@ model User {
 
   // Phase 5 Sprint 2 — Team Ownership
   teams        Team[]
+
+  // Phase 5 Sprint 3 — Team Memberships
+  memberships  TeamMembership[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -106,13 +118,36 @@ model Team {
   ownerId   String?  @map("owner_id")
   owner     User?    @relation(fields: [ownerId], references: [id])
 
-  players   Player[]
-  matches   Match[]
+  players     Player[]
+  matches     Match[]
+
+  // Phase 5 Sprint 3 — Team Memberships
+  memberships TeamMembership[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("teams")
+}
+
+// Phase 5 Sprint 3 — Team Membership join table
+model TeamMembership {
+  id       String   @id @default(cuid())
+
+  userId   String   @map("user_id")
+  teamId   String   @map("team_id")
+  role     TeamRole
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  @@unique([userId, teamId])
+  @@index([teamId])
+  @@index([userId])
+
+  @@map("team_memberships")
 }
 
 model Player {

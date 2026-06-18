@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { syncOwnerMembership } from './teamMembership.service';
 
 const ownerSelect = {
   id: true,
@@ -21,31 +22,35 @@ export async function getOwnedTeams(userId: string) {
 
 /** Assign ownership of an unowned team to a user. Throws if already owned. */
 export async function assignOwner(teamId: string, userId: string) {
-  const team = await prisma.team.findUnique({ where: { id: teamId } });
-  if (!team) throw new AppError(404, 'Team not found.');
-  if (team.ownerId !== null) throw new AppError(403, 'This team already has an owner.');
+  const existing = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!existing) throw new AppError(404, 'Team not found.');
+  if (existing.ownerId !== null) throw new AppError(403, 'This team already has an owner.');
 
-  return prisma.team.update({
+  const updated = await prisma.team.update({
     where: { id: teamId },
     data: { ownerId: userId },
     include: { owner: { select: ownerSelect } },
   });
+  await syncOwnerMembership(teamId, userId);
+  return updated;
 }
 
 /** Transfer ownership from current owner to another user. Only current owner may call. */
 export async function transferOwnership(teamId: string, requesterId: string, newOwnerId: string) {
-  const team = await prisma.team.findUnique({ where: { id: teamId } });
-  if (!team) throw new AppError(404, 'Team not found.');
-  if (team.ownerId !== requesterId) throw new AppError(403, 'Only the current owner can transfer ownership.');
+  const existing = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!existing) throw new AppError(404, 'Team not found.');
+  if (existing.ownerId !== requesterId) throw new AppError(403, 'Only the current owner can transfer ownership.');
 
   const newOwner = await prisma.user.findUnique({ where: { id: newOwnerId } });
   if (!newOwner) throw new AppError(404, 'Target user not found.');
 
-  return prisma.team.update({
+  const updated = await prisma.team.update({
     where: { id: teamId },
     data: { ownerId: newOwnerId },
     include: { owner: { select: ownerSelect } },
   });
+  await syncOwnerMembership(teamId, newOwnerId);
+  return updated;
 }
 
 /** Throws 403 if the requesting user does not own the team. */

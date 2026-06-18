@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -147,6 +147,21 @@ export const analyticsApi = {
 
   matchReport: (matchId: string) =>
     api.get<MatchReport>(`/analytics/matches/${matchId}/report`).then((r) => r.data),
+};
+
+// ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────
+export const membershipsApi = {
+  listByTeam: (teamId: string) =>
+    api.get<TeamMember[]>(`/teams/${teamId}/members`).then((r) => r.data),
+  add: (teamId: string, data: { userId: string; role: TeamRole }) =>
+    api.post<TeamMember>(`/teams/${teamId}/members`, data).then((r) => r.data),
+  updateRole: (teamId: string, memberId: string, role: TeamRole) =>
+    api.patch<TeamMember>(`/teams/${teamId}/members/${memberId}`, { role }).then((r) => r.data),
+  remove: (teamId: string, memberId: string) =>
+    api.delete(`/teams/${teamId}/members/${memberId}`),
+  myTeams: () => api.get<UserTeamMembership[]>('/users/me/teams').then((r) => r.data),
+  searchUsers: (q: string) =>
+    api.get<UserSearchResult[]>('/users/search', { params: { q } }).then((r) => r.data),
 };
 
 export default api;

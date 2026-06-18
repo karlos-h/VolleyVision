@@ -10,6 +10,7 @@ import matchRoutes from './routes/matches';
 import eventRoutes from './routes/events';
 import analyticsRoutes from './routes/analytics';
 import authRoutes from './routes/auth';
+import userRoutes from './routes/users';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use(express.json());
 // All routes versioned under /api/v1 so Phase 2+ can introduce /api/v2 without
 // breaking existing clients (e.g. a tablet app locked on an old version).
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/teams', teamRoutes);
 app.use('/api/v1/players', playerRoutes);
 app.use('/api/v1/matches', matchRoutes);
