@@ -235,6 +235,14 @@ export function useMatchMomentum(matchId: string) {
   });
 }
 
+export function useMatchReport(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'report', matchId],
+    queryFn: () => analyticsApi.matchReport(matchId),
+    enabled: !!matchId,
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],

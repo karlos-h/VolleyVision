@@ -1,12 +1,13 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport } from '../hooks';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
 import MomentumChart from '../components/charts/MomentumChart';
 import RotationAnalytics from '../components/analytics/RotationAnalytics';
 import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
+import MatchReportCard from '../components/analytics/MatchReportCard';
 
 export default function MatchDashboardPage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -15,6 +16,7 @@ export default function MatchDashboardPage() {
   const { data: momentumData } = useMatchMomentum(matchId!);
   const { data: rotationData } = useMatchRotations(matchId!);
   const { data: advancedData } = useMatchAdvanced(matchId!);
+  const { data: reportData } = useMatchReport(matchId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load match analytics.</p>;
@@ -89,6 +91,9 @@ export default function MatchDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Sprint 6 — Automated Match Report */}
+      {reportData && <MatchReportCard report={reportData} />}
 
       <StatsCards stats={data.teamStats} />
 

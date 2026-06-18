@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -121,6 +121,9 @@ export const analyticsApi = {
 
   teamAdvanced: (teamId: string) =>
     api.get<AdvancedMetrics>(`/analytics/teams/${teamId}/advanced`).then((r) => r.data),
+
+  matchReport: (matchId: string) =>
+    api.get<MatchReport>(`/analytics/matches/${matchId}/report`).then((r) => r.data),
 };
 
 export default api;

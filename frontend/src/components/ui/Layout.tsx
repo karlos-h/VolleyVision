@@ -26,7 +26,7 @@ export default function Layout() {
               </svg>
             </div>
             <span className="font-bold text-chalk-100 tracking-tight">VolleyVision</span>
-            <span className="badge bg-spike-600/20 text-spike-400 ml-1">Phase 3</span>
+            <span className="badge bg-spike-600/20 text-spike-400 ml-1">Phase 4</span>
           </div>
 
           {/* Nav */}

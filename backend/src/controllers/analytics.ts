@@ -251,6 +251,189 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
   }
 }
 
+// Phase 4 Sprint 6 — Automated Match Report
+export async function getMatchReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+
+    // Load everything in parallel
+    const [match, events, playerRows] = await Promise.all([
+      prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          team: { select: { name: true } },
+        },
+      }),
+      prisma.event.findMany({
+        where: { matchId },
+        select: {
+          eventType: true,
+          setNumber: true,
+          courtZone: true,
+          rotationNumber: true,
+          playerId: true,
+          recordedAt: true,
+        },
+        orderBy: { recordedAt: 'asc' },
+      }),
+      prisma.player.findMany({
+        where: { team: { matches: { some: { id: matchId } } } },
+        select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true },
+      }),
+    ]);
+
+    if (!match) throw new AppError(404, 'Match not found.');
+
+    // ── Result ──────────────────────────────────────────────────────────────
+    const teamName = match.team.name;
+    const opponent = match.opponent;
+    const homeSets = match.homeSetsWon;
+    const awaySets = match.awaySetsWon;
+    const winner: 'home' | 'away' | 'in_progress' =
+      homeSets >= 3 ? 'home' : awaySets >= 3 ? 'away' : 'in_progress';
+    const resultText =
+      winner === 'home'
+        ? `${teamName} defeated ${opponent} ${homeSets}–${awaySets}`
+        : winner === 'away'
+        ? `${opponent} defeated ${teamName} ${awaySets}–${homeSets}`
+        : `${teamName} vs ${opponent} — Match in progress`;
+
+    // ── Top Performer ───────────────────────────────────────────────────────
+    const playerCounts: Record<string, Record<string, number>> = {};
+    for (const e of events) {
+      if (!playerCounts[e.playerId]) playerCounts[e.playerId] = {};
+      playerCounts[e.playerId][e.eventType] = (playerCounts[e.playerId][e.eventType] ?? 0) + 1;
+    }
+
+    const c = (pid: string, key: string) => playerCounts[pid]?.[key] ?? 0;
+    const score = (pid: string) =>
+      c(pid, 'KILL') * 2 +
+      c(pid, 'ACE') * 2 +
+      c(pid, 'SOLO_BLOCK') * 1.5 +
+      c(pid, 'BLOCK_ASSIST') * 0.75 +
+      c(pid, 'DIG') * 0.5 +
+      c(pid, 'ASSIST') * 0.5;
+
+    const topPid = playerRows.reduce<string | null>((best, p) =>
+      best === null || score(p.id) > score(best) ? p.id : best, null);
+    const topPlayer = topPid ? playerRows.find((p) => p.id === topPid) : null;
+
+    const topPerformer = topPlayer && score(topPlayer.id) > 0
+      ? {
+          player: topPlayer,
+          kills: c(topPlayer.id, 'KILL'),
+          aces: c(topPlayer.id, 'ACE'),
+          blocks: c(topPlayer.id, 'SOLO_BLOCK') + c(topPlayer.id, 'BLOCK_ASSIST') * 0.5,
+          digs: c(topPlayer.id, 'DIG'),
+          assists: c(topPlayer.id, 'ASSIST'),
+        }
+      : null;
+
+    // ── Momentum ────────────────────────────────────────────────────────────
+    const scoringEvents = events.filter(
+      (e) => HOME_SCORE_EVENTS.has(e.eventType) || AWAY_SCORE_EVENTS.has(e.eventType)
+    );
+    let longestRun = 0;
+    let longestRunTeam: 'home' | 'away' = 'home';
+    let currentRun = 0;
+    let currentRunTeam: 'home' | 'away' | null = null;
+    let leadChanges = 0;
+    let homeScore = 0;
+    let awayScore = 0;
+    let largestHomeLead = 0;
+    let largestAwayLead = 0;
+    let prevLead = 0;
+
+    for (const e of scoringEvents) {
+      const scorer: 'home' | 'away' = HOME_SCORE_EVENTS.has(e.eventType) ? 'home' : 'away';
+      if (scorer === 'home') homeScore++;
+      else awayScore++;
+      currentRun = scorer === currentRunTeam ? currentRun + 1 : 1;
+      currentRunTeam = scorer;
+      if (currentRun > longestRun) { longestRun = currentRun; longestRunTeam = scorer; }
+      const lead = homeScore - awayScore;
+      if (prevLead !== 0 && Math.sign(lead) !== Math.sign(prevLead)) leadChanges++;
+      largestHomeLead = Math.max(largestHomeLead, lead);
+      largestAwayLead = Math.max(largestAwayLead, -lead);
+      prevLead = lead;
+    }
+
+    // ── Attack / Serve / HeatMap ─────────────────────────────────────────────
+    const attackEvents = events.filter((e) => ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'].includes(e.eventType));
+    const serveEvents = events.filter((e) => ['ACE', 'SERVICE_ERROR', 'SERVE_IN'].includes(e.eventType));
+    const kills = attackEvents.filter((e) => e.eventType === 'KILL').length;
+    const attackErrors = attackEvents.filter((e) => e.eventType === 'ATTACK_ERROR').length;
+    const killRate = attackEvents.length > 0 ? Math.round((kills / attackEvents.length) * 1000) / 10 : null;
+    const hittingPct = attackEvents.length > 0
+      ? Math.round(((kills - attackErrors) / attackEvents.length) * 1000) / 1000
+      : null;
+    const aces = serveEvents.filter((e) => e.eventType === 'ACE').length;
+    const aceRate = serveEvents.length > 0 ? Math.round((aces / serveEvents.length) * 1000) / 10 : null;
+
+    // Heat map: top attack zone
+    const zoneCounts: Record<number, number> = {};
+    for (const e of attackEvents) {
+      if (e.courtZone != null && e.courtZone >= 1 && e.courtZone <= 6) {
+        zoneCounts[e.courtZone] = (zoneCounts[e.courtZone] ?? 0) + 1;
+      }
+    }
+    const zoneEntries = Object.entries(zoneCounts).map(([z, n]) => ({ zone: Number(z), count: n }));
+    const totalZoneAttacks = zoneEntries.reduce((s, z) => s + z.count, 0);
+    const topZone = zoneEntries.length
+      ? zoneEntries.reduce((a, b) => (b.count > a.count ? b : a))
+      : null;
+    const heatMapHighlight = topZone && totalZoneAttacks > 0
+      ? `${Math.round((topZone.count / totalZoneAttacks) * 100)}% of attacks originated from Zone ${topZone.zone}`
+      : null;
+
+    // ── Best Rotation ────────────────────────────────────────────────────────
+    const rotCounts: Record<number, { won: number; lost: number }> = {};
+    for (let r = 1; r <= 6; r++) rotCounts[r] = { won: 0, lost: 0 };
+    for (const e of events) {
+      if (e.rotationNumber == null || e.rotationNumber < 1 || e.rotationNumber > 6) continue;
+      if (HOME_SCORE_EVENTS.has(e.eventType)) rotCounts[e.rotationNumber].won++;
+      else if (AWAY_SCORE_EVENTS.has(e.eventType)) rotCounts[e.rotationNumber].lost++;
+    }
+    const rotStats = Object.entries(rotCounts)
+      .map(([r, { won, lost }]) => ({
+        rotation: Number(r),
+        won,
+        lost,
+        net: won - lost,
+        efficiency: won + lost > 0 ? Math.round((won / (won + lost)) * 100) : null,
+      }))
+      .filter((r) => r.won + r.lost > 0);
+    const bestRotation = rotStats.length ? rotStats.reduce((a, b) => (b.net > a.net ? b : a)) : null;
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      result: {
+        teamName,
+        opponent,
+        homeSetsWon: homeSets,
+        awaySetsWon: awaySets,
+        winner,
+        resultText,
+        setScores: Array.isArray(match.setScores) ? match.setScores : [],
+      },
+      topPerformer,
+      momentum: scoringEvents.length > 0 ? {
+        longestRun,
+        longestRunTeam: longestRunTeam === 'home' ? teamName : opponent,
+        leadChanges,
+        largestHomeLead,
+        largestAwayLead,
+      } : null,
+      attack: { killRate, hittingPct, kills, errors: attackErrors, attempts: attackEvents.length },
+      serve: { aceRate, aces, attempts: serveEvents.length },
+      heatMapHighlight,
+      bestRotation,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Phase 4 Sprint 5 — Advanced Performance Metrics
 function buildAdvancedMetrics(events: { eventType: string; setNumber: number }[]) {
   const counts: Record<string, number> = {};

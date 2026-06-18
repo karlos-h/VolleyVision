@@ -88,6 +88,54 @@ export interface SetScore {
 export type HeatmapData = Record<'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'all', Record<string, number>>;
 export type ZoneCounts = Record<string, number>;
 
+export interface MatchReport {
+  generatedAt: string;
+  result: {
+    teamName: string;
+    opponent: string;
+    homeSetsWon: number;
+    awaySetsWon: number;
+    winner: 'home' | 'away' | 'in_progress';
+    resultText: string;
+    setScores: { set: number; home: number; away: number }[];
+  };
+  topPerformer: {
+    player: Pick<Player, 'firstName' | 'lastName' | 'jerseyNumber' | 'position'>;
+    kills: number;
+    aces: number;
+    blocks: number;
+    digs: number;
+    assists: number;
+  } | null;
+  momentum: {
+    longestRun: number;
+    longestRunTeam: string;
+    leadChanges: number;
+    largestHomeLead: number;
+    largestAwayLead: number;
+  } | null;
+  attack: {
+    killRate: number | null;
+    hittingPct: number | null;
+    kills: number;
+    errors: number;
+    attempts: number;
+  };
+  serve: {
+    aceRate: number | null;
+    aces: number;
+    attempts: number;
+  };
+  heatMapHighlight: string | null;
+  bestRotation: {
+    rotation: number;
+    won: number;
+    lost: number;
+    net: number;
+    efficiency: number | null;
+  } | null;
+}
+
 export interface AdvancedMetrics {
   sideOut: {
     attempts: number;

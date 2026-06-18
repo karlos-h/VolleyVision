@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getMatchAnalytics,
   getMatchAdvanced,
+  getMatchReport,
   getMatchZones,
   getMatchHeatmap,
   getMatchMomentum,
@@ -19,6 +20,7 @@ const router = Router();
 
 router.get('/matches/:matchId', getMatchAnalytics);
 router.get('/matches/:matchId/advanced', getMatchAdvanced);
+router.get('/matches/:matchId/report', getMatchReport);
 router.get('/matches/:matchId/zones', getMatchZones);
 router.get('/matches/:matchId/heatmap', getMatchHeatmap);
 router.get('/matches/:matchId/momentum', getMatchMomentum);
