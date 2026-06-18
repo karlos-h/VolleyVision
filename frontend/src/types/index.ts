@@ -55,11 +55,21 @@ export type EventType =
 
 export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
+export interface TeamOwner {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface Team {
   id: string;
   name: string;
   division?: string;
   season: string;
+  // Phase 5 Sprint 2 — optional because existing teams have no owner
+  ownerId?: string | null;
+  owner?: TeamOwner | null;
   createdAt: string;
   updatedAt: string;
   _count?: { players: number; matches: number };

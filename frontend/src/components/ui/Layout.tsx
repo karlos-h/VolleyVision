@@ -1,8 +1,13 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const NAV = [
+const NAV_PUBLIC = [
   { to: '/teams', label: 'Teams' },
+];
+
+const NAV_AUTH = [
+  { to: '/teams', label: 'Teams' },
+  { to: '/my-teams', label: 'My Teams' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -46,7 +51,7 @@ export default function Layout() {
           {/* Nav + Auth */}
           <div className="flex items-center gap-1">
             <nav className="flex items-center gap-1 mr-2">
-              {NAV.map((item) => (
+              {(user ? NAV_AUTH : NAV_PUBLIC).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}

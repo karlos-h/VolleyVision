@@ -274,3 +274,34 @@ export function useTeamRotations(teamId: string) {
     enabled: !!teamId,
   });
 }
+
+// ─── Ownership (Phase 5 Sprint 2) ────────────────────────────────────────────
+
+export function useMyTeams() {
+  return useQuery({ queryKey: ['teams', 'my-teams'], queryFn: teamsApi.myTeams });
+}
+
+export function useClaimTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (teamId: string) => teamsApi.claim(teamId),
+    onSuccess: (_data, teamId) => {
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: ['teams', teamId] });
+      qc.invalidateQueries({ queryKey: ['teams', 'my-teams'] });
+    },
+  });
+}
+
+export function useTransferOwnership() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, newOwnerId }: { teamId: string; newOwnerId: string }) =>
+      teamsApi.transfer(teamId, newOwnerId),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: ['teams', vars.teamId] });
+      qc.invalidateQueries({ queryKey: ['teams', 'my-teams'] });
+    },
+  });
+}

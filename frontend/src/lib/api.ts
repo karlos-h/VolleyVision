@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -42,6 +42,12 @@ export const teamsApi = {
   update: (id: string, data: Partial<Team>) =>
     api.patch<Team>(`/teams/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/teams/${id}`),
+  // Phase 5 Sprint 2 — ownership
+  myTeams: () => api.get<Team[]>('/teams/my-teams').then((r) => r.data),
+  owner: (id: string) => api.get<TeamOwner | null>(`/teams/${id}/owner`).then((r) => r.data),
+  claim: (id: string) => api.post<Team>(`/teams/${id}/claim`).then((r) => r.data),
+  transfer: (id: string, newOwnerId: string) =>
+    api.post<Team>(`/teams/${id}/transfer`, { newOwnerId }).then((r) => r.data),
 };
 
 // ─── Players ──────────────────────────────────────────────────────────────────

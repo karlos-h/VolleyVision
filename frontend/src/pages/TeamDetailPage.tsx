@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer } from '../hooks';
+import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership } from '../hooks';
 import type { Position } from '../types';
 import { POSITION_LABELS } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const POSITIONS: Position[] = [
   'SETTER',
@@ -25,9 +26,15 @@ const POSITION_COLORS: Record<Position, string> = {
 export default function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { data: team, isLoading } = useTeam(teamId!);
+  const { user } = useAuth();
   const createPlayer = useCreatePlayer();
   const deletePlayer = useDeletePlayer();
   const updatePlayer = useUpdatePlayer(teamId!);
+  const claimTeam = useClaimTeam();
+  const transferOwnership = useTransferOwnership();
+
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferEmail, setTransferEmail] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -110,6 +117,91 @@ export default function TeamDetailPage() {
             {showForm ? 'Cancel' : '+ Add Player'}
           </button>
         </div>
+      </div>
+
+      {/* Ownership card */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold mb-1">Owner</p>
+            {team.owner ? (
+              <p className="text-chalk-100 font-medium">
+                {team.owner.firstName} {team.owner.lastName}
+                <span className="text-chalk-500 font-normal ml-2 text-sm">{team.owner.email}</span>
+              </p>
+            ) : (
+              <p className="text-chalk-500 italic text-sm">Unowned team</p>
+            )}
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            {/* Claim — only visible when unowned and user is logged in */}
+            {!team.owner && user && (
+              <button
+                className="btn-primary text-sm"
+                disabled={claimTeam.isPending}
+                onClick={() => {
+                  if (confirm(`Claim ownership of "${team.name}"?`)) {
+                    claimTeam.mutate(team.id);
+                  }
+                }}
+              >
+                {claimTeam.isPending ? 'Claiming…' : 'Claim Team'}
+              </button>
+            )}
+
+            {/* Transfer — only current owner can see this */}
+            {team.owner && user && team.owner.id === user.id && (
+              <button
+                className="btn-secondary text-sm"
+                onClick={() => setShowTransfer(!showTransfer)}
+              >
+                Transfer
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Transfer form */}
+        {showTransfer && team.owner && user && team.owner.id === user.id && (
+          <form
+            className="mt-4 pt-4 border-t border-court-800 flex gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!transferEmail.trim()) return;
+              // Look up user by email via /api/v1/auth/me isn't suitable — we need
+              // the new owner's userId. For now accept userId directly in the field.
+              await transferOwnership.mutateAsync({ teamId: team.id, newOwnerId: transferEmail.trim() });
+              setShowTransfer(false);
+              setTransferEmail('');
+            }}
+          >
+            <input
+              className="input flex-1 text-sm"
+              placeholder="New owner user ID"
+              value={transferEmail}
+              onChange={(e) => setTransferEmail(e.target.value)}
+              required
+            />
+            <button type="submit" className="btn-primary text-sm" disabled={transferOwnership.isPending}>
+              {transferOwnership.isPending ? 'Transferring…' : 'Confirm'}
+            </button>
+            <button type="button" className="btn-secondary text-sm" onClick={() => setShowTransfer(false)}>
+              Cancel
+            </button>
+          </form>
+        )}
+
+        {claimTeam.isError && (
+          <p className="mt-2 text-red-400 text-sm">
+            {(claimTeam.error as any)?.response?.data?.error ?? 'Failed to claim team.'}
+          </p>
+        )}
+        {transferOwnership.isError && (
+          <p className="mt-2 text-red-400 text-sm">
+            {(transferOwnership.error as any)?.response?.data?.error ?? 'Failed to transfer ownership.'}
+          </p>
+        )}
       </div>
 
       {/* Add player form */}
