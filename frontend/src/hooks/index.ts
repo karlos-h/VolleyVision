@@ -226,3 +226,11 @@ export function usePlayerHeatmap(playerId: string) {
     enabled: !!playerId,
   });
 }
+
+export function useMatchMomentum(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'momentum', matchId],
+    queryFn: () => analyticsApi.matchMomentum(matchId),
+    enabled: !!matchId,
+  });
+}

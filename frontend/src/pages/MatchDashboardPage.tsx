@@ -1,14 +1,16 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics, useMatchHeatmap } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum } from '../hooks';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
+import MomentumChart from '../components/charts/MomentumChart';
 
 export default function MatchDashboardPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const { data, isLoading, isError } = useMatchAnalytics(matchId!);
   const { data: heatmapData } = useMatchHeatmap(matchId!);
+  const { data: momentumData } = useMatchMomentum(matchId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load match analytics.</p>;
@@ -106,6 +108,20 @@ export default function MatchDashboardPage() {
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      {/* Sprint 3 — Momentum */}
+      <section>
+        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Match Momentum</h2>
+        {momentumData ? (
+          <MomentumChart
+            data={momentumData}
+            teamName={data.match.teamName}
+            opponentName={data.match.opponent}
+          />
+        ) : (
+          <div className="card p-6 text-center text-chalk-400 text-sm">Record scoring events to generate momentum analytics.</div>
         )}
       </section>
 

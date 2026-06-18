@@ -251,6 +251,118 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
   }
 }
 
+// Phase 4 Sprint 3 — Momentum Analytics
+// Derives scoring sequence from events (no extra DB columns needed).
+// HOME scoring events: KILL, ACE, SOLO_BLOCK, BLOCK_ASSIST
+// AWAY scoring events: ATTACK_ERROR, SERVICE_ERROR
+const HOME_SCORE_EVENTS = new Set(['KILL', 'ACE', 'SOLO_BLOCK', 'BLOCK_ASSIST']);
+const AWAY_SCORE_EVENTS = new Set(['ATTACK_ERROR', 'SERVICE_ERROR']);
+
+export async function getMatchMomentum(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+
+    const events = await prisma.event.findMany({
+      where: {
+        matchId,
+        eventType: { in: [...HOME_SCORE_EVENTS, ...AWAY_SCORE_EVENTS] as any },
+      },
+      select: { eventType: true, setNumber: true, recordedAt: true },
+      orderBy: { recordedAt: 'asc' },
+    });
+
+    // Build point-by-point timeline
+    let homeScore = 0;
+    let awayScore = 0;
+    let currentRunTeam: 'home' | 'away' | null = null;
+    let currentRunLength = 0;
+    let longestHomeRun = 0;
+    let longestAwayRun = 0;
+    let leadChanges = 0;
+    let largestHomeLead = 0;
+    let largestAwayLead = 0;
+    let prevLead = 0; // positive = home, negative = away
+
+    const timeline: {
+      pointNumber: number;
+      scorer: 'home' | 'away';
+      homeScore: number;
+      awayScore: number;
+      lead: number;
+      setNumber: number;
+      runLength: number;
+    }[] = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i];
+      const scorer = HOME_SCORE_EVENTS.has(e.eventType) ? 'home' : 'away';
+
+      if (scorer === 'home') homeScore++;
+      else awayScore++;
+
+      // Track runs
+      if (scorer === currentRunTeam) {
+        currentRunLength++;
+      } else {
+        currentRunTeam = scorer;
+        currentRunLength = 1;
+      }
+      if (scorer === 'home') longestHomeRun = Math.max(longestHomeRun, currentRunLength);
+      else longestAwayRun = Math.max(longestAwayRun, currentRunLength);
+
+      const lead = homeScore - awayScore;
+
+      // Lead changes: sign flips (excluding 0→positive or 0→negative on first points)
+      if (prevLead !== 0 && Math.sign(lead) !== Math.sign(prevLead)) leadChanges++;
+
+      largestHomeLead = Math.max(largestHomeLead, lead);
+      largestAwayLead = Math.max(largestAwayLead, -lead);
+      prevLead = lead;
+
+      timeline.push({
+        pointNumber: i + 1,
+        scorer,
+        homeScore,
+        awayScore,
+        lead,
+        setNumber: e.setNumber,
+        runLength: currentRunLength,
+      });
+    }
+
+    // Identify scoring runs for the summary (consecutive segments ≥ 3)
+    const runs: { team: 'home' | 'away'; length: number; startPoint: number }[] = [];
+    let runStart = 0;
+    for (let i = 0; i < timeline.length; i++) {
+      if (i === 0 || timeline[i].scorer !== timeline[i - 1].scorer) runStart = i;
+      if (timeline[i].runLength >= 3) {
+        const existing = runs.find((r) => r.startPoint === runStart);
+        if (!existing) {
+          runs.push({ team: timeline[i].scorer, length: timeline[i].runLength, startPoint: runStart + 1 });
+        } else {
+          existing.length = timeline[i].runLength;
+        }
+      }
+    }
+
+    res.json({
+      timeline,
+      stats: {
+        totalPoints: events.length,
+        longestHomeRun,
+        longestAwayRun,
+        longestRun: Math.max(longestHomeRun, longestAwayRun),
+        leadChanges,
+        largestHomeLead,
+        largestAwayLead,
+      },
+      significantRuns: runs.filter((r) => r.length >= 3).slice(0, 10),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getPlayerAnalytics(req: Request, res: Response, next: NextFunction) {
   try {
     const player = await prisma.player.findUnique({

@@ -88,6 +88,30 @@ export interface SetScore {
 export type HeatmapData = Record<'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'all', Record<string, number>>;
 export type ZoneCounts = Record<string, number>;
 
+export interface MomentumPoint {
+  pointNumber: number;
+  scorer: 'home' | 'away';
+  homeScore: number;
+  awayScore: number;
+  lead: number;
+  setNumber: number;
+  runLength: number;
+}
+
+export interface MomentumData {
+  timeline: MomentumPoint[];
+  stats: {
+    totalPoints: number;
+    longestHomeRun: number;
+    longestAwayRun: number;
+    longestRun: number;
+    leadChanges: number;
+    largestHomeLead: number;
+    largestAwayLead: number;
+  };
+  significantRuns: { team: 'home' | 'away'; length: number; startPoint: number }[];
+}
+
 export interface Event {
   id: string;
   eventType: EventType;

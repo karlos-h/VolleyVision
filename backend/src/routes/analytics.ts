@@ -3,6 +3,7 @@ import {
   getMatchAnalytics,
   getMatchZones,
   getMatchHeatmap,
+  getMatchMomentum,
   getPlayerAnalytics,
   getPlayerHeatmap,
   getTeamAnalytics,
@@ -15,6 +16,7 @@ const router = Router();
 router.get('/matches/:matchId', getMatchAnalytics);
 router.get('/matches/:matchId/zones', getMatchZones);
 router.get('/matches/:matchId/heatmap', getMatchHeatmap);
+router.get('/matches/:matchId/momentum', getMatchMomentum);
 router.get('/teams/:teamId', getTeamAnalytics);
 router.get('/teams/:teamId/trends', getTeamTrends);
 router.get('/teams/:teamId/heatmap', getTeamHeatmap);
