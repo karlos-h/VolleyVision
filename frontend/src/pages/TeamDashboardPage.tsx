@@ -1,18 +1,20 @@
 import { Link, useParams } from 'react-router-dom';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import StatLeaderboardChart from '../components/charts/StatLeaderboardChart';
-import { useTeamAnalytics, useTeamTrends, useTeamHeatmap } from '../hooks';
+import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations } from '../hooks';
 import TeamTrendChart from '../components/charts/TeamTrendChart';
 import CoachInsights from '../components/analytics/CoachInsights';
 import { generateTeamInsights } from '../lib/insights';
 import PlayerInsights from '../components/analytics/PlayerInsights';
 import HeatMapCourt from '../components/court/HeatMapCourt';
+import RotationAnalytics from '../components/analytics/RotationAnalytics';
 
 export default function TeamDashboardPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { data, isLoading, isError } = useTeamAnalytics(teamId!);
   const trends = useTeamTrends(teamId!);
   const { data: heatmapData } = useTeamHeatmap(teamId!);
+  const { data: rotationData } = useTeamRotations(teamId!);
 
   const insights =
   trends.data
@@ -110,6 +112,16 @@ export default function TeamDashboardPage() {
         />
       </div>
       
+      {/* Phase 4 — Rotation Analytics */}
+      <section>
+        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Rotation Analytics</h2>
+        {rotationData ? (
+          <RotationAnalytics data={rotationData} />
+        ) : (
+          <div className="card p-6 text-center text-chalk-400 text-sm">Loading rotation data...</div>
+        )}
+      </section>
+
       {/* Phase 3 — Season Heat Map */}
       {heatmapData && (
         <section>

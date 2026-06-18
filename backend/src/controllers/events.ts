@@ -14,7 +14,7 @@ const AWAY_SCORE_EVENTS = new Set(['ATTACK_ERROR', 'SERVICE_ERROR']);
 // pattern efficient for Phase 2 aggregations.
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
-    const { matchId, playerId, eventType, setNumber, rallyNumber, courtZone, notes } = req.body;
+    const { matchId, playerId, eventType, setNumber, rallyNumber, courtZone, rotationNumber, notes } = req.body;
 
     if (!matchId || !playerId || !eventType || !setNumber) {
       throw new AppError(400, 'matchId, playerId, eventType, and setNumber are required.');
@@ -27,6 +27,13 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
       }
     }
 
+    if (rotationNumber != null) {
+      const rot = Number(rotationNumber);
+      if (!Number.isInteger(rot) || rot < 1 || rot > 6) {
+        throw new AppError(400, 'Rotation number must be between 1 and 6.');
+      }
+    }
+
     const event = await prisma.event.create({
       data: {
         matchId,
@@ -35,6 +42,7 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
         setNumber: Number(setNumber),
         rallyNumber: rallyNumber != null ? Number(rallyNumber) : null,
         courtZone: courtZone != null ? Number(courtZone) : null,
+        rotationNumber: rotationNumber != null ? Number(rotationNumber) : null,
         notes: notes || null,
       },
       // Return player name so the client can confirm without a separate request

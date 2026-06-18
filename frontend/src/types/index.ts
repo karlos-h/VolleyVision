@@ -88,6 +88,25 @@ export interface SetScore {
 export type HeatmapData = Record<'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'all', Record<string, number>>;
 export type ZoneCounts = Record<string, number>;
 
+export interface RotationStat {
+  rotation: number;
+  won: number;
+  lost: number;
+  total: number;
+  net: number;
+  efficiency: number | null;
+}
+
+export interface RotationData {
+  rotations: RotationStat[];
+  insights: {
+    best: RotationStat | null;
+    worst: RotationStat | null;
+    highestSideOut: RotationStat | null;
+    lowestSideOut: RotationStat | null;
+  };
+}
+
 export interface MomentumPoint {
   pointNumber: number;
   scorer: 'home' | 'away';

@@ -234,3 +234,19 @@ export function useMatchMomentum(matchId: string) {
     enabled: !!matchId,
   });
 }
+
+export function useMatchRotations(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'rotations', 'match', matchId],
+    queryFn: () => analyticsApi.matchRotations(matchId),
+    enabled: !!matchId,
+  });
+}
+
+export function useTeamRotations(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'rotations', 'team', teamId],
+    queryFn: () => analyticsApi.teamRotations(teamId),
+    enabled: !!teamId,
+  });
+}

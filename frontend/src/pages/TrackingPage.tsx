@@ -56,6 +56,7 @@ export default function TrackingPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
   const [selectedZone, setSelectedZone] = useState<number | null>(null);
+  const [selectedRotation, setSelectedRotation] = useState<number | null>(null);
   const [keepZone, setKeepZone] = useState(true);
   const [flash, setFlash] = useState<FlashState>(null);
   const [justRecorded, setJustRecorded] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function TrackingPage() {
         eventType,
         setNumber: currentSet,
         courtZone: selectedZone,
+        rotationNumber: selectedRotation,
       });
       showFlash(`${meta.label} → #${selectedPlayer.jerseyNumber}`, true);
       setTimeout(() => setJustRecorded(null), 300);
@@ -393,18 +395,45 @@ export default function TrackingPage() {
           ))}
         </div>
 
-        {/* ── Court zone selector ── */}
-        <div className="card p-3">
-          <label className="flex items-center gap-2 text-xs text-chalk-400 mb-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={keepZone}
-              onChange={(e) => setKeepZone(e.target.checked)}
-              className="accent-spike-500 w-4 h-4"
-            />
-            Keep Selected Zone after recording
-          </label>
-          <CourtZoneSelector value={selectedZone} onChange={setSelectedZone} />
+        {/* ── Court zone + Rotation selectors ── */}
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="card p-3">
+            <label className="flex items-center gap-2 text-xs text-chalk-400 mb-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={keepZone}
+                onChange={(e) => setKeepZone(e.target.checked)}
+                className="accent-spike-500 w-4 h-4"
+              />
+              Keep Selected Zone after recording
+            </label>
+            <CourtZoneSelector value={selectedZone} onChange={setSelectedZone} />
+          </div>
+
+          <div className="card p-3">
+            <div className="text-xs text-chalk-400 mb-3">Rotation (optional)</div>
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setSelectedRotation(selectedRotation === r ? null : r)}
+                  className={clsx(
+                    'py-3 rounded-xl text-sm font-bold font-mono transition-all border',
+                    selectedRotation === r
+                      ? 'bg-spike-500 border-spike-400 text-court-950'
+                      : 'bg-court-800 border-court-700 text-chalk-300 hover:border-chalk-500'
+                  )}
+                >
+                  R{r}
+                </button>
+              ))}
+            </div>
+            {selectedRotation && (
+              <p className="text-xs text-spike-400 mt-2 text-center">
+                Rotation {selectedRotation} selected — tap again to deselect
+              </p>
+            )}
+          </div>
         </div>
 
         {/* ── Recent events feed ── */}

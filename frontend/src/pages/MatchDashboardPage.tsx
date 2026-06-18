@@ -1,16 +1,18 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations } from '../hooks';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
 import MomentumChart from '../components/charts/MomentumChart';
+import RotationAnalytics from '../components/analytics/RotationAnalytics';
 
 export default function MatchDashboardPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const { data, isLoading, isError } = useMatchAnalytics(matchId!);
   const { data: heatmapData } = useMatchHeatmap(matchId!);
   const { data: momentumData } = useMatchMomentum(matchId!);
+  const { data: rotationData } = useMatchRotations(matchId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load match analytics.</p>;
@@ -122,6 +124,16 @@ export default function MatchDashboardPage() {
           />
         ) : (
           <div className="card p-6 text-center text-chalk-400 text-sm">Record scoring events to generate momentum analytics.</div>
+        )}
+      </section>
+
+      {/* Sprint 4 — Rotation Analytics */}
+      <section>
+        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Rotation Analytics</h2>
+        {rotationData ? (
+          <RotationAnalytics data={rotationData} />
+        ) : (
+          <div className="card p-6 text-center text-chalk-400 text-sm">Loading rotation data...</div>
         )}
       </section>
 

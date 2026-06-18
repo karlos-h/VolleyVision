@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -70,6 +70,7 @@ export const eventsApi = {
     setNumber: number;
     rallyNumber?: number;
     courtZone?: number | null;
+    rotationNumber?: number | null;
     notes?: string;
   }) => api.post<Event>('/events', data).then((r) => r.data),
   undoLast: (matchId: string) =>
@@ -108,6 +109,12 @@ export const analyticsApi = {
 
   matchMomentum: (matchId: string) =>
     api.get<MomentumData>(`/analytics/matches/${matchId}/momentum`).then((r) => r.data),
+
+  matchRotations: (matchId: string) =>
+    api.get<RotationData>(`/analytics/matches/${matchId}/rotations`).then((r) => r.data),
+
+  teamRotations: (teamId: string) =>
+    api.get<RotationData>(`/analytics/teams/${teamId}/rotations`).then((r) => r.data),
 };
 
 export default api;

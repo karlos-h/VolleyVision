@@ -251,6 +251,89 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
   }
 }
 
+// Phase 4 Sprint 4 — Rotation Analytics
+const VALID_ROTATION_FILTER = { gte: 1, lte: 6 } as const;
+
+function buildRotationStats(events: { rotationNumber: number | null; eventType: string }[]) {
+  const rotations: Record<number, { won: number; lost: number }> = {};
+  for (let r = 1; r <= 6; r++) rotations[r] = { won: 0, lost: 0 };
+
+  for (const e of events) {
+    if (e.rotationNumber == null) continue;
+    if (HOME_SCORE_EVENTS.has(e.eventType)) rotations[e.rotationNumber].won++;
+    else if (AWAY_SCORE_EVENTS.has(e.eventType)) rotations[e.rotationNumber].lost++;
+  }
+
+  return Object.entries(rotations).map(([rot, { won, lost }]) => ({
+    rotation: Number(rot),
+    won,
+    lost,
+    total: won + lost,
+    net: won - lost,
+    efficiency: won + lost > 0 ? Math.round((won / (won + lost)) * 100) : null,
+  }));
+}
+
+export async function getMatchRotations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const events = await prisma.event.findMany({
+      where: {
+        matchId: req.params.matchId,
+        rotationNumber: VALID_ROTATION_FILTER,
+        eventType: { in: [...HOME_SCORE_EVENTS, ...AWAY_SCORE_EVENTS] as any },
+      },
+      select: { rotationNumber: true, eventType: true },
+    });
+
+    const rotations = buildRotationStats(events);
+    const withData = rotations.filter((r) => r.total > 0);
+
+    res.json({
+      rotations,
+      insights: {
+        best: withData.length ? withData.reduce((a, b) => (b.net > a.net ? b : a)) : null,
+        worst: withData.length ? withData.reduce((a, b) => (b.net < a.net ? b : a)) : null,
+        highestSideOut: withData.length ? withData.reduce((a, b) => ((b.efficiency ?? -1) > (a.efficiency ?? -1) ? b : a)) : null,
+        lowestSideOut: withData.length ? withData.reduce((a, b) => ((b.efficiency ?? 101) < (a.efficiency ?? 101) ? b : a)) : null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getTeamRotations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { season } = req.query;
+    const events = await prisma.event.findMany({
+      where: {
+        match: {
+          teamId: req.params.teamId,
+          ...(season ? { team: { season: String(season) } } : {}),
+        },
+        rotationNumber: VALID_ROTATION_FILTER,
+        eventType: { in: [...HOME_SCORE_EVENTS, ...AWAY_SCORE_EVENTS] as any },
+      },
+      select: { rotationNumber: true, eventType: true },
+    });
+
+    const rotations = buildRotationStats(events);
+    const withData = rotations.filter((r) => r.total > 0);
+
+    res.json({
+      rotations,
+      insights: {
+        best: withData.length ? withData.reduce((a, b) => (b.net > a.net ? b : a)) : null,
+        worst: withData.length ? withData.reduce((a, b) => (b.net < a.net ? b : a)) : null,
+        highestSideOut: withData.length ? withData.reduce((a, b) => ((b.efficiency ?? -1) > (a.efficiency ?? -1) ? b : a)) : null,
+        lowestSideOut: withData.length ? withData.reduce((a, b) => ((b.efficiency ?? 101) < (a.efficiency ?? 101) ? b : a)) : null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Phase 4 Sprint 3 — Momentum Analytics
 // Derives scoring sequence from events (no extra DB columns needed).
 // HOME scoring events: KILL, ACE, SOLO_BLOCK, BLOCK_ASSIST
