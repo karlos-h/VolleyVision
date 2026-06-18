@@ -113,6 +113,16 @@ model User {
   // Phase 5 Sprint 4 — Invitations
   sentInvitations Invitation[]
 
+  // Phase 5 Sprint 5 — Profile
+  bio          String?
+  phoneNumber  String?  @map("phone_number")
+  dateOfBirth  DateTime? @map("date_of_birth")
+  city         String?
+  country      String?
+
+  // Phase 5 Sprint 5 — Player link
+  playerRecords Player[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -200,12 +210,17 @@ model Player {
   team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId       String   @map("team_id")
 
+  // Phase 5 Sprint 5 — link player record to user account (nullable, non-destructive)
+  userId       String?  @map("user_id")
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   events       Event[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@unique([teamId, jerseyNumber])
+  @@index([userId])
   @@map("players")
 }
 

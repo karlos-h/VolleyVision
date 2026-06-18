@@ -10,6 +10,10 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MyTeamsPage from './pages/MyTeamsPage';
 import InvitationsPage from './pages/InvitationsPage';
+import DashboardPage from './pages/DashboardPage';
+import ProfilePage from './pages/ProfilePage';
+import PlayerPortalPage from './pages/PlayerPortalPage';
+import CoachDashboardPage from './pages/CoachDashboardPage';
 import TeamsPage from './pages/TeamsPage';
 import TeamDetailPage from './pages/TeamDetailPage';
 import MatchesPage from './pages/MatchesPage';
@@ -38,7 +42,11 @@ function App() {
 
           {/* Main app */}
           <Route element={<Layout />}>
-            <Route index element={<Navigate to="/teams" replace />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/player" element={<PlayerPortalPage />} />
+            <Route path="/coach" element={<CoachDashboardPage />} />
             <Route path="/my-teams" element={<MyTeamsPage />} />
             <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/teams" element={<TeamsPage />} />

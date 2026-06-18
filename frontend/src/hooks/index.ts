@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi } from '../lib/api';
 import type { Team, Player, Match, TeamRole } from '../types';
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
@@ -401,4 +401,46 @@ export function useDeclineInvitation() {
     mutationFn: (token: string) => invitationsApi.decline(token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', 'me'] }),
   });
+}
+
+// ─── Profile (Phase 5 Sprint 5) ───────────────────────────────────────────────
+
+export function useProfile() {
+  return useQuery({ queryKey: ['profile'], queryFn: profileApi.get });
+}
+
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: profileApi.update,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+  });
+}
+
+// ─── Player Portal (Phase 5 Sprint 5) ────────────────────────────────────────
+
+export function usePlayerDashboard() {
+  return useQuery({ queryKey: ['player', 'dashboard'], queryFn: playerPortalApi.dashboard });
+}
+
+export function useLinkPlayer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (playerId: string) => playerPortalApi.linkPlayer(playerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['player', 'dashboard'] }),
+  });
+}
+
+export function useUnlinkPlayer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (playerId: string) => playerPortalApi.unlinkPlayer(playerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['player', 'dashboard'] }),
+  });
+}
+
+// ─── Coach Portal (Phase 5 Sprint 5) ─────────────────────────────────────────
+
+export function useCoachDashboard() {
+  return useQuery({ queryKey: ['coach', 'dashboard'], queryFn: coachPortalApi.dashboard });
 }

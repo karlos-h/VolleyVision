@@ -43,6 +43,109 @@ export interface UserSearchResult {
   role: UserRole;
 }
 
+// ─── Profile (Phase 5 Sprint 5) ───────────────────────────────────────────────
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  profileImage: string | null;
+  bio: string | null;
+  phoneNumber: string | null;
+  dateOfBirth: string | null;
+  city: string | null;
+  country: string | null;
+  createdAt: string;
+}
+
+export interface PlayerRecord {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jerseyNumber: number;
+  position: Position;
+  teamId: string;
+  userId: string | null;
+  team: { id: string; name: string; division: string | null; season: string };
+}
+
+// CareerStats mirrors StatLine — same shape, defined here so it can be referenced
+// before StatLine is declared later in the file
+export interface CareerStats {
+  kills: number;
+  attackAttempts: number;
+  attackErrors: number;
+  hittingPercentage: number | null;
+  aces: number;
+  serviceErrors: number;
+  serveAttempts: number;
+  serveInPercentage: number | null;
+  passAttempts: number;
+  passingRating: number | null;
+  soloBlocks: number;
+  blockAssists: number;
+  totalBlocks: number;
+  blockErrors: number;
+  digs: number;
+  digErrors: number;
+  assists: number;
+  settingErrors: number;
+  totalEvents: number;
+}
+
+export interface MatchSummaryItem {
+  id: string;
+  matchDate: string;
+  opponent: string;
+  status: MatchStatus;
+  homeScore?: number;
+  awayScore?: number;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  competition: string | null;
+  team: { id: string; name: string };
+}
+
+export interface DevelopmentPoint extends CareerStats {
+  matchId: string;
+  opponent: string;
+  matchDate: string;
+}
+
+export interface PlayerDashboard {
+  players: PlayerRecord[];
+  careerStats: CareerStats | null;
+  recentMatches: MatchSummaryItem[];
+  developmentMetrics: DevelopmentPoint[];
+}
+
+export interface TeamSummary {
+  id: string;
+  name: string;
+  division: string | null;
+  season: string;
+  _count: { players: number; matches: number };
+  memberRole?: string;
+}
+
+export interface CoachingStats {
+  teamsOwned: number;
+  teamsCoached: number;
+  totalMatches: number;
+  wins: number;
+  losses: number;
+  winPercentage: number | null;
+}
+
+export interface CoachDashboard {
+  ownedTeams: TeamSummary[];
+  memberTeams: TeamSummary[];
+  coachingStats: CoachingStats;
+  recentMatches: MatchSummaryItem[];
+}
+
 export interface User {
   id: string;
   email: string;

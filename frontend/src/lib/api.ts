@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -162,6 +162,31 @@ export const membershipsApi = {
   myTeams: () => api.get<UserTeamMembership[]>('/users/me/teams').then((r) => r.data),
   searchUsers: (q: string) =>
     api.get<UserSearchResult[]>('/users/search', { params: { q } }).then((r) => r.data),
+};
+
+// ─── Profile (Phase 5 Sprint 5) ──────────────────────────────────────────────
+export const profileApi = {
+  get: () => api.get<UserProfile>('/profile').then((r) => r.data),
+  update: (data: Partial<UserProfile>) =>
+    api.patch<UserProfile>('/profile', data).then((r) => r.data),
+};
+
+// ─── Player Portal (Phase 5 Sprint 5) ────────────────────────────────────────
+export const playerPortalApi = {
+  dashboard: () => api.get<PlayerDashboard>('/player/dashboard').then((r) => r.data),
+  stats: () => api.get('/player/stats').then((r) => r.data),
+  teams: () => api.get('/player/teams').then((r) => r.data),
+  linkPlayer: (playerId: string) =>
+    api.post('/player/link', { playerId }).then((r) => r.data),
+  unlinkPlayer: (playerId: string) =>
+    api.delete(`/player/link/${playerId}`).then((r) => r.data),
+};
+
+// ─── Coach Portal (Phase 5 Sprint 5) ─────────────────────────────────────────
+export const coachPortalApi = {
+  dashboard: () => api.get<CoachDashboard>('/coach/dashboard').then((r) => r.data),
+  teams: () => api.get('/coach/teams').then((r) => r.data),
+  stats: () => api.get('/coach/stats').then((r) => r.data),
 };
 
 // ─── Invitations (Phase 5 Sprint 4) ──────────────────────────────────────────

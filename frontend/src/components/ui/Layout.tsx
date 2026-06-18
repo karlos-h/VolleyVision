@@ -6,9 +6,11 @@ const NAV_PUBLIC = [
 ];
 
 const NAV_AUTH = [
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/teams', label: 'Teams' },
   { to: '/my-teams', label: 'My Teams' },
   { to: '/invitations', label: 'Invitations' },
+  { to: '/profile', label: 'Profile' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
