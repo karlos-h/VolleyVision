@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { checkSetCompletion } from '../lib/scoring';
 
 // Phase 4 Sprint 1 — event types that score a point for the home team (our team)
 const HOME_SCORE_EVENTS = new Set(['KILL', 'ACE', 'SOLO_BLOCK', 'BLOCK_ASSIST']);
@@ -40,17 +41,19 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
       include: { player: { select: { firstName: true, lastName: true, jerseyNumber: true } } },
     });
 
-    // Auto-update live score based on scoring events
+    // Auto-update live score based on scoring events, then check set completion
     if (HOME_SCORE_EVENTS.has(eventType)) {
       await prisma.match.update({
         where: { id: matchId },
         data: { homeScore: { increment: 1 } },
       });
+      await checkSetCompletion(matchId);
     } else if (AWAY_SCORE_EVENTS.has(eventType)) {
       await prisma.match.update({
         where: { id: matchId },
         data: { awayScore: { increment: 1 } },
       });
+      await checkSetCompletion(matchId);
     }
 
     res.status(201).json(event);

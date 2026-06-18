@@ -198,22 +198,42 @@ export default function TrackingPage() {
 
       {/* ── Live Scoreboard ── */}
       <div className="bg-court-900 border-b border-court-800 px-4 py-3">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl mx-auto space-y-2">
+          {/* Match winner banner */}
+          {match.status === 'COMPLETED' && (
+            <div className="text-center py-1 rounded-lg bg-spike-500/10 border border-spike-500/30 text-spike-400 text-sm font-semibold">
+              {(match.homeSetsWon ?? 0) >= 3
+                ? `${match.team?.name ?? 'Home'} wins the match!`
+                : `${match.opponent} wins the match!`}
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-4">
             {/* Home team */}
             <div className="flex-1 text-right">
               <div className="text-sm font-semibold text-chalk-300 truncate">{match.team?.name ?? 'Home'}</div>
-              <div className="font-mono text-4xl font-bold text-chalk-100 leading-none mt-1">{match.homeScore}</div>
+              <div className="font-mono text-4xl font-bold text-chalk-100 leading-none mt-1">{match.homeScore ?? 0}</div>
             </div>
 
             {/* Centre — sets won + controls */}
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-xl font-bold text-spike-400">{match.homeSetsWon}</span>
+                <span className="font-mono text-xl font-bold text-spike-400">{match.homeSetsWon ?? 0}</span>
                 <span className="text-chalk-500 text-xs font-semibold uppercase tracking-wider">Sets</span>
-                <span className="font-mono text-xl font-bold text-chalk-400">{match.awaySetsWon}</span>
+                <span className="font-mono text-xl font-bold text-chalk-400">{match.awaySetsWon ?? 0}</span>
               </div>
               <div className="text-xs text-chalk-500">Set {currentSet}</div>
+
+              {/* Per-set score history */}
+              {Array.isArray(match.setScores) && (match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
+                <div className="flex gap-1 mt-0.5">
+                  {(match.setScores as {set:number;home:number;away:number}[]).map((s) => (
+                    <span key={s.set} className="text-[10px] font-mono text-chalk-500 bg-court-800 px-1.5 py-0.5 rounded border border-court-700">
+                      {s.home}–{s.away}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-1 mt-1">
                 <button
                   onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
@@ -256,7 +276,7 @@ export default function TrackingPage() {
             {/* Away team */}
             <div className="flex-1 text-left">
               <div className="text-sm font-semibold text-chalk-300 truncate">{match.opponent}</div>
-              <div className="font-mono text-4xl font-bold text-chalk-400 leading-none mt-1">{match.awayScore}</div>
+              <div className="font-mono text-4xl font-bold text-chalk-400 leading-none mt-1">{match.awayScore ?? 0}</div>
             </div>
           </div>
         </div>

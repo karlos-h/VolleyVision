@@ -34,7 +34,16 @@ export default function MatchDashboardPage() {
       </div>
 
       {/* Phase 4 — Final Score Summary */}
-      <div className="card p-4">
+      <div className="card p-4 space-y-3">
+        {/* Match winner */}
+        {data.match.status === 'COMPLETED' && (
+          <div className="text-center py-2 rounded-lg bg-spike-500/10 border border-spike-500/30 text-spike-400 font-semibold text-sm">
+            {data.match.homeSetsWon >= data.match.awaySetsWon
+              ? `${data.match.teamName} won the match`
+              : `${data.match.opponent} won the match`}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 text-right">
             <div className="text-sm text-chalk-400 mb-1">{data.match.teamName}</div>
@@ -47,21 +56,32 @@ export default function MatchDashboardPage() {
               <span className="font-mono text-2xl font-bold text-chalk-400">{data.match.awaySetsWon}</span>
             </div>
             <div className="text-xs text-chalk-500 uppercase tracking-wider">Sets Won</div>
-            {data.match.setScores && Array.isArray(data.match.setScores) && (data.match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
-              <div className="flex gap-2 justify-center mt-2">
-                {(data.match.setScores as {set:number;home:number;away:number}[]).map((s) => (
-                  <span key={s.set} className="text-xs font-mono text-chalk-400 bg-court-800 px-2 py-0.5 rounded">
-                    {s.home}–{s.away}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
           <div className="flex-1 text-left">
             <div className="text-sm text-chalk-400 mb-1">{data.match.opponent}</div>
             <div className="font-mono text-3xl font-bold text-chalk-400">{data.match.awayScore}</div>
           </div>
         </div>
+
+        {/* Per-set results */}
+        {Array.isArray(data.match.setScores) && (data.match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
+          <div className="border-t border-court-800 pt-3">
+            <div className="text-xs text-chalk-500 uppercase tracking-wider mb-2 text-center">Set Results</div>
+            <div className="flex gap-2 justify-center flex-wrap">
+              {(data.match.setScores as {set:number;home:number;away:number}[]).map((s) => {
+                const homeWon = s.home > s.away;
+                return (
+                  <div key={s.set} className="flex flex-col items-center gap-0.5">
+                    <span className="text-[10px] text-chalk-500">S{s.set}</span>
+                    <span className={`font-mono text-sm font-bold px-3 py-1 rounded border ${homeWon ? 'text-spike-400 border-spike-500/30 bg-spike-500/10' : 'text-chalk-400 border-court-700 bg-court-800'}`}>
+                      {s.home}–{s.away}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <StatsCards stats={data.teamStats} />

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { checkSetCompletion } from '../lib/scoring';
 
 export async function getMatchesByTeam(req: Request, res: Response, next: NextFunction) {
   try {
@@ -95,6 +96,8 @@ export async function updateScore(req: Request, res: Response, next: NextFunctio
         ...(awaySetsWon != null ? { awaySetsWon: Number(awaySetsWon) } : {}),
       },
     });
+    // Check if the manual update completed a set
+    await checkSetCompletion(req.params.id);
     res.json(match);
   } catch (err) {
     next(err);
