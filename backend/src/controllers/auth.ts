@@ -1,0 +1,45 @@
+import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../middleware/errorHandler';
+import { registerUser, loginUser, getCurrentUser } from '../services/auth.service';
+
+export async function register(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email, password, firstName, lastName } = req.body;
+    if (!email || !password || !firstName || !lastName) {
+      throw new AppError(400, 'email, password, firstName, and lastName are required.');
+    }
+    const result = await registerUser(email, password, firstName, lastName);
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function login(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      throw new AppError(400, 'email and password are required.');
+    }
+    const result = await loginUser(email, password);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Logout is handled client-side (discard the token).
+// This endpoint exists as a clean hook for future server-side token revocation.
+export function logout(_req: Request, res: Response) {
+  res.json({ message: 'Logged out successfully.' });
+}
+
+export async function me(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw new AppError(401, 'Authentication required.');
+    const user = await getCurrentUser(req.user.userId);
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}

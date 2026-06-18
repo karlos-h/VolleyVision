@@ -1,6 +1,25 @@
 // Types mirror the Prisma schema. Keeping them in sync manually is fine for
 // Phase 1. Phase 2 can introduce tRPC or OpenAPI codegen to automate this.
 
+// ─── Auth (Phase 5 Sprint 1) ──────────────────────────────────────────────────
+
+export type UserRole = 'ADMIN' | 'COACH' | 'PLAYER' | 'VIEWER';
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  profileImage: string | null;
+  createdAt?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export type Position =
   | 'SETTER'
   | 'OUTSIDE_HITTER'

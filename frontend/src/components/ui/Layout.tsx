@@ -1,16 +1,30 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const NAV = [
   { to: '/teams', label: 'Teams' },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admin',
+  COACH: 'Coach',
+  PLAYER: 'Player',
+  VIEWER: 'Viewer',
+};
+
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const isTracking = location.pathname.startsWith('/track/');
 
-  // Full-screen focus mode for the tracking screen — hide all chrome
   if (isTracking) {
     return <Outlet />;
+  }
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
   }
 
   return (
@@ -26,21 +40,53 @@ export default function Layout() {
               </svg>
             </div>
             <span className="font-bold text-chalk-100 tracking-tight">VolleyVision</span>
-            <span className="badge bg-spike-600/20 text-spike-400 ml-1">Phase 4</span>
+            <span className="badge bg-spike-600/20 text-spike-400 ml-1">Phase 5</span>
           </div>
 
-          {/* Nav */}
-          <nav className="flex items-center gap-1">
-            {NAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => (isActive ? 'nav-link-active' : 'nav-link')}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          {/* Nav + Auth */}
+          <div className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 mr-2">
+              {NAV.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => (isActive ? 'nav-link-active' : 'nav-link')}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            {user ? (
+              <div className="flex items-center gap-3">
+                {/* User chip */}
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-court-800 border border-court-700">
+                  <div className="w-6 h-6 rounded-full bg-spike-600 flex items-center justify-center text-xs font-bold text-white">
+                    {user.firstName[0]}{user.lastName[0]}
+                  </div>
+                  <span className="text-chalk-200 text-sm font-medium">
+                    {user.firstName} {user.lastName}
+                  </span>
+                  <span className="badge bg-court-700 text-chalk-500 text-xs">
+                    {ROLE_LABELS[user.role] ?? user.role}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="nav-link text-chalk-400 hover:text-red-400"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <NavLink to="/login" className="nav-link">Sign in</NavLink>
+                <NavLink to="/register" className="btn-primary text-sm px-4 py-2">
+                  Register
+                </NavLink>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

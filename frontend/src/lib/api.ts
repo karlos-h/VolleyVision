@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -15,6 +15,23 @@ const api = axios.create({
   baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 });
+
+// Attach stored JWT to every request automatically
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('vv_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// ─── Auth ──────────────────────────────────────────────────────────────────────
+export const authApi = {
+  register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
+    api.post<AuthResponse>('/auth/register', data).then((r) => r.data),
+  login: (data: { email: string; password: string }) =>
+    api.post<AuthResponse>('/auth/login', data).then((r) => r.data),
+  logout: () => api.post('/auth/logout').then((r) => r.data),
+  me: () => api.get<User>('/auth/me').then((r) => r.data),
+};
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
 export const teamsApi = {
