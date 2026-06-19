@@ -488,6 +488,16 @@ export interface Recommendation {
   message: string;
 }
 
+// ─── Player Development (Phase 6 Sprint 2) ───────────────────────────────────
+
+export interface PlayerDevelopmentReport {
+  strengths:      string[];
+  weaknesses:     string[];
+  mostImproved:   { category: string; change: string } | null;
+  needsAttention: { category: string; change: string } | null;
+  trend:          'improving' | 'declining' | 'stable' | 'insufficient_data';
+}
+
 // ─── Event metadata (UI helpers) ─────────────────────────────────────────────
 
 export interface EventMeta {

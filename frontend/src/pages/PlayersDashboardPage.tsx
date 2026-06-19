@@ -1,15 +1,17 @@
 import { Link, useParams } from 'react-router-dom';
-import { usePlayerAnalytics, usePlayerHeatmap } from '../hooks';
+import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport } from '../hooks';
 import { StatsCards } from '../components/analytics/StatsOverview';
 import { POSITION_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
 import HeatMapCourt from '../components/court/HeatMapCourt';
+import PlayerDevelopmentCard from '../components/analytics/PlayerDevelopmentCard';
 import type { StatLine } from '../types';
 
 export default function PlayerDashboardPage() {
   const { playerId } = useParams<{ playerId: string }>();
   const { data, isLoading, isError } = usePlayerAnalytics(playerId!);
   const { data: heatmapData } = usePlayerHeatmap(playerId!);
+  const { data: developmentData } = usePlayerDevelopmentReport(playerId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics…</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load player analytics.</p>;
@@ -34,6 +36,14 @@ export default function PlayerDashboardPage() {
 
       <StatsCards stats={data.stats} />
       <PlayerRadarChart stats={data.stats} />
+
+      {/* Phase 6 Sprint 2 — Player Development Intelligence */}
+      {developmentData && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Development Report</h2>
+          <PlayerDevelopmentCard report={developmentData} />
+        </section>
+      )}
 
       {heatmapData && (
         <section>

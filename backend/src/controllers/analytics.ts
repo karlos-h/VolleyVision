@@ -9,6 +9,7 @@ import { generateMatchReport } from '../services/report.service';
 import { narrateMatchReport } from '../services/aiNarration.service';
 import { buildDetailedHeatmap } from '../lib/heatmap';
 import { generateCoachingRecommendations } from '../services/coachingRecommendations.service';
+import { generatePlayerDevelopmentReport } from '../services/playerDevelopment.service';
 
 // ─── Shared query shapes ──────────────────────────────────────────────────────
 
@@ -394,5 +395,32 @@ export async function getPlayerAnalytics(req: Request, res: Response, next: Next
       select: eventSelect,
     });
     res.json({ player, matchId: matchId ?? null, stats: calculateStats(events), setStats: calculateSetStats(events) });
+  } catch (err) { next(err); }
+}
+
+export async function getPlayerDevelopmentReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const player = await prisma.player.findUnique({ where: { id: req.params.playerId }, select: playerSelect });
+    if (!player) throw new AppError(404, 'Player not found.');
+
+    // Fetch all completed matches the player appeared in, ordered chronologically.
+    const matches = await prisma.match.findMany({
+      where: { status: 'COMPLETED', events: { some: { playerId: player.id } } },
+      select: { id: true, matchDate: true },
+      orderBy: { matchDate: 'asc' },
+    });
+
+    // For each match, aggregate that player's events into a StatLine.
+    const matchStats = await Promise.all(
+      matches.map(async (m) => {
+        const events = await prisma.event.findMany({
+          where: { matchId: m.id, playerId: player.id },
+          select: eventSelect,
+        });
+        return { matchDate: m.matchDate, stats: calculateStats(events) };
+      }),
+    );
+
+    res.json(generatePlayerDevelopmentReport(matchStats));
   } catch (err) { next(err); }
 }

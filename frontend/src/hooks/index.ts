@@ -284,6 +284,14 @@ export function useTeamRecommendations(teamId: string) {
   });
 }
 
+export function usePlayerDevelopmentReport(playerId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'development', 'player', playerId],
+    queryFn: () => analyticsApi.playerDevelopmentReport(playerId),
+    enabled: !!playerId,
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],
