@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport, useMatchZoneDetail } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport, useMatchZoneDetail, useMatchReportNarrative } from '../hooks';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
@@ -19,6 +19,7 @@ export default function MatchDashboardPage() {
   const { data: advancedData } = useMatchAdvanced(matchId!);
   const { data: reportData } = useMatchReport(matchId!);
   const { data: zoneDetail } = useMatchZoneDetail(matchId!);
+  const { data: narrativeData, isLoading: narrativeLoading, isError: narrativeError } = useMatchReportNarrative(matchId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load match analytics.</p>;
@@ -96,6 +97,26 @@ export default function MatchDashboardPage() {
 
       {/* Sprint 6 — Automated Match Report */}
       {reportData && <MatchReportCard report={reportData} />}
+
+      {/* Phase 6 Sprint 0 — AI Match Summary */}
+      {(narrativeLoading || narrativeData || narrativeError) && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">AI Match Summary</h2>
+          {narrativeLoading && (
+            <div className="card p-6 text-chalk-400 text-sm animate-pulse">Generating coaching summary…</div>
+          )}
+          {narrativeError && (
+            <div className="card p-6 text-chalk-500 text-sm">AI summary unavailable for this match.</div>
+          )}
+          {narrativeData && !narrativeLoading && (
+            <div className="card p-6 space-y-3">
+              {narrativeData.split('\n\n').filter(Boolean).map((para, i) => (
+                <p key={i} className="text-sm text-chalk-300 leading-relaxed">{para}</p>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <StatsCards stats={data.teamStats} />
 

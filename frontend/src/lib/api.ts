@@ -156,6 +156,9 @@ export const analyticsApi = {
 
   playerZoneDetail: (playerId: string) =>
     api.get<DetailedHeatmapData>(`/analytics/players/${playerId}/heatmap/zones`).then((r) => r.data),
+
+  matchReportNarrative: (matchId: string) =>
+    api.get<string>(`/analytics/matches/${matchId}/report/narrative`).then((r) => r.data),
 };
 
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────

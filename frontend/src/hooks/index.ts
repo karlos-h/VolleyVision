@@ -267,6 +267,15 @@ export function useMatchReport(matchId: string) {
   });
 }
 
+export function useMatchReportNarrative(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'report', 'narrative', matchId],
+    queryFn: () => analyticsApi.matchReportNarrative(matchId),
+    enabled: !!matchId,
+    retry: false,
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],

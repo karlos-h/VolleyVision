@@ -3,6 +3,7 @@ import {
   getMatchAnalytics,
   getMatchAdvanced,
   getMatchReport,
+  getMatchReportNarrative,
   getMatchZones,
   getMatchHeatmap,
   getMatchZoneDetail,
@@ -24,6 +25,7 @@ const router = Router();
 router.get('/matches/:matchId', getMatchAnalytics);
 router.get('/matches/:matchId/advanced', getMatchAdvanced);
 router.get('/matches/:matchId/report', getMatchReport);
+router.get('/matches/:matchId/report/narrative', getMatchReportNarrative);
 router.get('/matches/:matchId/zones', getMatchZones);
 router.get('/matches/:matchId/heatmap', getMatchHeatmap);
 router.get('/matches/:matchId/heatmap/zones', getMatchZoneDetail);

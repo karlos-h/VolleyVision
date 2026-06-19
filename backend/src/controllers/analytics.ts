@@ -6,6 +6,7 @@ import { HOME_POINT_SET, AWAY_POINT_SET } from '../lib/scoringRules';
 import { calculateMomentum } from '../services/momentum.service';
 import { calculateRotations } from '../services/rotation.service';
 import { generateMatchReport } from '../services/report.service';
+import { narrateMatchReport } from '../services/aiNarration.service';
 
 // ─── Shared query shapes ──────────────────────────────────────────────────────
 
@@ -397,6 +398,34 @@ export async function getPlayerZoneDetail(req: Request, res: Response, next: Nex
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
+  } catch (err) { next(err); }
+}
+
+export async function getMatchReportNarrative(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+    const [match, events, players] = await Promise.all([
+      prisma.match.findUnique({ where: { id: matchId }, include: { team: { select: { name: true } } } }),
+      prisma.event.findMany({
+        where: { matchId },
+        select: { eventType: true, setNumber: true, courtZone: true, rotationNumber: true, playerId: true, recordedAt: true },
+        orderBy: { recordedAt: 'asc' },
+      }),
+      prisma.player.findMany({
+        where: { team: { matches: { some: { id: matchId } } } },
+        select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true },
+      }),
+    ]);
+    if (!match) throw new AppError(404, 'Match not found.');
+    const report = generateMatchReport(
+      { teamName: match.team.name, opponent: match.opponent,
+        homeSetsWon: match.homeSetsWon, awaySetsWon: match.awaySetsWon,
+        setScores: match.setScores },
+      events,
+      players,
+    );
+    const narrative = await narrateMatchReport(report);
+    res.json(narrative);
   } catch (err) { next(err); }
 }
 
