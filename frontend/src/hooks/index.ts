@@ -227,6 +227,30 @@ export function usePlayerHeatmap(playerId: string) {
   });
 }
 
+export function useMatchZoneDetail(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'zones', 'match', matchId],
+    queryFn: () => analyticsApi.matchZoneDetail(matchId),
+    enabled: !!matchId,
+  });
+}
+
+export function useTeamZoneDetail(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'zones', 'team', teamId],
+    queryFn: () => analyticsApi.teamZoneDetail(teamId),
+    enabled: !!teamId,
+  });
+}
+
+export function usePlayerZoneDetail(playerId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'zones', 'player', playerId],
+    queryFn: () => analyticsApi.playerZoneDetail(playerId),
+    enabled: !!playerId,
+  });
+}
+
 export function useMatchMomentum(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'momentum', matchId],

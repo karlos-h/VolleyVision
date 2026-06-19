@@ -1,12 +1,13 @@
 import { Link, useParams } from 'react-router-dom';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import StatLeaderboardChart from '../components/charts/StatLeaderboardChart';
-import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced } from '../hooks';
+import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced, useTeamZoneDetail } from '../hooks';
 import TeamTrendChart from '../components/charts/TeamTrendChart';
 import CoachInsights from '../components/analytics/CoachInsights';
 import { generateTeamInsights } from '../lib/insights';
 import PlayerInsights from '../components/analytics/PlayerInsights';
 import HeatMapCourt from '../components/court/HeatMapCourt';
+import CourtHeatMap from '../components/analytics/CourtHeatMap';
 import RotationAnalytics from '../components/analytics/RotationAnalytics';
 import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
 
@@ -15,6 +16,7 @@ export default function TeamDashboardPage() {
   const { data, isLoading, isError } = useTeamAnalytics(teamId!);
   const trends = useTeamTrends(teamId!);
   const { data: heatmapData } = useTeamHeatmap(teamId!);
+  const { data: zoneDetail } = useTeamZoneDetail(teamId!);
   const { data: rotationData } = useTeamRotations(teamId!);
   const { data: advancedData } = useTeamAdvanced(teamId!);
 
@@ -137,6 +139,14 @@ export default function TeamDashboardPage() {
         <section>
           <h2 className="text-lg font-semibold text-chalk-100 mb-3">Season Heat Map</h2>
           <HeatMapCourt data={heatmapData} />
+        </section>
+      )}
+
+      {/* Phase 3 — Zone Efficiency */}
+      {zoneDetail && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Zone Efficiency</h2>
+          <CourtHeatMap data={zoneDetail} />
         </section>
       )}
 

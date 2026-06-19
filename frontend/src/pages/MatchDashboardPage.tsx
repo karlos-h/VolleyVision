@@ -1,9 +1,10 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport, useMatchZoneDetail } from '../hooks';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
+import CourtHeatMap from '../components/analytics/CourtHeatMap';
 import MomentumChart from '../components/charts/MomentumChart';
 import RotationAnalytics from '../components/analytics/RotationAnalytics';
 import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
@@ -17,6 +18,7 @@ export default function MatchDashboardPage() {
   const { data: rotationData } = useMatchRotations(matchId!);
   const { data: advancedData } = useMatchAdvanced(matchId!);
   const { data: reportData } = useMatchReport(matchId!);
+  const { data: zoneDetail } = useMatchZoneDetail(matchId!);
 
   if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
   if (isError || !data) return <p className="text-red-400">Unable to load match analytics.</p>;
@@ -165,6 +167,14 @@ export default function MatchDashboardPage() {
         <section>
           <h2 className="text-lg font-semibold text-chalk-100 mb-3">Heat Map</h2>
           <HeatMapCourt data={heatmapData} />
+        </section>
+      )}
+
+      {/* Phase 3 — Zone Efficiency */}
+      {zoneDetail && (
+        <section>
+          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Zone Efficiency</h2>
+          <CourtHeatMap data={zoneDetail} />
         </section>
       )}
 

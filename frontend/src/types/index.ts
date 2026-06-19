@@ -258,6 +258,17 @@ export interface SetScore {
 export type HeatmapData = Record<'attack' | 'serve' | 'pass' | 'block' | 'defence' | 'all', Record<string, number>>;
 export type ZoneCounts = Record<string, number>;
 
+export interface ZoneAttack  { kills: number; errors: number; attempts: number; hittingPct: number | null }
+export interface ZoneServe   { aces: number; errors: number; serveIn: number; attempts: number; efficiency: number | null }
+export interface ZonePass    { pass3: number; pass2: number; pass1: number; pass0: number; attempts: number; rating: number | null }
+export interface ZoneDefence { digs: number; soloBlocks: number; blockAssists: number; total: number }
+export interface DetailedHeatmapData {
+  attack:  Record<string, ZoneAttack>;
+  serve:   Record<string, ZoneServe>;
+  pass:    Record<string, ZonePass>;
+  defence: Record<string, ZoneDefence>;
+}
+
 export interface MatchReport {
   generatedAt: string;
   result: {

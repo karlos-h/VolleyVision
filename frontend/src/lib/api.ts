@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard, DetailedHeatmapData } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -147,6 +147,15 @@ export const analyticsApi = {
 
   matchReport: (matchId: string) =>
     api.get<MatchReport>(`/analytics/matches/${matchId}/report`).then((r) => r.data),
+
+  matchZoneDetail: (matchId: string) =>
+    api.get<DetailedHeatmapData>(`/analytics/matches/${matchId}/heatmap/zones`).then((r) => r.data),
+
+  teamZoneDetail: (teamId: string) =>
+    api.get<DetailedHeatmapData>(`/analytics/teams/${teamId}/heatmap/zones`).then((r) => r.data),
+
+  playerZoneDetail: (playerId: string) =>
+    api.get<DetailedHeatmapData>(`/analytics/players/${playerId}/heatmap/zones`).then((r) => r.data),
 };
 
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────
