@@ -15,6 +15,7 @@ import invitationRoutes from './routes/invitations';
 import profileRoutes from './routes/profile';
 import playerPortalRoutes from './routes/playerPortal';
 import coachPortalRoutes from './routes/coachPortal';
+import auditRoutes from './routes/audit';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/invitations', invitationRoutes);
 app.use('/api/v1/profile', profileRoutes);
+app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/player', playerPortalRoutes);
 app.use('/api/v1/coach', coachPortalRoutes);
 app.use('/api/v1/teams', teamRoutes);

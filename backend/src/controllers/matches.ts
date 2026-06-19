@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion } from '../lib/scoring';
+import { logAudit } from '../lib/audit';
 
 export async function getMatchesByTeam(req: Request, res: Response, next: NextFunction) {
   try {
@@ -48,6 +49,7 @@ export async function createMatch(req: Request, res: Response, next: NextFunctio
         status: 'SCHEDULED',
       },
     });
+    if (req.user) logAudit(req.user.userId, 'CREATE_MATCH', 'match', match.id);
     res.status(201).json(match);
   } catch (err) {
     next(err);
@@ -77,6 +79,7 @@ export async function updateMatch(req: Request, res: Response, next: NextFunctio
 export async function deleteMatch(req: Request, res: Response, next: NextFunction) {
   try {
     await prisma.match.delete({ where: { id: req.params.id } });
+    if (req.user) logAudit(req.user.userId, 'DELETE_MATCH', 'match', req.params.id);
     res.status(204).send();
   } catch (err) {
     next(err);

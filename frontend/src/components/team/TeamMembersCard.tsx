@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTeamMembers, useAddMember, useUpdateMemberRole, useRemoveMember, useUserSearch } from '../../hooks';
-import { useAuth } from '../../context/AuthContext';
 import type { TeamRole } from '../../types';
 
 const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
@@ -19,19 +18,22 @@ const ROLE_COLORS: Record<TeamRole, string> = {
   VIEWER:          'bg-court-700 text-chalk-400',
 };
 
+import { useTeamRole } from '../../hooks';
+
 interface Props {
   teamId: string;
   ownerId?: string | null;
 }
 
-export default function TeamMembersCard({ teamId, ownerId }: Props) {
-  const { user } = useAuth();
+export default function TeamMembersCard({ teamId }: Props) {
   const { data: members, isLoading } = useTeamMembers(teamId);
   const addMember       = useAddMember(teamId);
   const updateRole      = useUpdateMemberRole(teamId);
   const removeMember    = useRemoveMember(teamId);
+  const { data: roleInfo } = useTeamRole(teamId);
 
-  const isOwner = !!user && user.id === ownerId;
+  const canManage = roleInfo?.permissions.includes('MANAGE_MEMBERS') ?? false;
+  const isOwner = canManage; // alias for the add-member panel gating
 
   // Add-member panel state
   const [showAdd, setShowAdd]     = useState(false);

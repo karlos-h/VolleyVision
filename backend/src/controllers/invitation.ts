@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { TeamRole } from '@prisma/client';
+import { logAudit } from '../lib/audit';
 import {
   createInvitation,
   acceptInvitation,
@@ -16,6 +17,7 @@ export async function createTeamInvitation(req: Request, res: Response, next: Ne
       return res.status(400).json({ error: 'email and role are required' });
     }
     const inv = await createInvitation(teamId, req.user!.userId, email, role);
+    logAudit(req.user!.userId, 'CREATE_INVITATION', 'invitation', inv.id, { teamId, email, role });
     res.status(201).json(inv);
   } catch (err: any) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
@@ -35,6 +37,7 @@ export async function listTeamInvitations(req: Request, res: Response, next: Nex
 export async function acceptInvitationHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await acceptInvitation(req.params.token, req.user!.userId);
+    logAudit(req.user!.userId, 'ACCEPT_INVITATION', 'invitation', result.id);
     res.json(result);
   } catch (err: any) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });

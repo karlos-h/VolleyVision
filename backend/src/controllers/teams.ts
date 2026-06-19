@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { logAudit } from '../lib/audit';
 
 const ownerSelect = {
   id: true,
@@ -49,6 +50,7 @@ export async function createTeam(req: Request, res: Response, next: NextFunction
       data: { name, division, season },
       include: { owner: { select: ownerSelect } },
     });
+    if (req.user) logAudit(req.user.userId, 'CREATE_TEAM', 'team', team.id);
     res.status(201).json(team);
   } catch (err) {
     next(err);
@@ -63,6 +65,7 @@ export async function updateTeam(req: Request, res: Response, next: NextFunction
       data: { name, division, season },
       include: { owner: { select: ownerSelect } },
     });
+    if (req.user) logAudit(req.user.userId, 'UPDATE_TEAM', 'team', team.id);
     res.json(team);
   } catch (err) {
     next(err);
@@ -72,6 +75,7 @@ export async function updateTeam(req: Request, res: Response, next: NextFunction
 export async function deleteTeam(req: Request, res: Response, next: NextFunction) {
   try {
     await prisma.team.delete({ where: { id: req.params.id } });
+    if (req.user) logAudit(req.user.userId, 'DELETE_TEAM', 'team', req.params.id);
     res.status(204).send();
   } catch (err) {
     next(err);

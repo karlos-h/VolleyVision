@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi } from '../lib/api';
 import type { Team, Player, Match, TeamRole } from '../types';
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
@@ -443,4 +443,21 @@ export function useUnlinkPlayer() {
 
 export function useCoachDashboard() {
   return useQuery({ queryKey: ['coach', 'dashboard'], queryFn: coachPortalApi.dashboard });
+}
+
+// ─── Permissions (Phase 5 Sprint 6) ──────────────────────────────────────────
+
+export function useTeamRole(teamId: string) {
+  return useQuery({
+    queryKey: ['permissions', 'team', teamId],
+    queryFn: () => permissionsApi.myTeamRole(teamId),
+    enabled: !!teamId,
+    staleTime: 60_000, // role changes are infrequent
+  });
+}
+
+/** Convenience: returns true if the user has the given permission on teamId */
+export function useHasPermission(teamId: string, permission: string) {
+  const { data } = useTeamRole(teamId);
+  return data?.permissions.includes(permission) ?? false;
 }

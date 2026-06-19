@@ -5,6 +5,7 @@ import type { Position, TeamRole, InvitationStatus, Invitation } from '../types'
 import { POSITION_LABELS } from '../types';
 import { useAuth } from '../context/AuthContext';
 import TeamMembersCard from '../components/team/TeamMembersCard';
+import PermissionGuard from '../components/ui/PermissionGuard';
 
 const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'HEAD_COACH',       label: 'Head Coach' },
@@ -227,9 +228,11 @@ export default function TeamDetailPage() {
           <Link to={`/teams/${teamId}/matches`} className="btn-secondary text-sm">
             Matches
           </Link>
-          <button className="btn-primary text-sm" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : '+ Add Player'}
-          </button>
+          <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
+            <button className="btn-primary text-sm" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : '+ Add Player'}
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -264,20 +267,22 @@ export default function TeamDetailPage() {
               </button>
             )}
 
-            {/* Transfer — only current owner can see this */}
-            {team.owner && user && team.owner.id === user.id && (
-              <button
-                className="btn-secondary text-sm"
-                onClick={() => setShowTransfer(!showTransfer)}
-              >
-                Transfer
-              </button>
-            )}
+            {/* Transfer — only user with TRANSFER_OWNERSHIP permission */}
+            <PermissionGuard teamId={teamId!} permission="TRANSFER_OWNERSHIP">
+              {team.owner && (
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => setShowTransfer(!showTransfer)}
+                >
+                  Transfer
+                </button>
+              )}
+            </PermissionGuard>
           </div>
         </div>
 
         {/* Transfer form */}
-        {showTransfer && team.owner && user && team.owner.id === user.id && (
+        {showTransfer && team.owner && (
           <form
             className="mt-4 pt-4 border-t border-court-800 flex gap-2"
             onSubmit={async (e) => {
@@ -325,7 +330,7 @@ export default function TeamDetailPage() {
       <TeamInvitationsCard teamId={teamId!} isOwner={!!user && user.id === team.ownerId} />
 
       {/* Add player form */}
-      {showForm && (
+      {showForm && user && (
         <div className="card p-5">
           <h2 className="font-semibold text-chalk-100 mb-4">Add Player</h2>
           <form onSubmit={handleCreate} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -464,22 +469,24 @@ export default function TeamDetailPage() {
                     <span className={`badge ${POSITION_COLORS[player.position]}`}>
                       {POSITION_LABELS[player.position]}
                     </span>
-                    <button
-                      className="text-chalk-600 hover:text-chalk-200 transition-colors text-xs"
-                      onClick={() => startEdit(player)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
-                      onClick={() => {
-                        if (confirm(`Remove ${player.firstName} ${player.lastName}?`)) {
-                          deletePlayer.mutate({ id: player.id, teamId: teamId! });
-                        }
-                      }}
-                    >
-                      Remove
-                    </button>
+                    <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
+                      <button
+                        className="text-chalk-600 hover:text-chalk-200 transition-colors text-xs"
+                        onClick={() => startEdit(player)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
+                        onClick={() => {
+                          if (confirm(`Remove ${player.firstName} ${player.lastName}?`)) {
+                            deletePlayer.mutate({ id: player.id, teamId: teamId! });
+                          }
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </PermissionGuard>
                   </div>
                 )}
               </div>

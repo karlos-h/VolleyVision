@@ -164,6 +164,18 @@ export const membershipsApi = {
     api.get<UserSearchResult[]>('/users/search', { params: { q } }).then((r) => r.data),
 };
 
+// ─── Permissions (Phase 5 Sprint 6) ──────────────────────────────────────────
+export interface TeamRoleInfo {
+  role: string | null;
+  isOwner: boolean;
+  permissions: string[];
+}
+
+export const permissionsApi = {
+  myTeamRole: (teamId: string) =>
+    api.get<TeamRoleInfo>(`/teams/${teamId}/my-role`).then((r) => r.data),
+};
+
 // ─── Profile (Phase 5 Sprint 5) ──────────────────────────────────────────────
 export const profileApi = {
   get: () => api.get<UserProfile>('/profile').then((r) => r.data),
