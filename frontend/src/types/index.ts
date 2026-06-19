@@ -498,6 +498,26 @@ export interface PlayerDevelopmentReport {
   trend:          'improving' | 'declining' | 'stable' | 'insufficient_data';
 }
 
+// ─── Season Intelligence (Phase 6 Sprint 4) ──────────────────────────────────
+
+export interface SeasonInsight {
+  category: 'kills' | 'aces' | 'blocks' | 'digs' | 'hittingPercentage';
+  message: string;
+  direction: 'positive' | 'negative';
+}
+
+export interface SeasonIntelligenceReport {
+  seasonAverages: {
+    kills: number;
+    aces: number;
+    blocks: number;
+    digs: number;
+    hittingPercentage: number | null;
+  };
+  insights: SeasonInsight[];
+  trajectory: 'improving' | 'declining' | 'mixed' | 'insufficient_data';
+}
+
 // ─── Event metadata (UI helpers) ─────────────────────────────────────────────
 
 export interface EventMeta {

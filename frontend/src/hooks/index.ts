@@ -292,6 +292,14 @@ export function usePlayerDevelopmentReport(playerId: string) {
   });
 }
 
+export function useSeasonIntelligence(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'season-intelligence', 'team', teamId],
+    queryFn: () => analyticsApi.seasonIntelligence(teamId),
+    enabled: !!teamId,
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],

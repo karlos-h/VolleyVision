@@ -10,6 +10,7 @@ import { narrateMatchReport } from '../services/aiNarration.service';
 import { buildDetailedHeatmap } from '../lib/heatmap';
 import { generateCoachingRecommendations } from '../services/coachingRecommendations.service';
 import { generatePlayerDevelopmentReport } from '../services/playerDevelopment.service';
+import { generateSeasonIntelligence } from '../services/seasonIntelligence.service';
 
 // ─── Shared query shapes ──────────────────────────────────────────────────────
 
@@ -150,19 +151,32 @@ export async function getTeamAnalytics(req: Request, res: Response, next: NextFu
   } catch (err) { next(err); }
 }
 
+async function fetchTeamTrends(teamId: string) {
+  const matches = await prisma.match.findMany({
+    where: { teamId, status: 'COMPLETED' },
+    orderBy: { matchDate: 'asc' },
+    include: { events: { select: eventSelect } },
+  });
+  return matches.map((m) => {
+    const s = calculateStats(m.events);
+    return { matchId: m.id, opponent: m.opponent, matchDate: m.matchDate,
+             kills: s.kills, aces: s.aces, blocks: s.totalBlocks, digs: s.digs,
+             hittingPercentage: s.hittingPercentage };
+  });
+}
+
 export async function getTeamTrends(req: Request, res: Response, next: NextFunction) {
   try {
-    const matches = await prisma.match.findMany({
-      where: { teamId: req.params.teamId, status: 'COMPLETED' },
-      orderBy: { matchDate: 'asc' },
-      include: { events: { select: eventSelect } },
-    });
-    res.json(matches.map((m) => {
-      const s = calculateStats(m.events);
-      return { matchId: m.id, opponent: m.opponent, matchDate: m.matchDate,
-               kills: s.kills, aces: s.aces, blocks: s.totalBlocks, digs: s.digs,
-               hittingPercentage: s.hittingPercentage };
-    }));
+    res.json(await fetchTeamTrends(req.params.teamId));
+  } catch (err) { next(err); }
+}
+
+export async function getSeasonIntelligence(req: Request, res: Response, next: NextFunction) {
+  try {
+    const team = await prisma.team.findUnique({ where: { id: req.params.teamId }, select: { id: true } });
+    if (!team) throw new AppError(404, 'Team not found.');
+    const trends = await fetchTeamTrends(req.params.teamId);
+    res.json(generateSeasonIntelligence(trends));
   } catch (err) { next(err); }
 }
 
