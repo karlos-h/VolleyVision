@@ -276,6 +276,14 @@ export function useMatchReportNarrative(matchId: string) {
   });
 }
 
+export function useTeamRecommendations(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'recommendations', 'team', teamId],
+    queryFn: () => analyticsApi.teamRecommendations(teamId),
+    enabled: !!teamId,
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],

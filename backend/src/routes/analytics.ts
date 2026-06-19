@@ -18,6 +18,7 @@ import {
   getTeamHeatmap,
   getTeamZoneDetail,
   getTeamRotations,
+  getTeamCoachingRecommendations,
 } from '../controllers/analytics';
 
 const router = Router();
@@ -37,6 +38,7 @@ router.get('/teams/:teamId/advanced', getTeamAdvanced);
 router.get('/teams/:teamId/heatmap', getTeamHeatmap);
 router.get('/teams/:teamId/heatmap/zones', getTeamZoneDetail);
 router.get('/teams/:teamId/rotations', getTeamRotations);
+router.get('/teams/:teamId/recommendations', getTeamCoachingRecommendations);
 router.get('/players/:playerId', getPlayerAnalytics);
 router.get('/players/:playerId/heatmap', getPlayerHeatmap);
 router.get('/players/:playerId/heatmap/zones', getPlayerZoneDetail);

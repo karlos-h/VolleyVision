@@ -480,6 +480,14 @@ export interface TeamInsight {
   message: string;
 }
 
+// ─── Coaching Recommendations (Phase 6 Sprint 1) ─────────────────────────────
+
+export interface Recommendation {
+  category: 'attack' | 'serve' | 'pass' | 'defence' | 'rotation';
+  priority: 'high' | 'medium' | 'low';
+  message: string;
+}
+
 // ─── Event metadata (UI helpers) ─────────────────────────────────────────────
 
 export interface EventMeta {
