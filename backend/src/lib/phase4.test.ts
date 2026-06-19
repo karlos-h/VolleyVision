@@ -28,8 +28,11 @@ assert.equal(scoringTeam('KILL'), 'home',        'KILL → home point');
 assert.equal(scoringTeam('ACE'), 'home',         'ACE → home point');
 assert.equal(scoringTeam('SOLO_BLOCK'), 'home',  'SOLO_BLOCK → home point');
 assert.equal(scoringTeam('BLOCK_ASSIST'), 'home','BLOCK_ASSIST → home point');
-assert.equal(scoringTeam('ATTACK_ERROR'), 'away','ATTACK_ERROR → away point');
+assert.equal(scoringTeam('ATTACK_ERROR'), 'away', 'ATTACK_ERROR → away point');
 assert.equal(scoringTeam('SERVICE_ERROR'), 'away','SERVICE_ERROR → away point');
+assert.equal(scoringTeam('DIG_ERROR'), 'away',   'DIG_ERROR → away point');
+assert.equal(scoringTeam('SETTING_ERROR'), 'away','SETTING_ERROR → away point');
+assert.equal(scoringTeam('BLOCK_ERROR'), 'away', 'BLOCK_ERROR → away point');
 assert.equal(scoringTeam('DIG'), null,           'DIG → no point');
 assert.equal(scoringTeam('PASS_3'), null,        'PASS_3 → no point');
 assert.equal(scoringTeam('ASSIST'), null,        'ASSIST → no point');
@@ -39,6 +42,9 @@ assert.ok(HOME_POINT_SET.has('SOLO_BLOCK'));
 assert.ok(HOME_POINT_SET.has('BLOCK_ASSIST'));
 assert.ok(AWAY_POINT_SET.has('ATTACK_ERROR'));
 assert.ok(AWAY_POINT_SET.has('SERVICE_ERROR'));
+assert.ok(AWAY_POINT_SET.has('DIG_ERROR'));
+assert.ok(AWAY_POINT_SET.has('SETTING_ERROR'));
+assert.ok(AWAY_POINT_SET.has('BLOCK_ERROR'));
 assert.ok(!HOME_POINT_SET.has('DIG'));
 assert.ok(!AWAY_POINT_SET.has('DIG'));
 
@@ -153,7 +159,7 @@ for (const type of ['KILL', 'ACE', 'SOLO_BLOCK', 'BLOCK_ASSIST']) {
 }
 
 // Every away-scoring event type
-for (const type of ['ATTACK_ERROR', 'SERVICE_ERROR']) {
+for (const type of ['ATTACK_ERROR', 'SERVICE_ERROR', 'DIG_ERROR', 'SETTING_ERROR', 'BLOCK_ERROR']) {
   const s = simulateUndo(10, 5, type);
   assert.equal(s.homeScore, 10, `Undo ${type} must not change homeScore`);
   assert.equal(s.awayScore, 4, `Undo ${type} must decrement awayScore`);

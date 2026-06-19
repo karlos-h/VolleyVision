@@ -12,6 +12,9 @@ export const HOME_POINT_EVENTS: readonly string[] = [
 export const AWAY_POINT_EVENTS: readonly string[] = [
   'ATTACK_ERROR',
   'SERVICE_ERROR',
+  'DIG_ERROR',
+  'SETTING_ERROR',
+  'BLOCK_ERROR',
 ] as const;
 
 export const HOME_POINT_SET = new Set(HOME_POINT_EVENTS);

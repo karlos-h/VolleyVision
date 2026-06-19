@@ -6,6 +6,7 @@ import './index.css';
 
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/ui/Layout';
+import RequireAuth from './components/ui/RequireAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MyTeamsPage from './pages/MyTeamsPage';
@@ -43,20 +44,25 @@ function App() {
           {/* Main app */}
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/player" element={<PlayerPortalPage />} />
-            <Route path="/coach" element={<CoachDashboardPage />} />
-            <Route path="/my-teams" element={<MyTeamsPage />} />
-            <Route path="/invitations" element={<InvitationsPage />} />
+
+            {/* Protected routes — require a logged-in user */}
+            <Route element={<RequireAuth />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/player" element={<PlayerPortalPage />} />
+              <Route path="/coach" element={<CoachDashboardPage />} />
+              <Route path="/my-teams" element={<MyTeamsPage />} />
+              <Route path="/invitations" element={<InvitationsPage />} />
+              <Route path="/track/:matchId" element={<TrackingPage />} />
+            </Route>
+
+            {/* Public routes — readable without login */}
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
             <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
             <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
             <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
             <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
-            {/* Tracking screen hides the nav — full focus mode */}
-            <Route path="/track/:matchId" element={<TrackingPage />} />
           </Route>
         </Routes>
       </AuthProvider>
