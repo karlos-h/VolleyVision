@@ -20,6 +20,13 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+// Phase 7 Sprint 0 — onboarding hint only; never used for permission checks.
+enum SignupIntent {
+  COACH
+  PLAYER
+  UNSURE
+}
+
 enum Position {
   SETTER
   OUTSIDE_HITTER
@@ -101,6 +108,10 @@ model User {
   firstName    String   @map("first_name")
   lastName     String   @map("last_name")
   role         UserRole @default(COACH)
+
+  // Phase 7 Sprint 0 — one-time onboarding hint, null for all pre-existing users.
+  // NEVER used in permission checks — all permissions derive from TeamMembership role.
+  signupIntent SignupIntent? @map("signup_intent")
 
   profileImage String?  @map("profile_image")
 

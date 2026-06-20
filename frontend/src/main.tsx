@@ -22,6 +22,8 @@ import TrackingPage from './pages/TrackingPage';
 import MatchDashboardPage from './pages/MatchDashboardPage';
 import TeamDashboardPage from './pages/TeamDashboardPage';
 import PlayersDashboardPage from './pages/PlayersDashboardPage';
+import OnboardingCoachPage from './pages/OnboardingCoachPage';
+import OnboardingPlayerPage from './pages/OnboardingPlayerPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +42,9 @@ function App() {
           {/* Auth pages — standalone, no Layout chrome */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          {/* Post-registration onboarding nudges — one-time, intent-driven */}
+          <Route path="/onboarding/coach" element={<OnboardingCoachPage />} />
+          <Route path="/onboarding/player" element={<OnboardingPlayerPage />} />
 
           {/* Main app */}
           <Route element={<Layout />}>

@@ -1,6 +1,28 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import type { SignupIntent } from '../types';
+import clsx from 'clsx';
+
+// ── Onboarding redirect — isolated so it's obvious this is a one-time nudge,
+// never part of permission or auth logic. Call only immediately after registration.
+function onboardingPath(intent: SignupIntent | null): string {
+  if (intent === 'COACH')  return '/onboarding/coach';
+  if (intent === 'PLAYER') return '/onboarding/player';
+  return '/teams'; // UNSURE or null → existing default
+}
+
+interface IntentOption {
+  value: SignupIntent;
+  label: string;
+  description: string;
+}
+
+const INTENT_OPTIONS: IntentOption[] = [
+  { value: 'COACH',  label: 'Coach a team',      description: "I'll be managing a team" },
+  { value: 'PLAYER', label: 'Play for a team',    description: "I'll join a team as a player" },
+  { value: 'UNSURE', label: "Not sure yet",       description: "I'll figure it out later" },
+];
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -11,6 +33,7 @@ export default function RegisterPage() {
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
   const [confirm, setConfirm]     = useState('');
+  const [intent, setIntent]       = useState<SignupIntent | null>(null);
   const [error, setError]         = useState('');
   const [loading, setLoading]     = useState(false);
 
@@ -29,8 +52,8 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register({ email, password, firstName, lastName });
-      navigate('/teams', { replace: true });
+      await register({ email, password, firstName, lastName, signupIntent: intent });
+      navigate(onboardingPath(intent), { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.error ?? 'Registration failed. Please try again.');
     } finally {
@@ -126,6 +149,39 @@ export default function RegisterPage() {
                 onChange={(e) => setConfirm(e.target.value)}
                 required
               />
+            </div>
+
+            {/* ── Sign-up intent picker ── */}
+            <div>
+              <label className="block text-chalk-400 text-sm font-medium mb-2">I'm signing up to…</label>
+              <div className="space-y-2">
+                {INTENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setIntent(intent === opt.value ? null : opt.value)}
+                    className={clsx(
+                      'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors',
+                      intent === opt.value
+                        ? 'bg-spike-500/15 border-spike-500/50 text-chalk-100'
+                        : 'bg-court-800 border-court-700 text-chalk-300 hover:border-court-600'
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        'w-4 h-4 rounded-full border-2 shrink-0 transition-colors',
+                        intent === opt.value
+                          ? 'border-spike-400 bg-spike-400'
+                          : 'border-court-600'
+                      )}
+                    />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium leading-tight">{opt.label}</span>
+                      <span className="block text-xs text-chalk-500 mt-0.5">{opt.description}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>

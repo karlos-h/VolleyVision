@@ -19,10 +19,14 @@ const ROLE_COLORS: Record<TeamRole, string> = {
   VIEWER:          'bg-court-700 text-chalk-400',
 };
 
-function TeamCard({ id, name, division, season, players, matches, badge }: {
+function TeamCard({ id, name, division, season, players, matches, badge, role }: {
   id: string; name: string; division?: string; season: string;
-  players?: number; matches?: number; badge?: { label: string; color: string };
+  players?: number; matches?: number;
+  badge?: { label: string; color: string };
+  role?: TeamRole | 'OWNER';
 }) {
+  const isPlayerOnly = role === 'PLAYER';
+
   return (
     <div className="card p-5 flex flex-col gap-4">
       <div>
@@ -45,10 +49,20 @@ function TeamCard({ id, name, division, season, players, matches, badge }: {
           <div className="text-xs text-chalk-400">Matches</div>
         </div>
       </div>
-      <div className="flex gap-2">
-        <Link to={`/teams/${id}`} className="btn-secondary flex-1 text-center text-sm py-2">Roster</Link>
-        <Link to={`/teams/${id}/matches`} className="btn-secondary flex-1 text-center text-sm py-2">Matches</Link>
-        <Link to={`/teams/${id}/dashboard`} className="btn-secondary flex-1 text-center text-sm py-2">Dashboard</Link>
+      <div className="flex gap-2 flex-wrap">
+        {isPlayerOnly ? (
+          // Players get a direct portal link as primary action, plus roster/matches as secondary
+          <>
+            <Link to="/player" className="btn-primary flex-1 text-center text-sm py-2">My Portal</Link>
+            <Link to={`/teams/${id}/matches`} className="btn-secondary flex-1 text-center text-sm py-2">Matches</Link>
+          </>
+        ) : (
+          <>
+            <Link to={`/teams/${id}`} className="btn-secondary flex-1 text-center text-sm py-2">Roster</Link>
+            <Link to={`/teams/${id}/matches`} className="btn-secondary flex-1 text-center text-sm py-2">Matches</Link>
+            <Link to={`/teams/${id}/dashboard`} className="btn-secondary flex-1 text-center text-sm py-2">Dashboard</Link>
+          </>
+        )}
       </div>
     </div>
   );
@@ -123,6 +137,7 @@ export default function MyTeamsPage() {
                     players={team._count?.players}
                     matches={team._count?.matches}
                     badge={{ label: 'Owner', color: 'bg-spike-600/20 text-spike-400' }}
+                    role="OWNER"
                   />
                 ))}
               </div>
@@ -144,6 +159,7 @@ export default function MyTeamsPage() {
                     players={m.team._count?.players}
                     matches={m.team._count?.matches}
                     badge={{ label: ROLE_LABELS[m.role], color: ROLE_COLORS[m.role] }}
+                    role={m.role}
                   />
                 ))}
               </div>

@@ -146,6 +146,9 @@ export interface CoachDashboard {
   recentMatches: MatchSummaryItem[];
 }
 
+// Phase 7 Sprint 0 — onboarding hint only. Never used for permission checks.
+export type SignupIntent = 'COACH' | 'PLAYER' | 'UNSURE';
+
 export interface User {
   id: string;
   email: string;
@@ -153,6 +156,7 @@ export interface User {
   lastName: string;
   role: UserRole;
   profileImage: string | null;
+  signupIntent?: SignupIntent | null;
   createdAt?: string;
 }
 
