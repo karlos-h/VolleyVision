@@ -283,7 +283,7 @@ export const invitationsApi = {
 };
 
 // ─── League Intelligence (Phase 7 Sprints 1-3) ───────────────────────────────
-import type { League, LeagueSeason, LeagueMatch, StandingsResult, FixtureFilters, LeagueTeamProfile } from '../types';
+import type { League, LeagueSeason, LeagueMatch, StandingsResult, FixtureFilters, LeagueTeamProfile, LeagueRankings } from '../types';
 
 export const leagueApi = {
   list: () =>
@@ -328,6 +328,9 @@ export const leagueApi = {
 
   getTeamProfile: (leagueTeamId: string) =>
     api.get<LeagueTeamProfile>(`/leagues/league-teams/${leagueTeamId}/profile`).then((r) => r.data),
+
+  getRankings: (seasonId: string) =>
+    api.get<LeagueRankings>(`/leagues/seasons/${seasonId}/rankings`).then((r) => r.data),
 };
 
 export default api;

@@ -4,6 +4,8 @@ import { AppError } from '../middleware/errorHandler';
 import { hasTeamPermission, Permission } from '../services/permission.service';
 import { computeStandings, resolveFixtureResult } from '../services/leagueStandings.service';
 import { assembleLeagueTeamProfile } from '../services/leagueTeamProfile.service';
+import { computeLeagueRankings } from '../services/leagueRankings.service';
+import type { LeagueMatchEventSet } from '../services/leagueRankings.service';
 
 // ─── Shared include shapes ────────────────────────────────────────────────────
 
@@ -480,5 +482,82 @@ export async function getLeagueTeamProfile(req: Request, res: Response, next: Ne
     );
 
     res.json(profile);
+  } catch (err) { next(err); }
+}
+
+// ─── Season Rankings & Leaderboards ──────────────────────────────────────────
+
+// Include shape for fixtures that need full event data for rankings.
+// Separated from the lightweight fixtureInclude to avoid burdening other endpoints.
+const rankingsFixtureInclude = {
+  homeLeagueTeam: { include: leagueTeamInclude },
+  awayLeagueTeam: { include: leagueTeamInclude },
+  homeMatch: {
+    where: { status: 'COMPLETED' },
+    select: {
+      id: true, status: true,
+      teamId: true,
+      events: { select: { eventType: true, setNumber: true, playerId: true, isOpponentEvent: true } },
+      players: { select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true } },
+    },
+  },
+  awayMatch: {
+    where: { status: 'COMPLETED' },
+    select: {
+      id: true, status: true,
+      teamId: true,
+      events: { select: { eventType: true, setNumber: true, playerId: true, isOpponentEvent: true } },
+      players: { select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true } },
+    },
+  },
+} as const;
+
+export async function getSeasonRankings(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { seasonId } = req.params;
+
+    const [fixtures, leagueTeams] = await Promise.all([
+      prisma.leagueMatch.findMany({
+        where: { leagueSeasonId: seasonId },
+        include: rankingsFixtureInclude as any,
+      }),
+      prisma.leagueTeam.findMany({
+        where: { leagueSeasonId: seasonId },
+        include: leagueTeamInclude,
+      }),
+    ]);
+
+    // Build the match event sets — one entry per linked, completed match side.
+    // A fixture can contribute 0, 1, or 2 event sets depending on what's linked.
+    const matchSets: LeagueMatchEventSet[] = [];
+    for (const fixture of fixtures as any[]) {
+      if (fixture.homeMatch) {
+        matchSets.push({
+          leagueTeamId: fixture.homeLeagueTeamId,
+          teamId: fixture.homeMatch.teamId,
+          events: fixture.homeMatch.events,
+          players: fixture.homeMatch.players,
+        });
+      }
+      if (fixture.awayMatch) {
+        matchSets.push({
+          leagueTeamId: fixture.awayLeagueTeamId,
+          teamId: fixture.awayMatch.teamId,
+          events: fixture.awayMatch.events,
+          players: fixture.awayMatch.players,
+        });
+      }
+    }
+
+    const rankings = computeLeagueRankings({
+      matchSets,
+      leagueTeams: leagueTeams.map((lt) => ({
+        id: lt.id,
+        teamId: lt.teamId,
+        team: { name: lt.team.name },
+      })),
+    });
+
+    res.json(rankings);
   } catch (err) { next(err); }
 }

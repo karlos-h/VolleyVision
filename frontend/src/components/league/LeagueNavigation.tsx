@@ -11,6 +11,7 @@ export default function LeagueNavigation({ seasonId }: Props) {
     { to: `${base}/fixtures`, label: 'Fixtures' },
     { to: `${base}/results`, label: 'Results' },
     { to: `${base}/standings`, label: 'Standings' },
+    { to: `${base}/rankings`, label: 'Rankings' },
   ];
   return (
     <nav className="flex gap-1 border-b border-court-700 mb-6">

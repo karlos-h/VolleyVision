@@ -793,6 +793,36 @@ export interface LeagueTeamProfile {
   privateIntel?: PrivateIntel;
 }
 
+export interface TeamRankingEntry {
+  leagueTeamId: string;
+  teamName: string;
+  value: number;
+  matchesPlayed: number;
+}
+
+export interface PlayerLeaderboardEntry {
+  playerId: string;
+  playerName: string;
+  teamName: string;
+  value: number;
+}
+
+export interface LeagueRankings {
+  teamRankings: {
+    attackEfficiency: TeamRankingEntry[];
+    serveEfficiency: TeamRankingEntry[];
+    blocking: TeamRankingEntry[];
+    defense: TeamRankingEntry[];
+  };
+  playerLeaderboards: {
+    kills: PlayerLeaderboardEntry[];
+    aces: PlayerLeaderboardEntry[];
+    blocks: PlayerLeaderboardEntry[];
+    digs: PlayerLeaderboardEntry[];
+    assists: PlayerLeaderboardEntry[];
+  };
+}
+
 export interface StandingsResult {
   standings: StandingsRow[];
   fixtureResults: Array<{

@@ -16,6 +16,7 @@ import {
   unlinkMatch,
   listMyLeagues,
   getSeasonStandings,
+  getSeasonRankings,
   getLeagueTeamProfile,
 } from '../controllers/league';
 
@@ -47,6 +48,7 @@ router.get('/league-teams/:leagueTeamId/profile', optionalAuth, getLeagueTeamPro
 // ─── Standings ────────────────────────────────────────────────────────────────
 
 router.get('/seasons/:seasonId/standings', requireAuth, getSeasonStandings);
+router.get('/seasons/:seasonId/rankings', requireAuth, getSeasonRankings);
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

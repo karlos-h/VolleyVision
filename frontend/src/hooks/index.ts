@@ -696,6 +696,14 @@ export function useLeagueTeamProfile(leagueTeamId: string) {
   });
 }
 
+export function useSeasonRankings(seasonId: string) {
+  return useQuery({
+    queryKey: ['leagues', 'seasons', seasonId, 'rankings'],
+    queryFn: () => leagueApi.getRankings(seasonId),
+    enabled: !!seasonId,
+  });
+}
+
 export function useSeasonStandings(seasonId: string) {
   return useQuery({
     queryKey: ['leagues', 'seasons', seasonId, 'standings'],
