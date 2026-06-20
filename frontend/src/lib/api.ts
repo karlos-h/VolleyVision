@@ -282,8 +282,8 @@ export const invitationsApi = {
     api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
 };
 
-// ─── League Intelligence (Phase 7 Sprint 1) ──────────────────────────────────
-import type { League, LeagueSeason, LeagueMatch } from '../types';
+// ─── League Intelligence (Phase 7 Sprints 1-2) ───────────────────────────────
+import type { League, LeagueSeason, LeagueMatch, StandingsResult } from '../types';
 
 export const leagueApi = {
   list: () =>
@@ -316,6 +316,9 @@ export const leagueApi = {
     api.patch<LeagueMatch>(`/leagues/fixtures/${fixtureId}/link`, { matchId, side }).then((r) => r.data),
   unlinkMatch: (fixtureId: string, side: 'home' | 'away') =>
     api.patch<LeagueMatch>(`/leagues/fixtures/${fixtureId}/unlink`, { side }).then((r) => r.data),
+
+  getStandings: (seasonId: string) =>
+    api.get<StandingsResult>(`/leagues/seasons/${seasonId}/standings`).then((r) => r.data),
 };
 
 export default api;

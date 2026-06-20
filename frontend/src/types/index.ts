@@ -720,6 +720,30 @@ export interface League {
   seasons: LeagueSeasonSummary[];
 }
 
+export interface StandingsRow {
+  leagueTeamId: string;
+  teamId: string;
+  teamName: string;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  setsWon: number;
+  setsLost: number;
+  setDifferential: number;
+  points: number;
+}
+
+export interface StandingsResult {
+  standings: StandingsRow[];
+  fixtureResults: Array<{
+    fixtureId: string;
+    played: boolean;
+    homeSetsWon: number;
+    awaySetsWon: number;
+    hasDiscrepancy: boolean;
+  }>;
+}
+
 export interface LeagueSeason {
   id: string;
   leagueId: string;

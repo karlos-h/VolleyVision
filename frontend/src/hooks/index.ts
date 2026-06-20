@@ -684,6 +684,14 @@ export function useLinkMatch() {
   });
 }
 
+export function useSeasonStandings(seasonId: string) {
+  return useQuery({
+    queryKey: ['leagues', 'seasons', seasonId, 'standings'],
+    queryFn: () => leagueApi.getStandings(seasonId),
+    enabled: !!seasonId,
+  });
+}
+
 export function useUnlinkMatch() {
   const qc = useQueryClient();
   return useMutation({

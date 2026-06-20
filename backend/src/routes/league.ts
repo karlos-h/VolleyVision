@@ -15,6 +15,7 @@ import {
   linkMatch,
   unlinkMatch,
   listMyLeagues,
+  getSeasonStandings,
 } from '../controllers/league';
 
 const router = Router();
@@ -35,6 +36,10 @@ router.get('/seasons/:seasonId', requireAuth, getSeason);
 
 router.post('/seasons/:seasonId/teams', requireAuth, addTeamToSeason);
 router.delete('/seasons/:seasonId/teams/:leagueTeamId', requireAuth, removeTeamFromSeason);
+
+// ─── Standings ────────────────────────────────────────────────────────────────
+
+router.get('/seasons/:seasonId/standings', requireAuth, getSeasonStandings);
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

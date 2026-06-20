@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { hasTeamPermission, Permission } from '../services/permission.service';
+import { computeStandings } from '../services/leagueStandings.service';
 
 // ─── Shared include shapes ────────────────────────────────────────────────────
 
@@ -324,5 +325,35 @@ export async function listMyLeagues(req: Request, res: Response, next: NextFunct
       orderBy: { startDate: 'desc' },
     });
     res.json(seasons);
+  } catch (err) { next(err); }
+}
+
+// ─── Season Standings ─────────────────────────────────────────────────────────
+
+export async function getSeasonStandings(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { seasonId } = req.params;
+
+    const [leagueTeams, fixtures] = await Promise.all([
+      prisma.leagueTeam.findMany({
+        where: { leagueSeasonId: seasonId },
+        include: leagueTeamInclude,
+        orderBy: { joinedAt: 'asc' },
+      }),
+      prisma.leagueMatch.findMany({
+        where: { leagueSeasonId: seasonId },
+        include: fixtureInclude,
+        orderBy: { scheduledDate: 'asc' },
+      }),
+    ]);
+
+    if (!leagueTeams.length) {
+      // Return empty standings rather than 404 — the season may exist but have no teams yet.
+      res.json({ standings: [], fixtureResults: [] });
+      return;
+    }
+
+    const result = computeStandings(leagueTeams, fixtures as any);
+    res.json(result);
   } catch (err) { next(err); }
 }
