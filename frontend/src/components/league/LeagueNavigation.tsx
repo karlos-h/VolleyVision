@@ -9,6 +9,7 @@ export default function LeagueNavigation({ seasonId }: Props) {
   const items = [
     { to: base, label: 'Overview' },
     { to: `${base}/fixtures`, label: 'Fixtures' },
+    { to: `${base}/results`, label: 'Results' },
     { to: `${base}/standings`, label: 'Standings' },
   ];
   return (

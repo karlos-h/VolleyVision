@@ -27,6 +27,8 @@ import OnboardingPlayerPage from './pages/OnboardingPlayerPage';
 import LeagueHubPage from './pages/LeagueHubPage';
 import LeagueSeasonPage from './pages/LeagueSeasonPage';
 import LeagueSeasonStandingsPage from './pages/LeagueSeasonStandingsPage';
+import FixturesPage from './pages/FixturesPage';
+import ResultsPage from './pages/ResultsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +67,8 @@ function App() {
               <Route path="/leagues" element={<LeagueHubPage />} />
               <Route path="/leagues/seasons/:seasonId" element={<LeagueSeasonPage />} />
               <Route path="/leagues/seasons/:seasonId/standings" element={<LeagueSeasonStandingsPage />} />
+              <Route path="/leagues/seasons/:seasonId/fixtures" element={<FixturesPage />} />
+              <Route path="/leagues/seasons/:seasonId/results" element={<ResultsPage />} />
             </Route>
 
             {/* Public routes — readable without login */}

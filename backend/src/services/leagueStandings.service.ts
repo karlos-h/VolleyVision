@@ -82,6 +82,14 @@ export interface StandingsResult {
  *                            the "home" in their own record)
  *   awayMatch.awaySetsWon  → fixture HOME team's sets  (opponent from away team's POV)
  */
+/**
+ * Exported alias — use this from outside the module (fixtures page, results page, etc.)
+ * instead of re-implementing the home/away translation logic.
+ */
+export function resolveFixtureResult(fixture: FixtureSnapshot): FixtureResult {
+  return resolveFixture(fixture);
+}
+
 function resolveFixture(fixture: FixtureSnapshot): FixtureResult {
   const { homeMatch, awayMatch } = fixture;
 

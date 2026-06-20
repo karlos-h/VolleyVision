@@ -282,8 +282,8 @@ export const invitationsApi = {
     api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
 };
 
-// ─── League Intelligence (Phase 7 Sprints 1-2) ───────────────────────────────
-import type { League, LeagueSeason, LeagueMatch, StandingsResult } from '../types';
+// ─── League Intelligence (Phase 7 Sprints 1-3) ───────────────────────────────
+import type { League, LeagueSeason, LeagueMatch, StandingsResult, FixtureFilters } from '../types';
 
 export const leagueApi = {
   list: () =>
@@ -305,8 +305,14 @@ export const leagueApi = {
   removeTeam: (seasonId: string, leagueTeamId: string) =>
     api.delete(`/leagues/seasons/${seasonId}/teams/${leagueTeamId}`),
 
-  listFixtures: (seasonId: string) =>
-    api.get<LeagueMatch[]>(`/leagues/seasons/${seasonId}/fixtures`).then((r) => r.data),
+  listFixtures: (seasonId: string, filters?: FixtureFilters) => {
+    const params: Record<string, string> = {};
+    if (filters?.teamId) params.teamId = filters.teamId;
+    if (filters?.from)   params.from   = filters.from;
+    if (filters?.to)     params.to     = filters.to;
+    if (filters?.status) params.status = filters.status;
+    return api.get<LeagueMatch[]>(`/leagues/seasons/${seasonId}/fixtures`, { params }).then((r) => r.data);
+  },
   createFixture: (seasonId: string, data: { homeLeagueTeamId: string; awayLeagueTeamId: string; scheduledDate: string }) =>
     api.post<LeagueMatch>(`/leagues/seasons/${seasonId}/fixtures`, data).then((r) => r.data),
   getFixture: (fixtureId: string) =>

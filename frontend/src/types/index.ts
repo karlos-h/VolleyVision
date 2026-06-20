@@ -720,6 +720,24 @@ export interface League {
   seasons: LeagueSeasonSummary[];
 }
 
+// Resolved result for a single fixture — encapsulates the home/away-naming translation.
+export interface ResolvedFixtureResult {
+  fixtureId: string;
+  played: boolean;
+  /** Sets won by the *fixture's* home LeagueTeam (not the Match owner) */
+  homeSetsWon: number;
+  /** Sets won by the *fixture's* away LeagueTeam */
+  awaySetsWon: number;
+  hasDiscrepancy: boolean;
+}
+
+export interface FixtureFilters {
+  teamId?: string;
+  from?: string;
+  to?: string;
+  status?: 'upcoming' | 'pending' | 'completed';
+}
+
 export interface StandingsRow {
   leagueTeamId: string;
   teamId: string;

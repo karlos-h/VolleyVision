@@ -634,8 +634,12 @@ export function useLeagueSeason(seasonId: string) {
   return useQuery({ queryKey: ['leagues', 'seasons', seasonId], queryFn: () => leagueApi.getSeason(seasonId), enabled: !!seasonId });
 }
 
-export function useSeasonFixtures(seasonId: string) {
-  return useQuery({ queryKey: ['leagues', 'seasons', seasonId, 'fixtures'], queryFn: () => leagueApi.listFixtures(seasonId), enabled: !!seasonId });
+export function useSeasonFixtures(seasonId: string, filters?: import('../types').FixtureFilters) {
+  return useQuery({
+    queryKey: ['leagues', 'seasons', seasonId, 'fixtures', filters ?? {}],
+    queryFn: () => leagueApi.listFixtures(seasonId, filters),
+    enabled: !!seasonId,
+  });
 }
 
 export function useCreateLeague() {

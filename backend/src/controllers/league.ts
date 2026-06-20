@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { hasTeamPermission, Permission } from '../services/permission.service';
-import { computeStandings } from '../services/leagueStandings.service';
+import { computeStandings, resolveFixtureResult } from '../services/leagueStandings.service';
 
 // ─── Shared include shapes ────────────────────────────────────────────────────
 
@@ -182,12 +182,65 @@ export async function createFixture(req: Request, res: Response, next: NextFunct
 
 export async function listFixtures(req: Request, res: Response, next: NextFunction) {
   try {
+    const { seasonId } = req.params;
+    const { teamId, from, to, status } = req.query as Record<string, string | undefined>;
+
+    // Build the Prisma where clause — only the parts that can be pushed to the DB.
+    const where: Record<string, unknown> = { leagueSeasonId: seasonId };
+
+    // teamId filter: match fixtures where either the home or away LeagueTeam's underlying
+    // Team.id equals the requested teamId.
+    if (teamId) {
+      where.OR = [
+        { homeLeagueTeam: { teamId } },
+        { awayLeagueTeam: { teamId } },
+      ];
+    }
+
+    // Date range filter on scheduledDate.
+    if (from || to) {
+      const dateFilter: Record<string, Date> = {};
+      if (from) dateFilter.gte = new Date(from);
+      if (to)   dateFilter.lte = new Date(to);
+      where.scheduledDate = dateFilter;
+    }
+
+    // Fetch all matching fixtures (status filter is applied in JS after resolution).
     const fixtures = await prisma.leagueMatch.findMany({
-      where: { leagueSeasonId: req.params.seasonId },
+      where,
       include: fixtureInclude,
       orderBy: { scheduledDate: 'asc' },
     });
-    res.json(fixtures);
+
+    // No status filter → identical to pre-Sprint-3 behaviour.
+    if (!status) {
+      res.json(fixtures);
+      return;
+    }
+
+    const now = new Date();
+
+    const filtered = fixtures.filter((f) => {
+      const result = resolveFixtureResult(f as any);
+
+      if (status === 'completed') {
+        return result.played;
+      }
+
+      if (status === 'upcoming') {
+        // Not yet resolved AND scheduledDate is in the future.
+        return !result.played && new Date(f.scheduledDate) > now;
+      }
+
+      if (status === 'pending') {
+        // scheduledDate has passed but still not resolved.
+        return !result.played && new Date(f.scheduledDate) <= now;
+      }
+
+      return true; // unknown status value → include everything
+    });
+
+    res.json(filtered);
   } catch (err) { next(err); }
 }
 
