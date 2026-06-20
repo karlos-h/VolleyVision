@@ -518,6 +518,15 @@ export interface SeasonIntelligenceReport {
   trajectory: 'improving' | 'declining' | 'mixed' | 'insufficient_data';
 }
 
+// ─── Phase 6 Sprint 5 — Training Recommendations ─────────────────────────────
+
+export interface TrainingRecommendation {
+  focus:         string;
+  category:      'attack' | 'serve' | 'pass' | 'defence' | 'rotation' | 'player_development';
+  allocationPct: number;
+  rationale:     string;
+}
+
 // ─── Event metadata (UI helpers) ─────────────────────────────────────────────
 
 export interface EventMeta {

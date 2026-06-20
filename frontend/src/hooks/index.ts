@@ -300,6 +300,14 @@ export function useSeasonIntelligence(teamId: string) {
   });
 }
 
+export function useTeamTrainingRecommendations(teamId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'training-recommendations', 'team', teamId],
+    queryFn: () => analyticsApi.teamTrainingRecommendations(teamId),
+    enabled: !!teamId,
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],
