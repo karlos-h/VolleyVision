@@ -527,6 +527,11 @@ export interface TrainingRecommendation {
   rationale:     string;
 }
 
+export interface AssistantAnswer {
+  matchedIntent: string | null;
+  answer:        string;
+}
+
 // ─── Event metadata (UI helpers) ─────────────────────────────────────────────
 
 export interface EventMeta {

@@ -12,6 +12,7 @@ import { generateCoachingRecommendations } from '../services/coachingRecommendat
 import { generatePlayerDevelopmentReport } from '../services/playerDevelopment.service';
 import { generateSeasonIntelligence } from '../services/seasonIntelligence.service';
 import { generateTrainingRecommendations } from '../services/trainingRecommendations.service';
+import { answerQuestion } from '../services/assistant.service';
 
 // ─── Shared query shapes ──────────────────────────────────────────────────────
 
@@ -346,6 +347,13 @@ export async function getPlayerZoneDetail(req: Request, res: Response, next: Nex
 }
 
 async function fetchTeamCoachingRecommendations(teamId: string) {
+  const { recommendations } = await fetchTeamCoachingContext(teamId);
+  return recommendations;
+}
+
+// Returns both recommendations and rotation result so the assistant can reuse
+// the rotation data without a second query.
+async function fetchTeamCoachingContext(teamId: string) {
   const [statsEvents, rotationEvents, zoneEvents] = await Promise.all([
     prisma.event.findMany({ where: { match: { teamId } }, select: eventSelect }),
     prisma.event.findMany({
@@ -358,11 +366,15 @@ async function fetchTeamCoachingRecommendations(teamId: string) {
       select: { courtZone: true, eventType: true },
     }),
   ]);
-  return generateCoachingRecommendations({
-    stats:     calculateStats(statsEvents),
-    rotations: calculateRotations(rotationEvents),
-    zones:     buildDetailedHeatmap(zoneEvents),
-  });
+  const rotations = calculateRotations(rotationEvents);
+  return {
+    recommendations: generateCoachingRecommendations({
+      stats: calculateStats(statsEvents),
+      rotations,
+      zones: buildDetailedHeatmap(zoneEvents),
+    }),
+    rotations,
+  };
 }
 
 export async function getTeamCoachingRecommendations(req: Request, res: Response, next: NextFunction) {
@@ -371,6 +383,53 @@ export async function getTeamCoachingRecommendations(req: Request, res: Response
     if (!team) throw new AppError(404, 'Team not found.');
     res.json(await fetchTeamCoachingRecommendations(req.params.teamId));
   } catch (err) { next(err); }
+}
+
+// ── Shared batch context builder ──────────────────────────────────────────────
+// Used by both getTeamTrainingRecommendations and postTeamAssistantQuestion so
+// they share query logic without duplication.
+
+async function fetchTeamRosterContext(teamId: string, playerIds: string[]) {
+  const [completedMatches, allPlayerEvents] = await Promise.all([
+    prisma.match.findMany({
+      where: { teamId, status: 'COMPLETED' },
+      select: { id: true, matchDate: true },
+      orderBy: { matchDate: 'asc' },
+    }),
+    prisma.event.findMany({
+      where: { match: { teamId, status: 'COMPLETED' },
+               playerId: { in: playerIds } },
+      select: { matchId: true, playerId: true, eventType: true, setNumber: true },
+    }),
+  ]);
+
+  // Group events by playerId → matchId
+  const eventsByPlayerMatch = new Map<string, Map<string, typeof allPlayerEvents>>();
+  for (const ev of allPlayerEvents) {
+    if (!eventsByPlayerMatch.has(ev.playerId)) eventsByPlayerMatch.set(ev.playerId, new Map());
+    const byMatch = eventsByPlayerMatch.get(ev.playerId)!;
+    if (!byMatch.has(ev.matchId)) byMatch.set(ev.matchId, []);
+    byMatch.get(ev.matchId)!.push(ev);
+  }
+
+  return { completedMatches, eventsByPlayerMatch };
+}
+
+function buildPlayerReports(
+  players: { id: string; firstName: string; lastName: string }[],
+  completedMatches: { id: string; matchDate: Date }[],
+  eventsByPlayerMatch: Map<string, Map<string, { matchId: string; playerId: string; eventType: string; setNumber: number }[]>>,
+) {
+  return players.map((player) => {
+    const byMatch = eventsByPlayerMatch.get(player.id) ?? new Map();
+    const matchStats = completedMatches
+      .filter((m) => byMatch.has(m.id))
+      .map((m) => ({ matchDate: m.matchDate, stats: calculateStats(byMatch.get(m.id)!) }));
+    return {
+      playerName: `${player.firstName} ${player.lastName}`,
+      report: generatePlayerDevelopmentReport(matchStats),
+    };
+  });
 }
 
 export async function getTeamTrainingRecommendations(req: Request, res: Response, next: NextFunction) {
@@ -382,52 +441,45 @@ export async function getTeamTrainingRecommendations(req: Request, res: Response
     });
     if (!team) throw new AppError(404, 'Team not found.');
 
-    // ── Team coaching recommendations (reuse extracted helper) ────────────────
-    const teamRecommendations = await fetchTeamCoachingRecommendations(teamId);
-
-    // ── Player development reports — batch query to avoid N+1 ─────────────────
-    // Fetch all completed matches for this team and all player events in one
-    // query each, then group in memory (2 queries instead of players×matches).
-    const [completedMatches, allPlayerEvents] = await Promise.all([
-      prisma.match.findMany({
-        where: { teamId, status: 'COMPLETED' },
-        select: { id: true, matchDate: true },
-        orderBy: { matchDate: 'asc' },
-      }),
-      prisma.event.findMany({
-        where: { match: { teamId, status: 'COMPLETED' },
-                 playerId: { in: team.players.map((p) => p.id) } },
-        select: { matchId: true, playerId: true, eventType: true, setNumber: true },
-      }),
+    const [teamRecommendations, { completedMatches, eventsByPlayerMatch }] = await Promise.all([
+      fetchTeamCoachingRecommendations(teamId),
+      fetchTeamRosterContext(teamId, team.players.map((p) => p.id)),
     ]);
 
-    // Build a lookup: matchId → matchDate
-    const matchDateById = new Map(completedMatches.map((m) => [m.id, m.matchDate]));
-
-    // Group events by playerId, then by matchId
-    const eventsByPlayerMatch = new Map<string, Map<string, typeof allPlayerEvents>>();
-    for (const ev of allPlayerEvents) {
-      if (!eventsByPlayerMatch.has(ev.playerId)) {
-        eventsByPlayerMatch.set(ev.playerId, new Map());
-      }
-      const byMatch = eventsByPlayerMatch.get(ev.playerId)!;
-      if (!byMatch.has(ev.matchId)) byMatch.set(ev.matchId, []);
-      byMatch.get(ev.matchId)!.push(ev);
-    }
-
-    // Build per-player development reports from grouped data
-    const playerReports = team.players.map((player) => {
-      const byMatch = eventsByPlayerMatch.get(player.id) ?? new Map();
-      const matchStats = completedMatches
-        .filter((m) => byMatch.has(m.id))
-        .map((m) => ({ matchDate: m.matchDate, stats: calculateStats(byMatch.get(m.id)!) }));
-      return {
-        playerName: `${player.firstName} ${player.lastName}`,
-        report: generatePlayerDevelopmentReport(matchStats),
-      };
-    });
-
+    const playerReports = buildPlayerReports(team.players, completedMatches, eventsByPlayerMatch);
     res.json(generateTrainingRecommendations({ teamRecommendations, playerReports }));
+  } catch (err) { next(err); }
+}
+
+export async function postTeamAssistantQuestion(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { teamId } = req.params;
+    const { question } = req.body as { question?: string };
+    if (!question || !question.trim()) throw new AppError(400, 'question is required.');
+
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { id: true, players: { select: playerSelect } },
+    });
+    if (!team) throw new AppError(404, 'Team not found.');
+
+    const [{ recommendations, rotations }, trends, { completedMatches, eventsByPlayerMatch }] = await Promise.all([
+      fetchTeamCoachingContext(teamId),
+      fetchTeamTrends(teamId),
+      fetchTeamRosterContext(teamId, team.players.map((p) => p.id)),
+    ]);
+
+    const playerReports = buildPlayerReports(team.players, completedMatches, eventsByPlayerMatch);
+    const seasonIntelligence = generateSeasonIntelligence(trends);
+    const trainingRecommendations = generateTrainingRecommendations({ teamRecommendations: recommendations, playerReports });
+
+    res.json(answerQuestion(question, {
+      teamRecommendations: recommendations,
+      rotations,
+      seasonIntelligence,
+      trainingRecommendations,
+      playerReports,
+    }));
   } catch (err) { next(err); }
 }
 

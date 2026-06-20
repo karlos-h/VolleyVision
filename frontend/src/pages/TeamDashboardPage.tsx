@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import StatLeaderboardChart from '../components/charts/StatLeaderboardChart';
-import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced, useTeamZoneDetail, useTeamRecommendations, useSeasonIntelligence, useTeamTrainingRecommendations } from '../hooks';
+import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced, useTeamZoneDetail, useTeamRecommendations, useSeasonIntelligence, useTeamTrainingRecommendations, useAskAssistant } from '../hooks';
 import TeamTrendChart from '../components/charts/TeamTrendChart';
 import CoachInsights from '../components/analytics/CoachInsights';
 import { generateTeamInsights } from '../lib/insights';
@@ -13,6 +13,7 @@ import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
 import CoachingRecommendationsPanel from '../components/analytics/CoachingRecommendationsPanel';
 import SeasonIntelligenceCard from '../components/analytics/SeasonIntelligenceCard';
 import TrainingRecommendationsPanel from '../components/analytics/TrainingRecommendationsPanel';
+import AssistantPanel from '../components/analytics/AssistantPanel';
 
 export default function TeamDashboardPage() {
   const { teamId } = useParams<{ teamId: string }>();
@@ -25,6 +26,7 @@ export default function TeamDashboardPage() {
   const { data: recommendationsData } = useTeamRecommendations(teamId!);
   const { data: seasonData } = useSeasonIntelligence(teamId!);
   const { data: trainingData } = useTeamTrainingRecommendations(teamId!);
+  const { mutate: askAssistant, data: assistantAnswer, isPending: assistantPending } = useAskAssistant(teamId!);
 
   const insights =
   trends.data
@@ -179,6 +181,16 @@ export default function TeamDashboardPage() {
           <TrainingRecommendationsPanel recommendations={trainingData} />
         </section>
       )}
+
+      {/* Phase 6 Sprint 6 — Coaching Assistant */}
+      <section>
+        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Coaching Assistant</h2>
+        <AssistantPanel
+          onAsk={askAssistant}
+          answer={assistantAnswer}
+          isPending={assistantPending}
+        />
+      </section>
 
       <CoachInsights insights={insights} />
       <PlayerInsights players={data.playerStats} />

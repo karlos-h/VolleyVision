@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -171,6 +171,9 @@ export const analyticsApi = {
 
   teamTrainingRecommendations: (teamId: string) =>
     api.get<TrainingRecommendation[]>(`/analytics/teams/${teamId}/training-recommendations`).then((r) => r.data),
+
+  askAssistant: (teamId: string, question: string) =>
+    api.post<AssistantAnswer>(`/analytics/teams/${teamId}/ask`, { question }).then((r) => r.data),
 };
 
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────

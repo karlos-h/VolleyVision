@@ -22,6 +22,7 @@ import {
   getPlayerDevelopmentReport,
   getSeasonIntelligence,
   getTeamTrainingRecommendations,
+  postTeamAssistantQuestion,
 } from '../controllers/analytics';
 
 const router = Router();
@@ -44,6 +45,7 @@ router.get('/teams/:teamId/rotations', getTeamRotations);
 router.get('/teams/:teamId/recommendations', getTeamCoachingRecommendations);
 router.get('/teams/:teamId/season-intelligence', getSeasonIntelligence);
 router.get('/teams/:teamId/training-recommendations', getTeamTrainingRecommendations);
+router.post('/teams/:teamId/ask', postTeamAssistantQuestion);
 router.get('/players/:playerId', getPlayerAnalytics);
 router.get('/players/:playerId/heatmap', getPlayerHeatmap);
 router.get('/players/:playerId/heatmap/zones', getPlayerZoneDetail);

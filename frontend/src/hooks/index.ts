@@ -308,6 +308,12 @@ export function useTeamTrainingRecommendations(teamId: string) {
   });
 }
 
+export function useAskAssistant(teamId: string) {
+  return useMutation({
+    mutationFn: (question: string) => analyticsApi.askAssistant(teamId, question),
+  });
+}
+
 export function useMatchAdvanced(matchId: string) {
   return useQuery({
     queryKey: ['analytics', 'advanced', 'match', matchId],
