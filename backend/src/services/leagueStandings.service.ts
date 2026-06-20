@@ -12,6 +12,29 @@ export interface MatchSnapshot {
   homeSetsWon: number;
   awaySetsWon: number;
   status: string; // 'COMPLETED' | 'SCHEDULED' | 'IN_PROGRESS' | 'CANCELLED'
+  // Live-scoring fields — present on all Match records; 0 when match hasn't started.
+  homeScore?: number;
+  awayScore?: number;
+}
+
+// ─── Live fixture state ────────────────────────────────────────────────────────
+
+export interface LiveFixtureState {
+  fixtureId: string;
+  /** True when at least one linked match has status IN_PROGRESS. */
+  isLive: boolean;
+  /** Current set (1-indexed). Derived as setsWon-home + setsWon-away + 1. */
+  currentSet: number;
+  /** Running score in the current set — fixture home team's perspective. */
+  homeSetScore: number;
+  /** Running score in the current set — fixture away team's perspective. */
+  awaySetScore: number;
+  /** Sets won by the fixture home team so far. */
+  homeSetsWon: number;
+  /** Sets won by the fixture away team so far. */
+  awaySetsWon: number;
+  /** Which linked match is providing the live data (the IN_PROGRESS one). */
+  sourceMatchId: string | null;
 }
 
 export interface LeagueTeamSnapshot {
@@ -88,6 +111,65 @@ export interface StandingsResult {
  */
 export function resolveFixtureResult(fixture: FixtureSnapshot): FixtureResult {
   return resolveFixture(fixture);
+}
+
+/**
+ * Live sibling of resolveFixtureResult — applies the same home/away translation logic
+ * but reads from whichever linked match has status IN_PROGRESS.
+ *
+ * Translation table (identical to resolveFixture):
+ *   homeMatch.homeScore    → fixture home team's current set score
+ *   homeMatch.awayScore    → fixture away team's current set score
+ *   homeMatch.homeSetsWon  → fixture home team's sets won
+ *   homeMatch.awaySetsWon  → fixture away team's sets won
+ *
+ *   awayMatch.homeScore    → fixture AWAY team's current set score (they own this Match)
+ *   awayMatch.awayScore    → fixture HOME team's current set score
+ *   awayMatch.homeSetsWon  → fixture away team's sets won
+ *   awayMatch.awaySetsWon  → fixture home team's sets won
+ *
+ * When both sides are IN_PROGRESS (shouldn't happen in practice), home side is authoritative.
+ * Returns isLive=false when no linked match is IN_PROGRESS.
+ */
+export function resolveLiveFixtureState(fixture: FixtureSnapshot): LiveFixtureState {
+  const { homeMatch, awayMatch } = fixture;
+  const homeLive = homeMatch?.status === 'IN_PROGRESS';
+  const awayLive = awayMatch?.status === 'IN_PROGRESS';
+
+  if (!homeLive && !awayLive) {
+    return {
+      fixtureId: fixture.id,
+      isLive: false,
+      currentSet: 0,
+      homeSetScore: 0,
+      awaySetScore: 0,
+      homeSetsWon: 0,
+      awaySetsWon: 0,
+      sourceMatchId: null,
+    };
+  }
+
+  // Prefer home match when both somehow report IN_PROGRESS.
+  const live = homeLive ? homeMatch! : awayMatch!;
+  const isHomeMatch = homeLive;
+
+  // Apply same translation as resolveFixture: away team's Match has inverted perspective.
+  const homeSetScore   = isHomeMatch ? (live.homeScore ?? 0) : (live.awayScore  ?? 0);
+  const awaySetScore   = isHomeMatch ? (live.awayScore  ?? 0) : (live.homeScore ?? 0);
+  const homeSetsWon    = isHomeMatch ? live.homeSetsWon : live.awaySetsWon;
+  const awaySetsWon    = isHomeMatch ? live.awaySetsWon : live.homeSetsWon;
+  const currentSet     = homeSetsWon + awaySetsWon + 1;
+
+  return {
+    fixtureId: fixture.id,
+    isLive: true,
+    currentSet,
+    homeSetScore,
+    awaySetScore,
+    homeSetsWon,
+    awaySetsWon,
+    sourceMatchId: live.id,
+  };
 }
 
 function resolveFixture(fixture: FixtureSnapshot): FixtureResult {

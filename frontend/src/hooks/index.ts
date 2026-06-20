@@ -696,6 +696,15 @@ export function useLeagueTeamProfile(leagueTeamId: string) {
   });
 }
 
+export function useMatchCentre(seasonId: string) {
+  return useQuery({
+    queryKey: ['leagues', 'seasons', seasonId, 'match-centre'],
+    queryFn: () => leagueApi.getMatchCentre(seasonId),
+    enabled: !!seasonId,
+    refetchInterval: 20_000, // Poll every 20s — responsive without hammering the backend
+  });
+}
+
 export function useSeasonRankings(seasonId: string) {
   return useQuery({
     queryKey: ['leagues', 'seasons', seasonId, 'rankings'],

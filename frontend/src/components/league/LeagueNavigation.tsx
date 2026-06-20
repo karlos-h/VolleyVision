@@ -12,6 +12,7 @@ export default function LeagueNavigation({ seasonId }: Props) {
     { to: `${base}/results`, label: 'Results' },
     { to: `${base}/standings`, label: 'Standings' },
     { to: `${base}/rankings`, label: 'Rankings' },
+    { to: `${base}/match-centre`, label: 'Live' },
   ];
   return (
     <nav className="flex gap-1 border-b border-court-700 mb-6">

@@ -31,6 +31,7 @@ import FixturesPage from './pages/FixturesPage';
 import ResultsPage from './pages/ResultsPage';
 import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 import LeagueSeasonRankingsPage from './pages/LeagueSeasonRankingsPage';
+import MatchCentrePage from './pages/MatchCentrePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +73,7 @@ function App() {
               <Route path="/leagues/seasons/:seasonId/fixtures" element={<FixturesPage />} />
               <Route path="/leagues/seasons/:seasonId/results" element={<ResultsPage />} />
               <Route path="/leagues/seasons/:seasonId/rankings" element={<LeagueSeasonRankingsPage />} />
+              <Route path="/leagues/seasons/:seasonId/match-centre" element={<MatchCentrePage />} />
               <Route path="/leagues/league-teams/:leagueTeamId/profile" element={<LeagueTeamProfilePage />} />
             </Route>
 

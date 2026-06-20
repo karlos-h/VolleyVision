@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { computeStandings } from '../services/leagueStandings.service';
+import { computeStandings, resolveLiveFixtureState, resolveFixtureResult } from '../services/leagueStandings.service';
 import type { LeagueTeamSnapshot, FixtureSnapshot } from '../services/leagueStandings.service';
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
@@ -11,6 +11,10 @@ function team(id: string, name: string): LeagueTeamSnapshot {
 
 function match(homeSetsWon: number, awaySetsWon: number, status = 'COMPLETED') {
   return { id: `m-${Math.random()}`, homeSetsWon, awaySetsWon, status };
+}
+
+function liveMatch(homeSetsWon: number, awaySetsWon: number, homeScore: number, awayScore: number) {
+  return { id: `m-live-${Math.random()}`, homeSetsWon, awaySetsWon, homeScore, awayScore, status: 'IN_PROGRESS' };
 }
 
 function fixture(
@@ -225,5 +229,94 @@ describe('computeStandings', () => {
 
     assert.ok(standings.indexOf(alphaRow) < standings.indexOf(zetaRow),
       'Alpha should rank above Zeta alphabetically when all other factors tie');
+  });
+});
+
+// ─── resolveLiveFixtureState ──────────────────────────────────────────────────
+
+describe('resolveLiveFixtureState', () => {
+  const alpha = team('A', 'Alpha');
+  const beta  = team('B', 'Beta');
+
+  it('returns isLive=false when no linked match is IN_PROGRESS', () => {
+    const f = fixture('f1', 'A', 'B', alpha, beta, null, null);
+    const state = resolveLiveFixtureState(f);
+    assert.equal(state.isLive, false);
+    assert.equal(state.currentSet, 0);
+    assert.equal(state.homeSetScore, 0);
+    assert.equal(state.awaySetScore, 0);
+    assert.equal(state.sourceMatchId, null);
+  });
+
+  it('returns isLive=false when linked match is COMPLETED (not IN_PROGRESS)', () => {
+    const f = fixture('f1', 'A', 'B', alpha, beta, match(3, 1), null);
+    const state = resolveLiveFixtureState(f);
+    assert.equal(state.isLive, false);
+  });
+
+  it('translates home-linked IN_PROGRESS match correctly — fixture framing', () => {
+    // Alpha (home in fixture) owns the homeMatch.
+    // homeMatch.homeSetsWon=1, homeMatch.awaySetsWon=0 → fixture: Alpha leads sets 1-0
+    // homeMatch.homeScore=18, homeMatch.awayScore=14 → fixture: Alpha leads set 2 by 18-14
+    const live = liveMatch(1, 0, 18, 14);
+    const f = fixture('f1', 'A', 'B', alpha, beta, live as any, null);
+    const state = resolveLiveFixtureState(f);
+
+    assert.equal(state.isLive, true);
+    assert.equal(state.homeSetsWon, 1);   // Alpha (fixture home) sets won
+    assert.equal(state.awaySetsWon, 0);   // Beta (fixture away) sets won
+    assert.equal(state.currentSet, 2);    // 1+0+1
+    assert.equal(state.homeSetScore, 18); // Alpha's current set score
+    assert.equal(state.awaySetScore, 14); // Beta's current set score
+    assert.equal(state.sourceMatchId, live.id);
+  });
+
+  it('translates away-linked IN_PROGRESS match — inverts perspective correctly', () => {
+    // Beta (away in fixture) owns the awayMatch.
+    // awayMatch perspective: "home" = Beta (fixture away), "away" = Alpha (fixture home)
+    // awayMatch.homeSetsWon=2 → Beta (fixture away) has 2 sets
+    // awayMatch.awaySetsWon=1 → Alpha (fixture home) has 1 set
+    // awayMatch.homeScore=22  → Beta's current set score
+    // awayMatch.awayScore=20  → Alpha's current set score
+    //
+    // After translation to fixture framing:
+    //   fixture homeSetScore = awayMatch.awayScore = 20 (Alpha)
+    //   fixture awaySetScore = awayMatch.homeScore = 22 (Beta)
+    //   fixture homeSetsWon  = awayMatch.awaySetsWon = 1
+    //   fixture awaySetsWon  = awayMatch.homeSetsWon = 2
+    const live = liveMatch(2, 1, 22, 20); // Beta's Match: Beta home, Alpha away
+    const f = fixture('f1', 'A', 'B', alpha, beta, null, live as any);
+    const state = resolveLiveFixtureState(f);
+
+    assert.equal(state.isLive, true);
+    assert.equal(state.homeSetsWon, 1,   'fixture home (Alpha) should have 1 set won');
+    assert.equal(state.awaySetsWon, 2,   'fixture away (Beta) should have 2 sets won');
+    assert.equal(state.homeSetScore, 20, 'fixture home (Alpha) should have 20 in current set');
+    assert.equal(state.awaySetScore, 22, 'fixture away (Beta) should have 22 in current set');
+    assert.equal(state.currentSet, 4);   // 1+2+1
+  });
+
+  it('when home match is IN_PROGRESS, home match is authoritative (over away match also IN_PROGRESS)', () => {
+    const homeLive = liveMatch(0, 0, 10, 8);
+    const awayLive = liveMatch(0, 0, 99, 99); // should be ignored
+    const f = fixture('f1', 'A', 'B', alpha, beta, homeLive as any, awayLive as any);
+    const state = resolveLiveFixtureState(f);
+    assert.equal(state.homeSetScore, 10);
+    assert.equal(state.awaySetScore, 8);
+    assert.equal(state.sourceMatchId, homeLive.id);
+  });
+
+  it('a live fixture does NOT resolve as played in resolveFixtureResult', () => {
+    // An IN_PROGRESS match is not COMPLETED, so resolveFixtureResult should treat it as unplayed.
+    const live = liveMatch(1, 0, 18, 14);
+    const f = fixture('f1', 'A', 'B', alpha, beta, live as any, null);
+    const result = resolveFixtureResult(f);
+    assert.equal(result.played, false, 'IN_PROGRESS match must not appear as played in standings/results');
+  });
+
+  it('a fixture with no linked match at all returns isLive=false and resolves as unplayed', () => {
+    const f = fixture('f1', 'A', 'B', alpha, beta, null, null);
+    assert.equal(resolveLiveFixtureState(f).isLive, false);
+    assert.equal(resolveFixtureResult(f).played, false);
   });
 });

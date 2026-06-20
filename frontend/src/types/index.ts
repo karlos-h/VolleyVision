@@ -793,6 +793,51 @@ export interface LeagueTeamProfile {
   privateIntel?: PrivateIntel;
 }
 
+// ─── Match Centre ──────────────────────────────────────────────────────────────
+
+export interface LiveFixture {
+  fixtureId: string;
+  isLive: true;
+  scheduledDate: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeagueTeamId: string;
+  awayLeagueTeamId: string;
+  currentSet: number;
+  homeSetScore: number;
+  awaySetScore: number;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  sourceMatchId: string | null;
+}
+
+export interface RecentlyFinishedFixture {
+  fixtureId: string;
+  scheduledDate: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeagueTeamId: string;
+  awayLeagueTeamId: string;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  hasDiscrepancy: boolean;
+}
+
+export interface UpcomingFixtureSummary {
+  fixtureId: string;
+  scheduledDate: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeagueTeamId: string;
+  awayLeagueTeamId: string;
+}
+
+export interface MatchCentreData {
+  live: LiveFixture[];
+  recentlyFinished: RecentlyFinishedFixture[];
+  upcoming: UpcomingFixtureSummary[];
+}
+
 export interface TeamRankingEntry {
   leagueTeamId: string;
   teamName: string;

@@ -17,6 +17,7 @@ import {
   listMyLeagues,
   getSeasonStandings,
   getSeasonRankings,
+  getMatchCentre,
   getLeagueTeamProfile,
 } from '../controllers/league';
 
@@ -49,6 +50,8 @@ router.get('/league-teams/:leagueTeamId/profile', optionalAuth, getLeagueTeamPro
 
 router.get('/seasons/:seasonId/standings', requireAuth, getSeasonStandings);
 router.get('/seasons/:seasonId/rankings', requireAuth, getSeasonRankings);
+// Match centre reads are public — live scores are no more sensitive than completed results.
+router.get('/seasons/:seasonId/match-centre', optionalAuth, getMatchCentre);
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

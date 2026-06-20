@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { hasTeamPermission, Permission } from '../services/permission.service';
-import { computeStandings, resolveFixtureResult } from '../services/leagueStandings.service';
+import { computeStandings, resolveFixtureResult, resolveLiveFixtureState } from '../services/leagueStandings.service';
 import { assembleLeagueTeamProfile } from '../services/leagueTeamProfile.service';
 import { computeLeagueRankings } from '../services/leagueRankings.service';
 import type { LeagueMatchEventSet } from '../services/leagueRankings.service';
@@ -559,5 +559,102 @@ export async function getSeasonRankings(req: Request, res: Response, next: NextF
     });
 
     res.json(rankings);
+  } catch (err) { next(err); }
+}
+
+// ─── Match Centre ─────────────────────────────────────────────────────────────
+
+// Include shape for match centre — needs live score fields from linked matches.
+const matchCentreFixtureInclude = {
+  homeLeagueTeam: { include: leagueTeamInclude },
+  awayLeagueTeam: { include: leagueTeamInclude },
+  homeMatch: {
+    select: {
+      id: true, status: true, scheduledDate: true, updatedAt: true,
+      homeSetsWon: true, awaySetsWon: true, homeScore: true, awayScore: true,
+    },
+  },
+  awayMatch: {
+    select: {
+      id: true, status: true, scheduledDate: true, updatedAt: true,
+      homeSetsWon: true, awaySetsWon: true, homeScore: true, awayScore: true,
+    },
+  },
+} as const;
+
+export async function getMatchCentre(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { seasonId } = req.params;
+
+    const fixtures = await prisma.leagueMatch.findMany({
+      where: { leagueSeasonId: seasonId },
+      include: matchCentreFixtureInclude as any,
+      orderBy: { scheduledDate: 'asc' },
+    });
+
+    const live: object[]            = [];
+    const recentlyFinished: object[] = [];
+    const upcoming: object[]         = [];
+
+    for (const fixture of fixtures as any[]) {
+      const liveState = resolveLiveFixtureState(fixture);
+
+      if (liveState.isLive) {
+        live.push({
+          scheduledDate: fixture.scheduledDate,
+          homeTeam: fixture.homeLeagueTeam.team.name,
+          awayTeam: fixture.awayLeagueTeam.team.name,
+          homeLeagueTeamId: fixture.homeLeagueTeamId,
+          awayLeagueTeamId: fixture.awayLeagueTeamId,
+          ...liveState, // includes fixtureId, isLive, currentSet, scores, setsWon, sourceMatchId
+        });
+        continue;
+      }
+
+      const result = resolveFixtureResult(fixture);
+
+      if (result.played) {
+        // Track updatedAt from whichever linked completed match is more recent.
+        const completedUpdatedAt = [fixture.homeMatch, fixture.awayMatch]
+          .filter((m: any) => m?.status === 'COMPLETED')
+          .map((m: any) => new Date(m.updatedAt).getTime())
+          .reduce((max, t) => Math.max(max, t), 0);
+
+        recentlyFinished.push({
+          fixtureId: fixture.id,
+          scheduledDate: fixture.scheduledDate,
+          homeTeam: fixture.homeLeagueTeam.team.name,
+          awayTeam: fixture.awayLeagueTeam.team.name,
+          homeLeagueTeamId: fixture.homeLeagueTeamId,
+          awayLeagueTeamId: fixture.awayLeagueTeamId,
+          homeSetsWon: result.homeSetsWon,
+          awaySetsWon: result.awaySetsWon,
+          hasDiscrepancy: result.hasDiscrepancy,
+          _sortKey: completedUpdatedAt,
+        });
+        continue;
+      }
+
+      // Not live, not complete — upcoming. Only include future-scheduled fixtures.
+      upcoming.push({
+        fixtureId: fixture.id,
+        scheduledDate: fixture.scheduledDate,
+        homeTeam: fixture.homeLeagueTeam.team.name,
+        awayTeam: fixture.awayLeagueTeam.team.name,
+        homeLeagueTeamId: fixture.homeLeagueTeamId,
+        awayLeagueTeamId: fixture.awayLeagueTeamId,
+      });
+    }
+
+    // Sort recently finished by most-recently-updated linked match, take top 5.
+    const recentlySorted = [...recentlyFinished]
+      .sort((a: any, b: any) => b._sortKey - a._sortKey)
+      .slice(0, 5)
+      .map(({ _sortKey, ...rest }: any) => rest); // strip internal sort key
+
+    // Upcoming is already sorted by scheduledDate asc (from the DB query); take next 5.
+    const upcomingNext = upcoming.slice(0, 5);
+
+    res.json({ live, recentlyFinished: recentlySorted, upcoming: upcomingNext });
   } catch (err) { next(err); }
 }
