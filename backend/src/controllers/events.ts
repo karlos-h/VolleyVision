@@ -7,10 +7,25 @@ import { recalculateMatchState } from '../services/matchState.service';
 
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
-    const { matchId, playerId, eventType, setNumber, rallyNumber, courtZone, rotationNumber, notes } = req.body;
+    const {
+      matchId, playerId, eventType, setNumber,
+      rallyNumber, courtZone, rotationNumber, notes,
+      isOpponentEvent, opponentJerseyNumber,
+    } = req.body;
 
-    if (!matchId || !playerId || !eventType || !setNumber) {
-      throw new AppError(400, 'matchId, playerId, eventType, and setNumber are required.');
+    const isOpponent = Boolean(isOpponentEvent);
+
+    // ── Validation — gated on isOpponentEvent ─────────────────────────────────
+    // Normal (own-player) events: identical requirement to before this change.
+    // Opponent events: playerId must be absent/null; opponentJerseyNumber is optional.
+    if (!matchId || !eventType || !setNumber) {
+      throw new AppError(400, 'matchId, eventType, and setNumber are required.');
+    }
+    if (!isOpponent && !playerId) {
+      throw new AppError(400, 'playerId is required for non-opponent events.');
+    }
+    if (isOpponent && playerId) {
+      throw new AppError(400, 'playerId must not be set for opponent events.');
     }
 
     if (courtZone != null) {
@@ -30,13 +45,17 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
     const event = await prisma.event.create({
       data: {
         matchId,
-        playerId,
+        playerId:            isOpponent ? null : playerId,
         eventType,
-        setNumber: Number(setNumber),
-        rallyNumber: rallyNumber != null ? Number(rallyNumber) : null,
-        courtZone: courtZone != null ? Number(courtZone) : null,
-        rotationNumber: rotationNumber != null ? Number(rotationNumber) : null,
-        notes: notes || null,
+        setNumber:           Number(setNumber),
+        rallyNumber:         rallyNumber    != null ? Number(rallyNumber)    : null,
+        courtZone:           courtZone      != null ? Number(courtZone)      : null,
+        rotationNumber:      rotationNumber != null ? Number(rotationNumber) : null,
+        notes:               notes || null,
+        isOpponentEvent:     isOpponent,
+        opponentJerseyNumber:isOpponent && opponentJerseyNumber != null
+                               ? Number(opponentJerseyNumber)
+                               : null,
       },
       include: { player: { select: { firstName: true, lastName: true, jerseyNumber: true } } },
     });

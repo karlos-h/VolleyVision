@@ -2,7 +2,7 @@ import { EventType, Position } from '@prisma/client';
 
 export interface AnalyticsEvent {
   eventType: EventType;
-  playerId: string;
+  playerId: string | null; // null for opponent events (isOpponentEvent=true)
   setNumber: number;
 }
 
@@ -94,10 +94,11 @@ export function calculatePlayerStats(
   players: AnalyticsPlayer[],
   events: AnalyticsEvent[]
 ): PlayerStatLine[] {
+  const ownEvents = events.filter((e): e is AnalyticsEvent & { playerId: string } => e.playerId != null);
   return players
     .map((player) => ({
       player,
-      ...calculateStats(events.filter((event) => event.playerId === player.id)),
+      ...calculateStats(ownEvents.filter((event) => event.playerId === player.id)),
     }))
     .sort((a, b) => b.totalEvents - a.totalEvents || a.player.jerseyNumber - b.player.jerseyNumber);
 }

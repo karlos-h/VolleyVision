@@ -635,3 +635,33 @@ export interface Invitation {
   team?: { id: string; name: string; division?: string; season: string };
   invitedBy?: { id: string; firstName: string; lastName: string; email: string };
 }
+
+// ─── Opponent Scouting (Phase 6 Sprint 3) ────────────────────────────────────
+
+export interface JerseyTally {
+  jerseyNumber: number;
+  kills: number;
+  aces: number;
+  errors: number;
+}
+
+export interface OpponentScoutingReport {
+  insufficientData: false;
+  totalEvents: number;
+  zoneBreakdown: {
+    attack: Record<string, { kills: number; errors: number; attempts: number; hittingPct: number | null }>;
+    serve: Record<string, { aces: number; errors: number; serveIn: number; attempts: number; efficiency: number | null }>;
+    pass: Record<string, { pass3: number; pass2: number; pass1: number; pass0: number; attempts: number; rating: number | null }>;
+    defence: Record<string, { digs: number; soloBlocks: number; blockAssists: number; total: number }>;
+  };
+  dominantErrorType: string | null;
+  dominantErrorCount: number;
+  jerseyTallies: JerseyTally[] | null;
+}
+
+export interface OpponentScoutingInsufficient {
+  insufficientData: true;
+  totalEvents: number;
+}
+
+export type OpponentScoutingResult = OpponentScoutingReport | OpponentScoutingInsufficient;

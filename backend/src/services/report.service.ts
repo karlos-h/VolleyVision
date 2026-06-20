@@ -8,7 +8,7 @@ export interface ReportEvent {
   setNumber: number;
   courtZone: number | null;
   rotationNumber: number | null;
-  playerId: string;
+  playerId: string | null; // null for opponent events
   recordedAt: Date;
 }
 

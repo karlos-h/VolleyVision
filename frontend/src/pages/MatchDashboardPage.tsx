@@ -10,6 +10,7 @@ import RotationAnalytics from '../components/analytics/RotationAnalytics';
 import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
 import MatchReportCard from '../components/analytics/MatchReportCard';
 import VideoPanel from '../components/analytics/VideoPanel';
+import OpponentScoutingPanel from '../components/analytics/OpponentScoutingPanel';
 
 export default function MatchDashboardPage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -203,6 +204,12 @@ export default function MatchDashboardPage() {
       <section>
         <h2 className="text-lg font-semibold text-chalk-100 mb-3">Player Statistics</h2>
         <PlayerStatsTable rows={data.playerStats} />
+      </section>
+
+      {/* Phase 6 Sprint 3 — Opponent Scouting */}
+      <section>
+        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Opponent Scouting</h2>
+        <OpponentScoutingPanel matchId={matchId!} />
       </section>
 
       {/* Phase 7 — Video footage */}

@@ -23,10 +23,12 @@ import {
   getSeasonIntelligence,
   getTeamTrainingRecommendations,
   postTeamAssistantQuestion,
+  getOpponentScoutingReport,
 } from '../controllers/analytics';
 
 const router = Router();
 
+router.get('/matches/:matchId/opponent-report', getOpponentScoutingReport);
 router.get('/matches/:matchId', getMatchAnalytics);
 router.get('/matches/:matchId/advanced', getMatchAdvanced);
 router.get('/matches/:matchId/report', getMatchReport);

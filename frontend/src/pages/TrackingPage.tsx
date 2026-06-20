@@ -60,6 +60,8 @@ export default function TrackingPage() {
   const [keepZone, setKeepZone] = useState(true);
   const [flash, setFlash] = useState<FlashState>(null);
   const [justRecorded, setJustRecorded] = useState<string | null>(null);
+  const [isOpponentMode, setIsOpponentMode] = useState(false);
+  const [opponentJerseyNumber, setOpponentJerseyNumber] = useState('');
 
   // Auto-select first player when roster loads
   useEffect(() => {
@@ -74,7 +76,7 @@ export default function TrackingPage() {
   }, []);
 
   async function handleRecord(eventType: EventType) {
-    if (!selectedPlayer) {
+    if (!isOpponentMode && !selectedPlayer) {
       showFlash('Select a player first', false);
       return;
     }
@@ -82,15 +84,22 @@ export default function TrackingPage() {
     try {
       setJustRecorded(eventType);
       const meta = getMeta(eventType);
+      const jerseyNum = opponentJerseyNumber.trim() !== '' ? parseInt(opponentJerseyNumber, 10) : null;
       await recordEvent.mutateAsync({
         matchId: matchId!,
-        playerId: selectedPlayer.id,
+        ...(isOpponentMode
+          ? { isOpponentEvent: true, opponentJerseyNumber: jerseyNum }
+          : { playerId: selectedPlayer!.id }),
         eventType,
         setNumber: currentSet,
         courtZone: selectedZone,
         rotationNumber: selectedRotation,
       });
-      showFlash(`${meta.label} → #${selectedPlayer.jerseyNumber}`, true);
+      if (isOpponentMode) {
+        showFlash(`OPP: ${meta.label}${jerseyNum != null ? ` #${jerseyNum}` : ''}`, true);
+      } else {
+        showFlash(`${meta.label} → #${selectedPlayer!.jerseyNumber}`, true);
+      }
       setTimeout(() => setJustRecorded(null), 300);
       if (!keepZone) setSelectedZone(null);
     } catch {
@@ -298,8 +307,44 @@ export default function TrackingPage() {
           </div>
         )}
 
-        {/* ── Player roster ── */}
-        <div className="card p-3">
+        {/* ── Recording mode toggle ── */}
+        <div className="flex items-center gap-3 card p-3">
+          <span className="text-xs text-chalk-400 font-medium shrink-0">Recording for:</span>
+          <div className="flex rounded-lg overflow-hidden border border-court-700 text-xs font-semibold">
+            <button
+              onClick={() => setIsOpponentMode(false)}
+              className={clsx(
+                'px-4 py-2 transition-colors',
+                !isOpponentMode ? 'bg-spike-500 text-court-950' : 'bg-court-800 text-chalk-400 hover:bg-court-700'
+              )}
+            >
+              Us
+            </button>
+            <button
+              onClick={() => setIsOpponentMode(true)}
+              className={clsx(
+                'px-4 py-2 transition-colors',
+                isOpponentMode ? 'bg-red-600 text-white' : 'bg-court-800 text-chalk-400 hover:bg-court-700'
+              )}
+            >
+              Opponent
+            </button>
+          </div>
+          {isOpponentMode && (
+            <input
+              type="number"
+              min={1}
+              max={99}
+              placeholder="Jersey # (opt.)"
+              value={opponentJerseyNumber}
+              onChange={(e) => setOpponentJerseyNumber(e.target.value)}
+              className="input text-sm w-36"
+            />
+          )}
+        </div>
+
+        {/* ── Player roster (hidden in opponent mode) ── */}
+        {!isOpponentMode && <div className="card p-3">
           <div className="text-xs text-chalk-400 font-medium mb-2 px-1">
             Select Player — Set {currentSet}
           </div>
@@ -332,10 +377,10 @@ export default function TrackingPage() {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
-        {/* ── Selected player banner ── */}
-        <div
+        {/* ── Selected player banner (own events only) ── */}
+        {!isOpponentMode && <div
           className={clsx(
             'rounded-2xl px-5 py-3 flex items-center justify-between transition-colors',
             selectedPlayer ? 'bg-court-800 border border-court-600' : 'bg-court-900 border border-court-800'
@@ -361,7 +406,15 @@ export default function TrackingPage() {
           ) : (
             <span className="text-chalk-400 text-sm">← Select a player above</span>
           )}
-        </div>
+        </div>}
+
+        {/* ── Opponent mode banner ── */}
+        {isOpponentMode && (
+          <div className="rounded-2xl px-5 py-3 flex items-center justify-between bg-red-900/30 border border-red-700/40">
+            <span className="text-red-400 font-semibold text-sm">Recording opponent actions</span>
+            <span className="text-xs text-chalk-400">Tap an event to record for opponent</span>
+          </div>
+        )}
 
         {/* ── Event buttons ── */}
         <div className="space-y-3">

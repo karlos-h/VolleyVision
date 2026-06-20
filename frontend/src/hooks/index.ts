@@ -339,6 +339,14 @@ export function useAskAssistant(teamId: string) {
   });
 }
 
+export function useOpponentScoutingReport(matchId: string) {
+  return useQuery({
+    queryKey: ['analytics', 'opponent-report', 'match', matchId],
+    queryFn: () => analyticsApi.opponentScoutingReport(matchId),
+    enabled: !!matchId,
+  });
+}
+
 // ─── Videos (Phase 7) ─────────────────────────────────────────────────────────
 export function useMatchVideos(matchId: string) {
   return useQuery({

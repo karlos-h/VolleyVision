@@ -102,13 +102,15 @@ export const eventsApi = {
       .then((r) => r.data),
   record: (data: {
     matchId: string;
-    playerId: string;
+    playerId?: string;
     eventType: string;
     setNumber: number;
     rallyNumber?: number;
     courtZone?: number | null;
     rotationNumber?: number | null;
     notes?: string;
+    isOpponentEvent?: boolean;
+    opponentJerseyNumber?: number | null;
   }) => api.post<Event>('/events', data).then((r) => r.data),
   undoLast: (matchId: string) =>
     api.delete<{ deleted: string }>(`/events/undo/${matchId}`).then((r) => r.data),
@@ -188,6 +190,9 @@ export const analyticsApi = {
 
   askAssistant: (teamId: string, question: string) =>
     api.post<AssistantAnswer>(`/analytics/teams/${teamId}/ask`, { question }).then((r) => r.data),
+
+  opponentScoutingReport: (matchId: string) =>
+    api.get<import('../types').OpponentScoutingResult>(`/analytics/matches/${matchId}/opponent-report`).then((r) => r.data),
 };
 
 // ─── Videos (Phase 7) ─────────────────────────────────────────────────────────

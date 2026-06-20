@@ -13,6 +13,7 @@ import { generatePlayerDevelopmentReport } from '../services/playerDevelopment.s
 import { generateSeasonIntelligence } from '../services/seasonIntelligence.service';
 import { generateTrainingRecommendations } from '../services/trainingRecommendations.service';
 import { answerQuestion } from '../services/assistant.service';
+import { generateOpponentScoutingReport } from '../services/opponentScouting.service';
 
 // ─── Shared query shapes ──────────────────────────────────────────────────────
 
@@ -403,13 +404,15 @@ async function fetchTeamRosterContext(teamId: string, playerIds: string[]) {
     }),
   ]);
 
-  // Group events by playerId → matchId
-  const eventsByPlayerMatch = new Map<string, Map<string, typeof allPlayerEvents>>();
+  // Group events by playerId → matchId.
+  // playerId is guaranteed non-null here since we filtered by playerId: { in: playerIds }.
+  const eventsByPlayerMatch = new Map<string, Map<string, { matchId: string; playerId: string; eventType: string; setNumber: number }[]>>();
   for (const ev of allPlayerEvents) {
-    if (!eventsByPlayerMatch.has(ev.playerId)) eventsByPlayerMatch.set(ev.playerId, new Map());
-    const byMatch = eventsByPlayerMatch.get(ev.playerId)!;
+    const pid = ev.playerId as string;
+    if (!eventsByPlayerMatch.has(pid)) eventsByPlayerMatch.set(pid, new Map());
+    const byMatch = eventsByPlayerMatch.get(pid)!;
     if (!byMatch.has(ev.matchId)) byMatch.set(ev.matchId, []);
-    byMatch.get(ev.matchId)!.push(ev);
+    byMatch.get(ev.matchId)!.push({ ...ev, playerId: pid });
   }
 
   return { completedMatches, eventsByPlayerMatch };
@@ -548,5 +551,20 @@ export async function getPlayerDevelopmentReport(req: Request, res: Response, ne
     );
 
     res.json(generatePlayerDevelopmentReport(matchStats));
+  } catch (err) { next(err); }
+}
+
+export async function getOpponentScoutingReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+    const match = await prisma.match.findUnique({ where: { id: matchId }, select: { id: true } });
+    if (!match) throw new AppError(404, 'Match not found.');
+
+    const events = await prisma.event.findMany({
+      where: { matchId, isOpponentEvent: true },
+      select: { courtZone: true, eventType: true, opponentJerseyNumber: true },
+    });
+
+    res.json(generateOpponentScoutingReport(events));
   } catch (err) { next(err); }
 }

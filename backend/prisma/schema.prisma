@@ -345,8 +345,14 @@ model Event {
   match       Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
   matchId     String    @map("match_id")
 
-  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  playerId    String    @map("player_id")
+  // playerId is optional as of Phase 6 Sprint 3 to support opponent event recording.
+  // Existing rows all have a playerId; new opponent events (isOpponentEvent=true) omit it.
+  player      Player?   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId    String?   @map("player_id")
+
+  // Phase 6 Sprint 3 — opponent scouting fields
+  isOpponentEvent    Boolean @default(false) @map("is_opponent_event")
+  opponentJerseyNumber Int?  @map("opponent_jersey_number")
 
   videoTimestamps VideoTimestamp[]
 
