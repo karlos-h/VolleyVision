@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { hasTeamPermission, Permission } from '../services/permission.service';
 import { computeStandings, resolveFixtureResult } from '../services/leagueStandings.service';
+import { assembleLeagueTeamProfile } from '../services/leagueTeamProfile.service';
 
 // ─── Shared include shapes ────────────────────────────────────────────────────
 
@@ -408,5 +409,76 @@ export async function getSeasonStandings(req: Request, res: Response, next: Next
 
     const result = computeStandings(leagueTeams, fixtures as any);
     res.json(result);
+  } catch (err) { next(err); }
+}
+
+// ─── League Team Profile ───────────────────────────────────────────────────────
+
+export async function getLeagueTeamProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { leagueTeamId } = req.params;
+
+    // 1. Load the LeagueTeam with its underlying Team and the season it belongs to.
+    const leagueTeam = await prisma.leagueTeam.findUnique({
+      where: { id: leagueTeamId },
+      include: {
+        team: { select: { id: true, name: true, division: true, season: true } },
+        leagueSeason: { select: { id: true } },
+      },
+    });
+    if (!leagueTeam) throw new AppError(404, 'League team not found.');
+
+    const seasonId = leagueTeam.leagueSeasonId;
+    const teamId   = leagueTeam.teamId;
+
+    // 2. Privacy gate — must be evaluated BEFORE any private data is loaded.
+    //    `canViewPrivateIntel` is a clearly named boolean controlling the one
+    //    structural branch that includes or excludes the private section.
+    //    An opposing coach (or anonymous viewer) will have canViewPrivateIntel=false
+    //    because hasTeamPermission checks membership/ownership on the underlying Team.
+    const requesterId = req.user?.userId ?? null;
+    const canViewPrivateIntel = requesterId
+      ? await hasTeamPermission(requesterId, teamId, Permission.MANAGE_TEAM)
+      : false;
+
+    // 3. Load all season fixtures and season teams in parallel.
+    const [allSeasonFixtures, allLeagueTeams] = await Promise.all([
+      prisma.leagueMatch.findMany({
+        where: { leagueSeasonId: seasonId },
+        include: fixtureInclude,
+        orderBy: { scheduledDate: 'asc' },
+      }),
+      prisma.leagueTeam.findMany({
+        where: { leagueSeasonId: seasonId },
+        include: leagueTeamInclude,
+      }),
+    ]);
+
+    // 4. Compute season standings and extract this team's row.
+    const { standings } = computeStandings(allLeagueTeams, allSeasonFixtures as any);
+    const standingRow = standings.find((r) => r.leagueTeamId === leagueTeamId) ?? null;
+
+    // 5. Load the team's own Match records ONLY when permitted — avoids any DB
+    //    query for private data when the gate is closed.
+    const ownMatches = canViewPrivateIntel
+      ? await prisma.match.findMany({
+          where: { teamId, status: 'COMPLETED' },
+          select: { id: true, matchDate: true, opponent: true },
+          orderBy: { matchDate: 'desc' },
+          take: 5,
+        })
+      : [];
+
+    // 6. Assemble the profile. The service function enforces the privacy rule:
+    //    `privateIntel` is present when canViewPrivateIntel=true, absent otherwise.
+    const profile = assembleLeagueTeamProfile(
+      { ...leagueTeam, team: leagueTeam.team },
+      allSeasonFixtures as any,
+      standingRow,
+      ownMatches.map((m) => ({ matchId: m.id, matchDate: m.matchDate.toISOString(), opponent: m.opponent })),
+      canViewPrivateIntel,
+    );
+
+    res.json(profile);
   } catch (err) { next(err); }
 }

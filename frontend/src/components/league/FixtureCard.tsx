@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { LeagueMatch } from '../../types';
 
 interface Props {
@@ -29,14 +30,18 @@ export default function FixtureCard({ fixture, myTeamIds = new Set(), isPending 
       <div className="flex items-center gap-3">
         {/* Home */}
         <div className={`flex-1 text-right ${iMyHome ? 'text-spike-400' : 'text-chalk-200'} font-semibold text-sm`}>
-          {homeTeam.name}
+          <Link to={`/leagues/league-teams/${fixture.homeLeagueTeam.id}/profile`} className="hover:underline">
+            {homeTeam.name}
+          </Link>
         </div>
 
         <div className="text-chalk-600 text-xs font-mono shrink-0">vs</div>
 
         {/* Away */}
         <div className={`flex-1 text-left ${iMyAway ? 'text-spike-400' : 'text-chalk-200'} font-semibold text-sm`}>
-          {awayTeam.name}
+          <Link to={`/leagues/league-teams/${fixture.awayLeagueTeam.id}/profile`} className="hover:underline">
+            {awayTeam.name}
+          </Link>
         </div>
       </div>
 

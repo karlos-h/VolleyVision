@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { LeagueMatch, ResolvedFixtureResult } from '../../types';
 
 interface Props {
@@ -36,7 +37,9 @@ export default function ResultCard({ fixture, result, myTeamIds = new Set() }: P
       <div className="flex items-center gap-2">
         {/* Home team */}
         <div className={`flex-1 text-right ${iMyHome ? 'text-spike-400' : homeWon ? 'text-chalk-100' : 'text-chalk-400'} font-semibold text-sm`}>
-          {homeTeam.name}
+          <Link to={`/leagues/league-teams/${fixture.homeLeagueTeam.id}/profile`} className="hover:underline">
+            {homeTeam.name}
+          </Link>
         </div>
 
         {/* Score */}
@@ -52,7 +55,9 @@ export default function ResultCard({ fixture, result, myTeamIds = new Set() }: P
 
         {/* Away team */}
         <div className={`flex-1 text-left ${iMyAway ? 'text-spike-400' : awayWon ? 'text-chalk-100' : 'text-chalk-400'} font-semibold text-sm`}>
-          {awayTeam.name}
+          <Link to={`/leagues/league-teams/${fixture.awayLeagueTeam.id}/profile`} className="hover:underline">
+            {awayTeam.name}
+          </Link>
         </div>
       </div>
     </div>

@@ -688,6 +688,14 @@ export function useLinkMatch() {
   });
 }
 
+export function useLeagueTeamProfile(leagueTeamId: string) {
+  return useQuery({
+    queryKey: ['leagues', 'team-profile', leagueTeamId],
+    queryFn: () => leagueApi.getTeamProfile(leagueTeamId),
+    enabled: !!leagueTeamId,
+  });
+}
+
 export function useSeasonStandings(seasonId: string) {
   return useQuery({
     queryKey: ['leagues', 'seasons', seasonId, 'standings'],

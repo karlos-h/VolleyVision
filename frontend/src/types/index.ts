@@ -751,6 +751,48 @@ export interface StandingsRow {
   points: number;
 }
 
+export interface LeagueTeamRecentResult {
+  fixtureId: string;
+  scheduledDate: string;
+  opponentName: string;
+  result: 'W' | 'L';
+  homeSetsWon: number;
+  awaySetsWon: number;
+  isHome: boolean;
+  hasDiscrepancy: boolean;
+}
+
+export interface LeagueTeamUpcomingFixture {
+  fixtureId: string;
+  scheduledDate: string;
+  opponentName: string;
+  isHome: boolean;
+}
+
+export interface PrivateIntel {
+  heatmapUrl: string;
+  recentMatchReports: Array<{
+    matchId: string;
+    matchDate: string;
+    opponent: string;
+    reportUrl: string;
+    narrativeUrl: string;
+  }>;
+}
+
+export interface LeagueTeamProfile {
+  leagueTeamId: string;
+  teamId: string;
+  teamName: string;
+  division: string | null;
+  season: string;
+  standing: StandingsRow | null;
+  winLossTrend: ('W' | 'L')[];
+  recentResults: LeagueTeamRecentResult[];
+  upcomingFixtures: LeagueTeamUpcomingFixture[];
+  privateIntel?: PrivateIntel;
+}
+
 export interface StandingsResult {
   standings: StandingsRow[];
   fixtureResults: Array<{

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { StandingsRow } from '../../types';
 
 type SortKey = 'points' | 'wins' | 'matchesPlayed' | 'setsWon' | 'setDifferential' | 'teamName';
@@ -82,7 +83,14 @@ export default function StandingsTable({ rows }: Props) {
             {sorted.map((row, i) => (
               <tr key={row.leagueTeamId} className="border-b border-court-800 hover:bg-court-800/40">
                 <td className="py-2.5 pr-4 text-chalk-600 text-xs font-mono">{i + 1}</td>
-                <td className="py-2.5 px-2 font-medium text-chalk-100">{row.teamName}</td>
+                <td className="py-2.5 px-2 font-medium text-chalk-100">
+                  <Link
+                    to={`/leagues/league-teams/${row.leagueTeamId}/profile`}
+                    className="hover:text-spike-400 transition-colors"
+                  >
+                    {row.teamName}
+                  </Link>
+                </td>
                 <td className="py-2.5 px-2 text-right font-mono text-chalk-300">{row.matchesPlayed}</td>
                 <td className="py-2.5 px-2 text-right font-mono text-emerald-400">{row.wins}</td>
                 <td className="py-2.5 px-2 text-right font-mono font-bold text-spike-400">{row.points}</td>

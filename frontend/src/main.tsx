@@ -29,6 +29,7 @@ import LeagueSeasonPage from './pages/LeagueSeasonPage';
 import LeagueSeasonStandingsPage from './pages/LeagueSeasonStandingsPage';
 import FixturesPage from './pages/FixturesPage';
 import ResultsPage from './pages/ResultsPage';
+import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +70,7 @@ function App() {
               <Route path="/leagues/seasons/:seasonId/standings" element={<LeagueSeasonStandingsPage />} />
               <Route path="/leagues/seasons/:seasonId/fixtures" element={<FixturesPage />} />
               <Route path="/leagues/seasons/:seasonId/results" element={<ResultsPage />} />
+              <Route path="/leagues/league-teams/:leagueTeamId/profile" element={<LeagueTeamProfilePage />} />
             </Route>
 
             {/* Public routes — readable without login */}

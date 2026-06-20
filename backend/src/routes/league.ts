@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, optionalAuth } from '../middleware/auth';
 import { requireAdmin } from '../middleware/permissions';
 import {
   createLeague,
@@ -16,6 +16,7 @@ import {
   unlinkMatch,
   listMyLeagues,
   getSeasonStandings,
+  getLeagueTeamProfile,
 } from '../controllers/league';
 
 const router = Router();
@@ -36,6 +37,12 @@ router.get('/seasons/:seasonId', requireAuth, getSeason);
 
 router.post('/seasons/:seasonId/teams', requireAuth, addTeamToSeason);
 router.delete('/seasons/:seasonId/teams/:leagueTeamId', requireAuth, removeTeamFromSeason);
+
+// ─── League Team Profile ──────────────────────────────────────────────────────
+// Uses optionalAuth so public viewers still get the public sections;
+// canViewPrivateIntel in the controller handles the private gate.
+
+router.get('/league-teams/:leagueTeamId/profile', optionalAuth, getLeagueTeamProfile);
 
 // ─── Standings ────────────────────────────────────────────────────────────────
 
