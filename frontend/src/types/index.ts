@@ -669,3 +669,65 @@ export interface OpponentScoutingInsufficient {
 }
 
 export type OpponentScoutingResult = OpponentScoutingReport | OpponentScoutingInsufficient;
+
+// ─── Phase 7 Sprint 1 — League Intelligence ───────────────────────────────────
+
+export interface LeagueTeamSummary {
+  id: string;
+  teamId: string;
+  team: { id: string; name: string; division?: string; season: string };
+}
+
+export interface MatchSummary {
+  id: string;
+  matchDate: string;
+  homeScore: number;
+  awayScore: number;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  status: MatchStatus;
+}
+
+export interface LeagueMatch {
+  id: string;
+  leagueSeasonId: string;
+  scheduledDate: string;
+  homeLeagueTeam: LeagueTeamSummary;
+  awayLeagueTeam: LeagueTeamSummary;
+  homeMatchId: string | null;
+  awayMatchId: string | null;
+  homeMatch: MatchSummary | null;
+  awayMatch: MatchSummary | null;
+  createdAt: string;
+}
+
+export interface LeagueSeasonSummary {
+  id: string;
+  leagueId: string;
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  createdAt: string;
+  _count: { teams: number; fixtures: number };
+}
+
+export interface League {
+  id: string;
+  name: string;
+  division: string | null;
+  createdByUserId: string;
+  createdAt: string;
+  seasons: LeagueSeasonSummary[];
+}
+
+export interface LeagueSeason {
+  id: string;
+  leagueId: string;
+  league: { id: string; name: string; division: string | null };
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  teams: LeagueTeamSummary[];
+  _count: { fixtures: number; teams: number };
+  createdAt: string;
+}

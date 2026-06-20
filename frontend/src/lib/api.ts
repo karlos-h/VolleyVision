@@ -282,4 +282,40 @@ export const invitationsApi = {
     api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
 };
 
+// ─── League Intelligence (Phase 7 Sprint 1) ──────────────────────────────────
+import type { League, LeagueSeason, LeagueMatch } from '../types';
+
+export const leagueApi = {
+  list: () =>
+    api.get<League[]>('/leagues').then((r) => r.data),
+  listMy: () =>
+    api.get<LeagueSeason[]>('/leagues/my').then((r) => r.data),
+  create: (data: { name: string; division?: string }) =>
+    api.post<League>('/leagues', data).then((r) => r.data),
+  get: (leagueId: string) =>
+    api.get<League>(`/leagues/${leagueId}`).then((r) => r.data),
+
+  createSeason: (leagueId: string, data: { name: string; startDate: string; endDate?: string }) =>
+    api.post<LeagueSeason>(`/leagues/${leagueId}/seasons`, data).then((r) => r.data),
+  getSeason: (seasonId: string) =>
+    api.get<LeagueSeason>(`/leagues/seasons/${seasonId}`).then((r) => r.data),
+
+  addTeam: (seasonId: string, teamId: string) =>
+    api.post(`/leagues/seasons/${seasonId}/teams`, { teamId }).then((r) => r.data),
+  removeTeam: (seasonId: string, leagueTeamId: string) =>
+    api.delete(`/leagues/seasons/${seasonId}/teams/${leagueTeamId}`),
+
+  listFixtures: (seasonId: string) =>
+    api.get<LeagueMatch[]>(`/leagues/seasons/${seasonId}/fixtures`).then((r) => r.data),
+  createFixture: (seasonId: string, data: { homeLeagueTeamId: string; awayLeagueTeamId: string; scheduledDate: string }) =>
+    api.post<LeagueMatch>(`/leagues/seasons/${seasonId}/fixtures`, data).then((r) => r.data),
+  getFixture: (fixtureId: string) =>
+    api.get<LeagueMatch>(`/leagues/fixtures/${fixtureId}`).then((r) => r.data),
+
+  linkMatch: (fixtureId: string, matchId: string, side: 'home' | 'away') =>
+    api.patch<LeagueMatch>(`/leagues/fixtures/${fixtureId}/link`, { matchId, side }).then((r) => r.data),
+  unlinkMatch: (fixtureId: string, side: 'home' | 'away') =>
+    api.patch<LeagueMatch>(`/leagues/fixtures/${fixtureId}/unlink`, { side }).then((r) => r.data),
+};
+
 export default api;

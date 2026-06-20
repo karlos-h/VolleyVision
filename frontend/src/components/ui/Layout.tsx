@@ -9,6 +9,7 @@ const NAV_AUTH = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/teams', label: 'Teams' },
   { to: '/my-teams', label: 'My Teams' },
+  { to: '/leagues', label: 'League Hub' },
   { to: '/invitations', label: 'Invitations' },
   { to: '/profile', label: 'Profile' },
 ];

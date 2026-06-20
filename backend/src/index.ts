@@ -17,6 +17,7 @@ import playerPortalRoutes from './routes/playerPortal';
 import coachPortalRoutes from './routes/coachPortal';
 import auditRoutes from './routes/audit';
 import videoRoutes from './routes/videos';
+import leagueRoutes from './routes/league';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/v1/matches', matchRoutes);
 app.use('/api/v1/events', eventRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1', videoRoutes);
+app.use('/api/v1/leagues', leagueRoutes);
 
 // Health check — useful for deployment monitoring and CI pipelines
 app.get('/health', (_req, res) => {

@@ -121,6 +121,9 @@ model User {
   // Phase 5 Sprint 3 — Team Memberships
   memberships  TeamMembership[]
 
+  // Phase 7 Sprint 1 — League Intelligence
+  createdLeagues League[]
+
   // Phase 5 Sprint 4 — Invitations
   sentInvitations Invitation[]
 
@@ -158,6 +161,9 @@ model Team {
 
   // Phase 7 — multi-team player links
   playerLinks PlayerTeamLink[]
+
+  // Phase 7 Sprint 1 — League Intelligence
+  leagueTeams LeagueTeam[]
 
   // Phase 5 Sprint 4 — Invitations
   invitations Invitation[]
@@ -303,6 +309,10 @@ model Match {
   events      Event[]
   videos      Video[]
 
+  // Phase 7 Sprint 1 — League Intelligence (nullable FKs on LeagueMatch, set by each side)
+  homeLeagueMatches LeagueMatch[] @relation("LeagueMatchHome")
+  awayLeagueMatches LeagueMatch[] @relation("LeagueMatchAway")
+
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -382,4 +392,94 @@ model Event {
   @@index([recordedAt])
 
   @@map("events")
+}
+
+// ─── Phase 7 Sprint 1 — League Intelligence ───────────────────────────────────
+
+// A League is a competition container (e.g. "Regional Volleyball Association").
+// Only ADMIN users can create leagues; coaches join via LeagueTeam.
+model League {
+  id              String         @id @default(cuid())
+  name            String
+  division        String?
+
+  createdByUserId String         @map("created_by_user_id")
+  createdBy       User           @relation(fields: [createdByUserId], references: [id])
+
+  seasons         LeagueSeason[]
+
+  createdAt       DateTime       @default(now())
+
+  @@index([createdByUserId])
+  @@map("leagues")
+}
+
+// A single season within a league (e.g. "2026 Winter").
+model LeagueSeason {
+  id        String        @id @default(cuid())
+  leagueId  String        @map("league_id")
+  league    League        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  name      String
+  startDate DateTime      @map("start_date")
+  endDate   DateTime?     @map("end_date")
+
+  teams     LeagueTeam[]
+  fixtures  LeagueMatch[]
+
+  createdAt DateTime      @default(now())
+
+  @@index([leagueId])
+  @@map("league_seasons")
+}
+
+// Links an independently-owned Team into a LeagueSeason.
+// MANAGE_TEAM on the target team is required to create this link.
+model LeagueTeam {
+  id             String        @id @default(cuid())
+  leagueSeasonId String        @map("league_season_id")
+  leagueSeason   LeagueSeason  @relation(fields: [leagueSeasonId], references: [id], onDelete: Cascade)
+
+  teamId         String        @map("team_id")
+  team           Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  joinedAt       DateTime      @default(now()) @map("joined_at")
+
+  homeFixtures   LeagueMatch[] @relation("HomeLeagueTeam")
+  awayFixtures   LeagueMatch[] @relation("AwayLeagueTeam")
+
+  @@unique([leagueSeasonId, teamId])
+  @@index([teamId])
+  @@map("league_teams")
+}
+
+// A scheduled fixture between two LeagueTeams.
+// homeMatchId / awayMatchId are set independently by each team's coach — each side links
+// their own already-owned Match record. Either or both may be null until linked.
+model LeagueMatch {
+  id             String       @id @default(cuid())
+  leagueSeasonId String       @map("league_season_id")
+  leagueSeason   LeagueSeason @relation(fields: [leagueSeasonId], references: [id], onDelete: Cascade)
+
+  homeLeagueTeamId String     @map("home_league_team_id")
+  homeLeagueTeam   LeagueTeam @relation("HomeLeagueTeam", fields: [homeLeagueTeamId], references: [id])
+
+  awayLeagueTeamId String     @map("away_league_team_id")
+  awayLeagueTeam   LeagueTeam @relation("AwayLeagueTeam", fields: [awayLeagueTeamId], references: [id])
+
+  scheduledDate    DateTime   @map("scheduled_date")
+
+  // Each side links their own Match independently. Null = not yet linked.
+  homeMatchId      String?    @map("home_match_id")
+  homeMatch        Match?     @relation("LeagueMatchHome", fields: [homeMatchId], references: [id], onDelete: SetNull)
+
+  awayMatchId      String?    @map("away_match_id")
+  awayMatch        Match?     @relation("LeagueMatchAway", fields: [awayMatchId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime   @default(now())
+
+  @@index([leagueSeasonId])
+  @@index([homeLeagueTeamId])
+  @@index([awayLeagueTeamId])
+  @@map("league_matches")
 }

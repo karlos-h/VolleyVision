@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi } from '../lib/api';
 import type { Team, Player, Match, TeamRole } from '../types';
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
@@ -614,4 +614,81 @@ export function useTeamRole(teamId: string) {
 export function useHasPermission(teamId: string, permission: string) {
   const { data } = useTeamRole(teamId);
   return data?.permissions.includes(permission) ?? false;
+}
+
+// ─── League Intelligence (Phase 7 Sprint 1) ───────────────────────────────────
+
+export function useLeagues() {
+  return useQuery({ queryKey: ['leagues'], queryFn: leagueApi.list });
+}
+
+export function useMyLeagueSeasons() {
+  return useQuery({ queryKey: ['leagues', 'my'], queryFn: leagueApi.listMy });
+}
+
+export function useLeague(leagueId: string) {
+  return useQuery({ queryKey: ['leagues', leagueId], queryFn: () => leagueApi.get(leagueId), enabled: !!leagueId });
+}
+
+export function useLeagueSeason(seasonId: string) {
+  return useQuery({ queryKey: ['leagues', 'seasons', seasonId], queryFn: () => leagueApi.getSeason(seasonId), enabled: !!seasonId });
+}
+
+export function useSeasonFixtures(seasonId: string) {
+  return useQuery({ queryKey: ['leagues', 'seasons', seasonId, 'fixtures'], queryFn: () => leagueApi.listFixtures(seasonId), enabled: !!seasonId });
+}
+
+export function useCreateLeague() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; division?: string }) => leagueApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leagues'] }),
+  });
+}
+
+export function useCreateSeason() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leagueId, ...data }: { leagueId: string; name: string; startDate: string; endDate?: string }) =>
+      leagueApi.createSeason(leagueId, data),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['leagues', vars.leagueId] });
+      qc.invalidateQueries({ queryKey: ['leagues'] });
+    },
+  });
+}
+
+export function useAddTeamToSeason() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ seasonId, teamId }: { seasonId: string; teamId: string }) => leagueApi.addTeam(seasonId, teamId),
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['leagues', 'seasons', vars.seasonId] }),
+  });
+}
+
+export function useCreateFixture() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ seasonId, ...data }: { seasonId: string; homeLeagueTeamId: string; awayLeagueTeamId: string; scheduledDate: string }) =>
+      leagueApi.createFixture(seasonId, data),
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['leagues', 'seasons', vars.seasonId, 'fixtures'] }),
+  });
+}
+
+export function useLinkMatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fixtureId, matchId, side }: { fixtureId: string; matchId: string; side: 'home' | 'away' }) =>
+      leagueApi.linkMatch(fixtureId, matchId, side),
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['leagues', 'seasons', data.leagueSeasonId, 'fixtures'] }),
+  });
+}
+
+export function useUnlinkMatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fixtureId, side }: { fixtureId: string; side: 'home' | 'away' }) =>
+      leagueApi.unlinkMatch(fixtureId, side),
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['leagues', 'seasons', data.leagueSeasonId, 'fixtures'] }),
+  });
 }
