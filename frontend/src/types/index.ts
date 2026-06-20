@@ -518,6 +518,46 @@ export interface SeasonIntelligenceReport {
   trajectory: 'improving' | 'declining' | 'mixed' | 'insufficient_data';
 }
 
+// ─── Phase 7 — Video upload & timestamp tagging ──────────────────────────────
+
+export interface Video {
+  id:               string;
+  matchId:          string;
+  filename:         string;
+  filePath:         string;
+  mimeType:         string;
+  uploadedAt:       string;
+  uploadedByUserId: string;
+}
+
+export interface VideoTimestamp {
+  id:               string;
+  videoId:          string;
+  timestampSeconds: number;
+  label:            string;
+  eventId:          string | null;
+}
+
+// ─── Phase 7 — Multi-team player links ───────────────────────────────────────
+
+export interface TeamSummary {
+  id:       string;
+  name:     string;
+  division: string | null;
+  season:   string;
+}
+
+export interface PlayerTeamLink {
+  linkId:   string;
+  team:     TeamSummary;
+  linkedAt: string;
+}
+
+export interface PlayerTeamsResponse {
+  homeTeam:    TeamSummary;
+  linkedTeams: PlayerTeamLink[];
+}
+
 // ─── Phase 6 Sprint 5 — Training Recommendations ─────────────────────────────
 
 export interface TrainingRecommendation {

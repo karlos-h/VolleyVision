@@ -9,6 +9,7 @@ import MomentumChart from '../components/charts/MomentumChart';
 import RotationAnalytics from '../components/analytics/RotationAnalytics';
 import AdvancedMetricsPanel from '../components/analytics/AdvancedMetricsPanel';
 import MatchReportCard from '../components/analytics/MatchReportCard';
+import VideoPanel from '../components/analytics/VideoPanel';
 
 export default function MatchDashboardPage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -202,6 +203,12 @@ export default function MatchDashboardPage() {
       <section>
         <h2 className="text-lg font-semibold text-chalk-100 mb-3">Player Statistics</h2>
         <PlayerStatsTable rows={data.playerStats} />
+      </section>
+
+      {/* Phase 7 — Video footage */}
+      <section>
+        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Match Video</h2>
+        <VideoPanel matchId={matchId!} />
       </section>
     </div>
   );

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer, PlayerTeamsResponse, Video, VideoTimestamp } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -60,12 +60,26 @@ export const playersApi = {
   update: (id: string, data: Partial<Player>) =>
     api.patch<Player>(`/players/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/players/${id}`),
+  // Phase 7 — multi-team links
+  getTeams: (playerId: string) =>
+    api.get<PlayerTeamsResponse>(`/players/${playerId}/teams`).then((r) => r.data),
+  addTeamLink: (playerId: string, teamId: string) =>
+    api.post(`/players/${playerId}/team-links`, { teamId }).then((r) => r.data),
+  removeTeamLink: (playerId: string, teamId: string) =>
+    api.delete(`/players/${playerId}/team-links/${teamId}`),
 };
 
 // ─── Matches ──────────────────────────────────────────────────────────────────
 export const matchesApi = {
-  listByTeam: (teamId: string) =>
-    api.get<Match[]>(`/matches/by-team/${teamId}`).then((r) => r.data),
+  listByTeam: (teamId: string, filters?: { opponent?: string; status?: string; from?: string; to?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.opponent) params.set('opponent', filters.opponent);
+    if (filters?.status)   params.set('status', filters.status);
+    if (filters?.from)     params.set('from', filters.from);
+    if (filters?.to)       params.set('to', filters.to);
+    const qs = params.toString();
+    return api.get<Match[]>(`/matches/by-team/${teamId}${qs ? `?${qs}` : ''}`).then((r) => r.data);
+  },
   get: (id: string) => api.get<Match>(`/matches/${id}`).then((r) => r.data),
   create: (data: Omit<Match, 'id' | 'createdAt' | 'updatedAt' | 'status'>) =>
     api.post<Match>('/matches', data).then((r) => r.data),
@@ -174,6 +188,27 @@ export const analyticsApi = {
 
   askAssistant: (teamId: string, question: string) =>
     api.post<AssistantAnswer>(`/analytics/teams/${teamId}/ask`, { question }).then((r) => r.data),
+};
+
+// ─── Videos (Phase 7) ─────────────────────────────────────────────────────────
+export const videosApi = {
+  listByMatch: (matchId: string) =>
+    api.get<Video[]>(`/matches/${matchId}/videos`).then((r) => r.data),
+  upload: (matchId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('video', file);
+    return api.post<Video>(`/matches/${matchId}/videos`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+  delete: (videoId: string) => api.delete(`/videos/${videoId}`),
+  fileUrl: (videoId: string) => `/api/v1/videos/${videoId}/file`,
+
+  listTimestamps: (videoId: string) =>
+    api.get<VideoTimestamp[]>(`/videos/${videoId}/timestamps`).then((r) => r.data),
+  createTimestamp: (videoId: string, data: { timestampSeconds: number; label: string; eventId?: string }) =>
+    api.post<VideoTimestamp>(`/videos/${videoId}/timestamps`, data).then((r) => r.data),
+  deleteTimestamp: (timestampId: string) => api.delete(`/timestamps/${timestampId}`),
 };
 
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────

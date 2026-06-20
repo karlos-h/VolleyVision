@@ -10,10 +10,21 @@ const STATUS_STYLES = {
   CANCELLED: 'bg-red-900/40 text-red-400',
 };
 
+const MATCH_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
+
 export default function MatchesPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { data: team } = useTeam(teamId!);
-  const { data: matches, isLoading } = useMatches(teamId!);
+
+  const [filters, setFilters] = useState({ opponent: '', status: '', from: '', to: '' });
+  const activeFilters = {
+    opponent: filters.opponent || undefined,
+    status:   filters.status   || undefined,
+    from:     filters.from     || undefined,
+    to:       filters.to       || undefined,
+  };
+
+  const { data: matches, isLoading } = useMatches(teamId!, activeFilters);
   const createMatch = useCreateMatch();
   const deleteMatch = useDeleteMatch();
   const navigate = useNavigate();
@@ -52,6 +63,60 @@ export default function MatchesPage() {
         <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : '+ New Match'}
         </button>
+      </div>
+
+      {/* Filter bar */}
+      <div className="card p-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">Opponent</label>
+          <input
+            className="input text-sm"
+            placeholder="Search opponent…"
+            value={filters.opponent}
+            onChange={(e) => setFilters({ ...filters, opponent: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">Status</label>
+          <select
+            className="input text-sm"
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          >
+            <option value="">All statuses</option>
+            {MATCH_STATUSES.map((s) => (
+              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">From</label>
+          <input
+            type="date"
+            className="input text-sm"
+            value={filters.from}
+            onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">To</label>
+          <input
+            type="date"
+            className="input text-sm"
+            value={filters.to}
+            onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+          />
+        </div>
+        {(filters.opponent || filters.status || filters.from || filters.to) && (
+          <div className="sm:col-span-4">
+            <button
+              className="text-xs text-chalk-400 hover:text-chalk-100 transition-colors"
+              onClick={() => setFilters({ opponent: '', status: '', from: '', to: '' })}
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Create form */}

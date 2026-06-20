@@ -6,6 +6,7 @@ import { POSITION_LABELS } from '../types';
 import { useAuth } from '../context/AuthContext';
 import TeamMembersCard from '../components/team/TeamMembersCard';
 import PermissionGuard from '../components/ui/PermissionGuard';
+import PlayerTeamLinksCard from '../components/team/PlayerTeamLinksCard';
 
 const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'HEAD_COACH',       label: 'Head Coach' },
@@ -457,35 +458,44 @@ export default function TeamDetailPage() {
                   </form>
                 ) : (
                   /* ── Normal row ── */
-                  <div className="flex items-center gap-4 px-5 py-3">
-                    <div className="w-9 h-9 bg-court-800 rounded-lg flex items-center justify-center font-mono font-bold text-spike-400 text-sm shrink-0">
-                      {player.jerseyNumber}
+                  <div className="px-5 py-3">
+                    <div className="flex items-center gap-4">
+                      <div className="w-9 h-9 bg-court-800 rounded-lg flex items-center justify-center font-mono font-bold text-spike-400 text-sm shrink-0">
+                        {player.jerseyNumber}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-chalk-100 truncate">
+                          {player.firstName} {player.lastName}
+                        </p>
+                      </div>
+                      <span className={`badge ${POSITION_COLORS[player.position]}`}>
+                        {POSITION_LABELS[player.position]}
+                      </span>
+                      <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
+                        <button
+                          className="text-chalk-600 hover:text-chalk-200 transition-colors text-xs"
+                          onClick={() => startEdit(player)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
+                          onClick={() => {
+                            if (confirm(`Remove ${player.firstName} ${player.lastName}?`)) {
+                              deletePlayer.mutate({ id: player.id, teamId: teamId! });
+                            }
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </PermissionGuard>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-chalk-100 truncate">
-                        {player.firstName} {player.lastName}
-                      </p>
-                    </div>
-                    <span className={`badge ${POSITION_COLORS[player.position]}`}>
-                      {POSITION_LABELS[player.position]}
-                    </span>
                     <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
-                      <button
-                        className="text-chalk-600 hover:text-chalk-200 transition-colors text-xs"
-                        onClick={() => startEdit(player)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
-                        onClick={() => {
-                          if (confirm(`Remove ${player.firstName} ${player.lastName}?`)) {
-                            deletePlayer.mutate({ id: player.id, teamId: teamId! });
-                          }
-                        }}
-                      >
-                        Remove
-                      </button>
+                      <PlayerTeamLinksCard
+                        playerId={player.id}
+                        homeTeamId={player.teamId}
+                        playerName={`${player.firstName} ${player.lastName}`}
+                      />
                     </PermissionGuard>
                   </div>
                 )}

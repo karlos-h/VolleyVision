@@ -6,8 +6,20 @@ import { logAudit } from '../lib/audit';
 
 export async function getMatchesByTeam(req: Request, res: Response, next: NextFunction) {
   try {
+    const { opponent, status, from, to } = req.query as Record<string, string | undefined>;
+
     const matches = await prisma.match.findMany({
-      where: { teamId: req.params.teamId },
+      where: {
+        teamId: req.params.teamId,
+        ...(opponent ? { opponent: { contains: opponent, mode: 'insensitive' } } : {}),
+        ...(status   ? { status: status as any } : {}),
+        ...(from || to ? {
+          matchDate: {
+            ...(from ? { gte: new Date(from) } : {}),
+            ...(to   ? { lte: new Date(to)   } : {}),
+          },
+        } : {}),
+      },
       include: { _count: { select: { events: true } } },
       orderBy: { matchDate: 'desc' },
     });

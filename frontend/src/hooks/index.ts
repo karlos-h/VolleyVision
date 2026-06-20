@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi } from '../lib/api';
 import type { Team, Player, Match, TeamRole } from '../types';
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
@@ -76,11 +76,36 @@ export function useUpdatePlayer(teamId: string) {
   });
 }
 
-// ─── Matches ──────────────────────────────────────────────────────────────────
-export function useMatches(teamId: string) {
+// ─── Player team links (Phase 7) ──────────────────────────────────────────────
+export function usePlayerTeams(playerId: string) {
   return useQuery({
-    queryKey: ['matches', teamId],
-    queryFn: () => matchesApi.listByTeam(teamId),
+    queryKey: ['player-teams', playerId],
+    queryFn: () => playersApi.getTeams(playerId),
+    enabled: !!playerId,
+  });
+}
+
+export function useAddPlayerTeamLink(playerId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (teamId: string) => playersApi.addTeamLink(playerId, teamId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['player-teams', playerId] }),
+  });
+}
+
+export function useRemovePlayerTeamLink(playerId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (teamId: string) => playersApi.removeTeamLink(playerId, teamId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['player-teams', playerId] }),
+  });
+}
+
+// ─── Matches ──────────────────────────────────────────────────────────────────
+export function useMatches(teamId: string, filters?: { opponent?: string; status?: string; from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ['matches', teamId, filters],
+    queryFn: () => matchesApi.listByTeam(teamId, filters),
     enabled: !!teamId,
   });
 }
@@ -311,6 +336,56 @@ export function useTeamTrainingRecommendations(teamId: string) {
 export function useAskAssistant(teamId: string) {
   return useMutation({
     mutationFn: (question: string) => analyticsApi.askAssistant(teamId, question),
+  });
+}
+
+// ─── Videos (Phase 7) ─────────────────────────────────────────────────────────
+export function useMatchVideos(matchId: string) {
+  return useQuery({
+    queryKey: ['videos', 'match', matchId],
+    queryFn: () => videosApi.listByMatch(matchId),
+    enabled: !!matchId,
+  });
+}
+
+export function useUploadVideo(matchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => videosApi.upload(matchId, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['videos', 'match', matchId] }),
+  });
+}
+
+export function useDeleteVideo(matchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (videoId: string) => videosApi.delete(videoId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['videos', 'match', matchId] }),
+  });
+}
+
+export function useVideoTimestamps(videoId: string) {
+  return useQuery({
+    queryKey: ['timestamps', videoId],
+    queryFn: () => videosApi.listTimestamps(videoId),
+    enabled: !!videoId,
+  });
+}
+
+export function useCreateTimestamp(videoId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { timestampSeconds: number; label: string; eventId?: string }) =>
+      videosApi.createTimestamp(videoId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timestamps', videoId] }),
+  });
+}
+
+export function useDeleteTimestamp(videoId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (timestampId: string) => videosApi.deleteTimestamp(timestampId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timestamps', videoId] }),
   });
 }
 
