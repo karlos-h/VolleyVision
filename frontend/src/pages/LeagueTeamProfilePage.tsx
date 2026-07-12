@@ -11,7 +11,7 @@ function TrendBar({ trend }: { trend: ('W' | 'L')[] }) {
         <span
           key={i}
           className={`w-6 h-6 rounded text-xs font-bold flex items-center justify-center
-            ${r === 'W' ? 'bg-emerald-800/40 text-emerald-400' : 'bg-red-900/30 text-red-400'}`}
+            ${r === 'W' ? 'bg-success/40 text-success-dark' : 'bg-error/30 text-error-dark'}`}
         >
           {r}
         </span>
@@ -27,7 +27,7 @@ export default function LeagueTeamProfilePage() {
   const { data: profile, isLoading, error } = useLeagueTeamProfile(leagueTeamId!);
 
   if (isLoading) return <p className="text-chalk-400 text-sm">Loading team profile…</p>;
-  if (error || !profile) return <p className="text-red-400 text-sm">Team profile not found.</p>;
+  if (error || !profile) return <p className="text-error-dark text-sm">Team profile not found.</p>;
 
   const { standing, recentResults, winLossTrend, upcomingFixtures, privateIntel } = profile;
 
@@ -56,7 +56,7 @@ export default function LeagueTeamProfilePage() {
             <div className="text-xs text-chalk-400 mt-0.5">Points</div>
           </div>
           <div>
-            <div className="font-mono font-bold text-2xl text-emerald-400">{standing.wins}</div>
+            <div className="font-mono font-bold text-2xl text-success-dark">{standing.wins}</div>
             <div className="text-xs text-chalk-400 mt-0.5">Wins</div>
           </div>
           <div>
@@ -64,17 +64,17 @@ export default function LeagueTeamProfilePage() {
             <div className="text-xs text-chalk-400 mt-0.5">Losses</div>
           </div>
           <div>
-            <div className={`font-mono font-bold text-2xl ${standing.setDifferential >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className={`font-mono font-bold text-2xl ${standing.setDifferential >= 0 ? 'text-success-dark' : 'text-error-dark'}`}>
               {standing.setDifferential >= 0 ? `+${standing.setDifferential}` : standing.setDifferential}
             </div>
-            <div className="text-xs text-chalk-400 mt-0.5">Set Diff</div>
+            <div className="text-xs text-chalk-400 mt-0.5">Set diff</div>
           </div>
         </section>
       )}
 
       {/* Win/loss trend */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Form</h2>
+        <h2 className="text-sm font-semibold text-chalk-400">Form</h2>
         <TrendBar trend={winLossTrend} />
         {winLossTrend.length > 0 && (
           <p className="text-xs text-chalk-600">Oldest → newest</p>
@@ -83,7 +83,7 @@ export default function LeagueTeamProfilePage() {
 
       {/* Recent results */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Recent Results</h2>
+        <h2 className="text-sm font-semibold text-chalk-400">Recent results</h2>
         {recentResults.length === 0 ? (
           <p className="text-chalk-500 text-sm">No completed results yet.</p>
         ) : (
@@ -91,7 +91,7 @@ export default function LeagueTeamProfilePage() {
             {recentResults.map((r) => (
               <div key={r.fixtureId} className="card p-3 flex items-center gap-3 text-sm">
                 <span className={`w-7 h-7 rounded font-bold text-xs flex items-center justify-center shrink-0
-                  ${r.result === 'W' ? 'bg-emerald-800/40 text-emerald-400' : 'bg-red-900/30 text-red-400'}`}>
+                  ${r.result === 'W' ? 'bg-success/40 text-success-dark' : 'bg-error/30 text-error-dark'}`}>
                   {r.result}
                 </span>
                 <span className="text-chalk-300 flex-1">
@@ -105,7 +105,7 @@ export default function LeagueTeamProfilePage() {
                 </span>
                 {r.hasDiscrepancy && (
                   <span
-                    className="text-yellow-500 text-xs cursor-default"
+                    className="text-warning text-xs cursor-default"
                     title="Conflicting match data between teams — home team's data used"
                   >
                     ⚠
@@ -122,7 +122,7 @@ export default function LeagueTeamProfilePage() {
 
       {/* Upcoming fixtures */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Upcoming Fixtures</h2>
+        <h2 className="text-sm font-semibold text-chalk-400">Upcoming fixtures</h2>
         {upcomingFixtures.length === 0 ? (
           <p className="text-chalk-500 text-sm">No upcoming fixtures scheduled.</p>
         ) : (
@@ -151,7 +151,7 @@ export default function LeagueTeamProfilePage() {
       {privateIntel && (
         <>
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-chalk-400 flex items-center gap-2">
               Team Heatmap
               <span className="badge bg-spike-600/20 text-spike-400 text-xs">Your team only</span>
             </h2>
@@ -165,7 +165,7 @@ export default function LeagueTeamProfilePage() {
 
           {privateIntel.recentMatchReports.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-chalk-400 flex items-center gap-2">
                 Recent Match Reports
                 <span className="badge bg-spike-600/20 text-spike-400 text-xs">Your team only</span>
               </h2>

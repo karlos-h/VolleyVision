@@ -19,11 +19,11 @@ export default function FixtureCard({ fixture, myTeamIds = new Set(), isPending 
   const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className={`card p-4 flex flex-col gap-3 ${isPending ? 'border-l-4 border-yellow-600/50' : ''}`}>
+    <div className={`card p-4 flex flex-col gap-3 ${isPending ? 'border-l-4 border-warning/50' : ''}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-chalk-500">{dateStr} · {timeStr}</span>
         {isPending && (
-          <span className="badge bg-yellow-900/30 text-yellow-400 text-xs">Awaiting result</span>
+          <span className="badge bg-warning/30 text-warning text-xs">Awaiting result</span>
         )}
       </div>
 
@@ -47,11 +47,11 @@ export default function FixtureCard({ fixture, myTeamIds = new Set(), isPending 
 
       {/* Link status — show which sides have linked matches */}
       <div className="flex gap-2 justify-center">
-        <span className={`text-xs ${fixture.homeMatchId ? 'text-emerald-400' : 'text-chalk-600'}`}>
+        <span className={`text-xs ${fixture.homeMatchId ? 'text-success-dark' : 'text-chalk-600'}`}>
           {fixture.homeMatchId ? '✓ Home linked' : '— Home unlinked'}
         </span>
         <span className="text-chalk-700">·</span>
-        <span className={`text-xs ${fixture.awayMatchId ? 'text-emerald-400' : 'text-chalk-600'}`}>
+        <span className={`text-xs ${fixture.awayMatchId ? 'text-success-dark' : 'text-chalk-600'}`}>
           {fixture.awayMatchId ? '✓ Away linked' : '— Away unlinked'}
         </span>
       </div>

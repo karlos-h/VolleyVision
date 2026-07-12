@@ -32,7 +32,7 @@ export default function TrainingRecommendationsPanel({ recommendations }: Props)
           {/* Header row */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-chalk-500/20 text-chalk-400">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-chalk-500/20 text-chalk-400">
                 {CATEGORY_LABELS[item.category]}
               </span>
               <span className="text-sm font-semibold text-chalk-100">{item.focus}</span>
@@ -47,10 +47,10 @@ export default function TrainingRecommendationsPanel({ recommendations }: Props)
             <div
               className={`h-full rounded-full transition-all ${
                 item.category === 'player_development'
-                  ? 'bg-yellow-400'
+                  ? 'bg-warning'
                   : item.allocationPct >= 15
-                  ? 'bg-red-400'
-                  : 'bg-green-400'
+                  ? 'bg-error'
+                  : 'bg-success'
               }`}
               style={{ width: `${(item.allocationPct / maxAlloc) * 100}%` }}
             />

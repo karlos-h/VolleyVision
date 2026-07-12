@@ -9,7 +9,7 @@ export default function LeagueSeasonStandingsPage() {
   const { data: result, isLoading: loadingStandings } = useSeasonStandings(seasonId!);
 
   if (loadingSeason) return <p className="text-chalk-400 text-sm">Loading…</p>;
-  if (!season) return <p className="text-red-400 text-sm">Season not found.</p>;
+  if (!season) return <p className="text-error-dark text-sm">Season not found.</p>;
 
   const discrepancies = result?.fixtureResults.filter((f) => f.hasDiscrepancy) ?? [];
 
@@ -28,7 +28,7 @@ export default function LeagueSeasonStandingsPage() {
 
       {/* Header */}
       <div>
-        <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold">
+        <p className="text-xs text-chalk-500 font-semibold">
           {season.league.name}{season.league.division ? ` · ${season.league.division}` : ''}
         </p>
         <h1 className="text-2xl font-bold text-chalk-100 mt-0.5">{season.name} — Standings</h1>
@@ -37,8 +37,8 @@ export default function LeagueSeasonStandingsPage() {
       <LeagueNavigation seasonId={seasonId!} />
 
       {discrepancies.length > 0 && (
-        <div className="card p-4 border-l-4 border-yellow-500/60 bg-yellow-900/10 space-y-1">
-          <p className="text-yellow-400 text-sm font-medium">
+        <div className="card p-4 border-l-4 border-warning/60 bg-warning/10 space-y-1">
+          <p className="text-warning text-sm font-medium">
             {discrepancies.length} fixture{discrepancies.length > 1 ? 's have' : ' has'} conflicting match data
           </p>
           <p className="text-chalk-500 text-xs">

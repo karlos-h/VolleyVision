@@ -12,9 +12,9 @@ const TRAJECTORY_LABEL: Record<SeasonIntelligenceReport['trajectory'], string> =
 };
 
 const TRAJECTORY_COLOR: Record<SeasonIntelligenceReport['trajectory'], string> = {
-  improving:        'text-green-400',
-  declining:        'text-red-400',
-  mixed:            'text-yellow-400',
+  improving:        'text-success-dark',
+  declining:        'text-error-dark',
+  mixed:            'text-warning',
   insufficient_data:'text-chalk-500',
 };
 
@@ -42,7 +42,7 @@ export default function SeasonIntelligenceCard({ report }: Props) {
               : (val as number).toFixed(1);
           return (
             <div key={key} className="text-center">
-              <p className="text-xs uppercase tracking-wider text-chalk-500 mb-1">{label}</p>
+              <p className="text-xs text-chalk-500 mb-1">{label}</p>
               <p className="font-mono text-lg font-bold text-chalk-100">{display}</p>
             </div>
           );
@@ -51,7 +51,7 @@ export default function SeasonIntelligenceCard({ report }: Props) {
 
       {/* Trajectory */}
       <div className="flex items-center justify-between border-t border-court-800 pt-4">
-        <span className="text-xs uppercase tracking-wider text-chalk-500">Season Trajectory</span>
+        <span className="text-xs text-chalk-500">Season trajectory</span>
         <span className={`text-sm font-semibold ${TRAJECTORY_COLOR[trajectory]}`}>
           {TRAJECTORY_LABEL[trajectory]}
         </span>
@@ -73,8 +73,8 @@ export default function SeasonIntelligenceCard({ report }: Props) {
               key={i}
               className={`rounded-lg p-3 text-sm ${
                 insight.direction === 'positive'
-                  ? 'bg-green-500/10 border border-green-500/20 text-green-300'
-                  : 'bg-red-500/10 border border-red-500/20 text-red-300'
+                  ? 'bg-success/10 border border-success/20 text-success-dark'
+                  : 'bg-error/10 border border-error/20 text-error-dark'
               }`}
             >
               {insight.message}

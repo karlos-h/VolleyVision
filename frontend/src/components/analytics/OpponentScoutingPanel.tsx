@@ -19,7 +19,7 @@ function ZoneGrid({ label, getValue, format }: {
   const max = Math.max(...values, 1);
   return (
     <div>
-      <div className="text-xs text-chalk-500 uppercase tracking-wider mb-2">{label}</div>
+      <div className="text-xs text-chalk-500 mb-2">{label}</div>
       <div className="grid grid-cols-6 gap-1">
         {['1', '2', '3', '4', '5', '6'].map((z, i) => {
           const v = values[i];
@@ -51,7 +51,7 @@ function ReportView({ report }: { report: OpponentScoutingReport }) {
 
       {/* Zone breakdown — attacks and serves */}
       <div className="card p-4 space-y-4">
-        <h3 className="text-sm font-semibold text-chalk-200">Zone Breakdown</h3>
+        <h3 className="text-sm font-semibold text-chalk-200">Zone breakdown</h3>
         <ZoneGrid
           label="Opponent Kills by Zone"
           getValue={(z) => report.zoneBreakdown.attack[z]?.kills ?? 0}
@@ -93,13 +93,13 @@ function ReportView({ report }: { report: OpponentScoutingReport }) {
               <div key={t.jerseyNumber} className="flex items-center gap-4 py-2.5">
                 <span className="font-mono font-bold text-spike-400 w-8 shrink-0">#{t.jerseyNumber}</span>
                 <div className="flex gap-4 text-xs">
-                  <span className={clsx(t.kills > 0 ? 'text-emerald-400' : 'text-chalk-600')}>
+                  <span className={clsx(t.kills > 0 ? 'text-success-dark' : 'text-chalk-600')}>
                     {t.kills} K
                   </span>
-                  <span className={clsx(t.aces > 0 ? 'text-emerald-400' : 'text-chalk-600')}>
+                  <span className={clsx(t.aces > 0 ? 'text-success-dark' : 'text-chalk-600')}>
                     {t.aces} A
                   </span>
-                  <span className={clsx(t.errors > 0 ? 'text-red-400' : 'text-chalk-600')}>
+                  <span className={clsx(t.errors > 0 ? 'text-error-dark' : 'text-chalk-600')}>
                     {t.errors} Err
                   </span>
                 </div>

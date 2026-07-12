@@ -19,7 +19,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/teams', { replace: true });
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Login failed. Please try again.');
+      setError(err?.response?.data?.error ?? "Couldn't sign you in. Check your email and password, then try again.");
     } finally {
       setLoading(false);
     }
@@ -38,12 +38,20 @@ export default function LoginPage() {
           <span className="text-xl font-bold text-chalk-100 tracking-tight">VolleyVision</span>
         </div>
 
+        {/* Hero — the one place uppercase display type is allowed */}
+        <div className="text-center mb-6">
+          <p className="font-display font-bold text-2xl text-white uppercase tracking-wide leading-tight">
+            See the game.<br />Raise your game.
+          </p>
+          <p className="text-chalk-400 text-sm mt-1.5">Track every touch.</p>
+        </div>
+
         <div className="card p-6">
           <h1 className="text-lg font-semibold text-chalk-100 mb-1">Welcome back</h1>
           <p className="text-chalk-500 text-sm mb-6">Sign in to your account</p>
 
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/30 border border-red-700 text-red-300 text-sm">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-error/30 border border-error text-error-dark text-sm">
               {error}
             </div>
           )}

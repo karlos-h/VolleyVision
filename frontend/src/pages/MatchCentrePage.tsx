@@ -7,10 +7,10 @@ import type { LiveFixture, RecentlyFinishedFixture, UpcomingFixtureSummary } fro
 
 function LiveCard({ f }: { f: LiveFixture }) {
   return (
-    <div className="card p-4 border-l-4 border-emerald-500 space-y-2">
+    <div className="card p-4 border-l-4 border-success space-y-2">
       <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 uppercase tracking-wide">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success-dark">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
           Live · Set {f.currentSet}
         </span>
         <span className="text-chalk-600 text-xs">
@@ -77,7 +77,7 @@ function FinishedCard({ f }: { f: RecentlyFinishedFixture }) {
         </Link>
       </div>
       {f.hasDiscrepancy && (
-        <span className="text-yellow-500 text-xs cursor-default shrink-0" title="Data mismatch — home team's data used">⚠</span>
+        <span className="text-warning text-xs cursor-default shrink-0" title="Data mismatch — home team's data used">⚠</span>
       )}
     </div>
   );
@@ -135,16 +135,16 @@ export default function MatchCentrePage() {
       </div>
 
       {isLoading && <p className="text-chalk-400 text-sm">Loading match centre…</p>}
-      {error && <p className="text-red-400 text-sm">Failed to load match centre.</p>}
+      {error && <p className="text-error-dark text-sm">Failed to load match centre.</p>}
 
       {data && (
         <>
           {/* Live Now */}
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-chalk-400 flex items-center gap-2">
               Live Now
               {data.live.length > 0 && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               )}
             </h2>
             {data.live.length === 0 ? (
@@ -158,7 +158,7 @@ export default function MatchCentrePage() {
 
           {/* Recently Finished */}
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Recently Finished</h2>
+            <h2 className="text-sm font-semibold text-chalk-400">Recently finished</h2>
             {data.recentlyFinished.length === 0 ? (
               <p className="text-chalk-600 text-sm">No completed results yet.</p>
             ) : (
@@ -170,7 +170,7 @@ export default function MatchCentrePage() {
 
           {/* Upcoming */}
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-chalk-400">
               Up Next
               <span className="text-chalk-600 font-normal ml-1 normal-case text-xs">(next {data.upcoming.length})</span>
             </h2>

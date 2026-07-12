@@ -11,13 +11,13 @@ export default function OnboardingCoachPage() {
           </svg>
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-chalk-100">Welcome, Coach!</h1>
+          <h1 className="text-2xl font-bold text-chalk-100">Welcome, Coach</h1>
           <p className="text-chalk-400 text-sm mt-2 leading-relaxed">
-            Your account is ready. Create your first team to start tracking matches, managing your roster, and unlocking analytics.
+            Your account is ready. Create your first team to track every touch, run your roster, and unlock match analytics.
           </p>
         </div>
         <div className="card p-5 text-left space-y-3">
-          <p className="text-xs font-semibold text-chalk-500 uppercase tracking-wider">Get started</p>
+          <p className="text-xs font-semibold text-chalk-500">Get started</p>
           <ol className="space-y-2 text-sm text-chalk-300 list-decimal list-inside">
             <li>Create a team</li>
             <li>Add players to your roster</li>
@@ -29,7 +29,7 @@ export default function OnboardingCoachPage() {
             Create my first team
           </Link>
           <Link to="/my-teams" className="btn-secondary w-full text-center text-sm">
-            Go to My Teams
+            Go to my teams
           </Link>
         </div>
       </div>

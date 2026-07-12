@@ -12,8 +12,8 @@ function hasWonSet(score: number, opponentScore: number, setNumber: number): boo
   return score >= target && score - opponentScore >= 2;
 }
 
-function simulateUndo(homeScore: number, awayScore: number, eventType: string) {
-  const team = scoringTeam(eventType);
+function simulateUndo(homeScore: number, awayScore: number, eventType: string, isOpponentEvent = false) {
+  const team = scoringTeam(eventType, isOpponentEvent);
   if (team === 'home') return { homeScore: Math.max(0, homeScore - 1), awayScore };
   if (team === 'away') return { homeScore, awayScore: Math.max(0, awayScore - 1) };
   return { homeScore, awayScore };
@@ -49,6 +49,31 @@ assert.ok(!HOME_POINT_SET.has('DIG'));
 assert.ok(!AWAY_POINT_SET.has('DIG'));
 
 console.log('Scoring rules tests passed.');
+
+// ─── Opponent-event scoring (inversion) ──────────────────────────────────────
+
+// An opponent's positive action scores for THEM (away side).
+assert.equal(scoringTeam('KILL', true), 'away',         'Opponent KILL → away point');
+assert.equal(scoringTeam('ACE', true), 'away',          'Opponent ACE → away point');
+assert.equal(scoringTeam('SOLO_BLOCK', true), 'away',   'Opponent SOLO_BLOCK → away point');
+assert.equal(scoringTeam('BLOCK_ASSIST', true), 'away', 'Opponent BLOCK_ASSIST → away point');
+
+// An opponent's error scores for US (home side).
+assert.equal(scoringTeam('ATTACK_ERROR', true), 'home',  'Opponent ATTACK_ERROR → home point');
+assert.equal(scoringTeam('SERVICE_ERROR', true), 'home', 'Opponent SERVICE_ERROR → home point');
+assert.equal(scoringTeam('DIG_ERROR', true), 'home',     'Opponent DIG_ERROR → home point');
+assert.equal(scoringTeam('SETTING_ERROR', true), 'home', 'Opponent SETTING_ERROR → home point');
+assert.equal(scoringTeam('BLOCK_ERROR', true), 'home',   'Opponent BLOCK_ERROR → home point');
+
+// Non-scoring events stay non-scoring regardless of who performed them.
+assert.equal(scoringTeam('DIG', true), null,    'Opponent DIG → no point');
+assert.equal(scoringTeam('PASS_3', true), null, 'Opponent PASS_3 → no point');
+
+// Explicit false must behave identically to the original single-arg call.
+assert.equal(scoringTeam('KILL', false), 'home');
+assert.equal(scoringTeam('ATTACK_ERROR', false), 'away');
+
+console.log('Opponent-event scoring tests passed.');
 
 // ─── Score validation ─────────────────────────────────────────────────────────
 
@@ -176,11 +201,22 @@ for (const type of ['DIG', 'PASS_3', 'ASSIST', 'SERVE_IN']) {
 assert.equal(simulateUndo(0, 0, 'KILL').homeScore, 0, 'homeScore cannot go below 0 on undo');
 assert.equal(simulateUndo(0, 0, 'ATTACK_ERROR').awayScore, 0, 'awayScore cannot go below 0 on undo');
 
+// Undo of opponent events reverses the INVERTED score.
+// Opponent KILL scored an away point, so undoing it decrements awayScore.
+const oppKillUndo = simulateUndo(10, 5, 'KILL', true);
+assert.equal(oppKillUndo.homeScore, 10, 'Undo opponent KILL must not change homeScore');
+assert.equal(oppKillUndo.awayScore, 4,  'Undo opponent KILL must decrement awayScore');
+
+// Opponent SERVICE_ERROR scored a home point, so undoing it decrements homeScore.
+const oppErrUndo = simulateUndo(10, 5, 'SERVICE_ERROR', true);
+assert.equal(oppErrUndo.homeScore, 9, 'Undo opponent SERVICE_ERROR must decrement homeScore');
+assert.equal(oppErrUndo.awayScore, 5, 'Undo opponent SERVICE_ERROR must not change awayScore');
+
 console.log('Undo score reversal tests passed.');
 
 // ─── recalculateMatchState simulation (pure replay, no DB) ───────────────────
 
-interface SimEvent { eventType: string }
+interface SimEvent { eventType: string; isOpponentEvent?: boolean }
 
 function replayMatchState(events: SimEvent[]) {
   let homeScore = 0, awayScore = 0, homeSetsWon = 0, awaySetsWon = 0;
@@ -188,7 +224,7 @@ function replayMatchState(events: SimEvent[]) {
   let completed = false;
 
   for (const e of events) {
-    const team = scoringTeam(e.eventType);
+    const team = scoringTeam(e.eventType, e.isOpponentEvent ?? false);
     if (team === 'home') homeScore++;
     else if (team === 'away') awayScore++;
     else continue;
@@ -263,6 +299,21 @@ assert.equal(fiveSet.homeSetsWon, 3);
 assert.equal(fiveSet.awaySetsWon, 2);
 assert.equal(fiveSet.setScores.length, 5);
 assert.ok(fiveSet.completed);
+
+// Replay including opponent events: an opponent kill must count for the AWAY side,
+// and an opponent error for the HOME side — then undo (slice) restores the prior state.
+const oppReplayEvents: SimEvent[] = [
+  { eventType: 'KILL' },                            // home 1-0
+  { eventType: 'KILL', isOpponentEvent: true },     // away scores: 1-1
+  { eventType: 'SERVICE_ERROR', isOpponentEvent: true }, // home scores: 2-1
+];
+const oppReplay = replayMatchState(oppReplayEvents);
+assert.equal(oppReplay.homeScore, 2, 'Own kill + opponent error → home 2');
+assert.equal(oppReplay.awayScore, 1, 'Opponent kill → away 1');
+
+const oppReplayUndone = replayMatchState(oppReplayEvents.slice(0, -1));
+assert.equal(oppReplayUndone.homeScore, 1, 'Undo opponent error → home back to 1');
+assert.equal(oppReplayUndone.awayScore, 1, 'awayScore unchanged by that undo');
 
 console.log('Match state recalculation tests passed.');
 

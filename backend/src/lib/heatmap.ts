@@ -36,6 +36,8 @@ export function buildDetailedHeatmap(
       case 'KILL':           acc[z].aKills++;       break;
       case 'ATTACK_ERROR':   acc[z].aErrors++;      break;
       case 'ATTACK_ATTEMPT': acc[z].aInPlay++;      break;
+      case 'TIP':            acc[z].aInPlay++;      break; // non-scoring attack attempt
+      case 'FREE_BALL':      acc[z].aInPlay++;      break; // non-scoring attack attempt
       case 'ACE':            acc[z].sAces++;        break;
       case 'SERVICE_ERROR':  acc[z].sErrors++;      break;
       case 'SERVE_IN':       acc[z].sIn++;          break;

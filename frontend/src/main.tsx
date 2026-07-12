@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 
 import { AuthProvider } from './context/AuthContext';
+import { ViewModeProvider } from './context/ViewModeContext';
+import { features } from './config/features';
 import Layout from './components/ui/Layout';
 import RequireAuth from './components/ui/RequireAuth';
 import LoginPage from './pages/LoginPage';
@@ -46,6 +48,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ViewModeProvider>
         <Routes>
           {/* Auth pages — standalone, no Layout chrome */}
           <Route path="/login" element={<LoginPage />} />
@@ -67,14 +70,18 @@ function App() {
               <Route path="/my-teams" element={<MyTeamsPage />} />
               <Route path="/invitations" element={<InvitationsPage />} />
               <Route path="/track/:matchId" element={<TrackingPage />} />
-              <Route path="/leagues" element={<LeagueHubPage />} />
-              <Route path="/leagues/seasons/:seasonId" element={<LeagueSeasonPage />} />
-              <Route path="/leagues/seasons/:seasonId/standings" element={<LeagueSeasonStandingsPage />} />
-              <Route path="/leagues/seasons/:seasonId/fixtures" element={<FixturesPage />} />
-              <Route path="/leagues/seasons/:seasonId/results" element={<ResultsPage />} />
-              <Route path="/leagues/seasons/:seasonId/rankings" element={<LeagueSeasonRankingsPage />} />
-              <Route path="/leagues/seasons/:seasonId/match-centre" element={<MatchCentrePage />} />
-              <Route path="/leagues/league-teams/:leagueTeamId/profile" element={<LeagueTeamProfilePage />} />
+              {features.leagues && (
+                <>
+                  <Route path="/leagues" element={<LeagueHubPage />} />
+                  <Route path="/leagues/seasons/:seasonId" element={<LeagueSeasonPage />} />
+                  <Route path="/leagues/seasons/:seasonId/standings" element={<LeagueSeasonStandingsPage />} />
+                  <Route path="/leagues/seasons/:seasonId/fixtures" element={<FixturesPage />} />
+                  <Route path="/leagues/seasons/:seasonId/results" element={<ResultsPage />} />
+                  <Route path="/leagues/seasons/:seasonId/rankings" element={<LeagueSeasonRankingsPage />} />
+                  <Route path="/leagues/seasons/:seasonId/match-centre" element={<MatchCentrePage />} />
+                  <Route path="/leagues/league-teams/:leagueTeamId/profile" element={<LeagueTeamProfilePage />} />
+                </>
+              )}
             </Route>
 
             {/* Public routes — readable without login */}
@@ -86,6 +93,7 @@ function App() {
             <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
           </Route>
         </Routes>
+        </ViewModeProvider>
       </AuthProvider>
     </BrowserRouter>
   );

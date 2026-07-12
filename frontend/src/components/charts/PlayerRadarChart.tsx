@@ -5,6 +5,7 @@ import {
   PolarAngleAxis,
   ResponsiveContainer,
 } from 'recharts';
+import { CHART_SERIES, CHART_GRID, CHART_TICK } from '../../lib/chartColors';
 
 interface Props {
   stats: {
@@ -49,15 +50,15 @@ export default function PlayerRadarChart({ stats }: Props) {
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
-            <PolarGrid stroke="#162d58" />
+            <PolarGrid stroke={CHART_GRID} />
             <PolarAngleAxis
               dataKey="metric"
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              tick={{ fill: CHART_TICK, fontSize: 12 }}
             />
             <Radar
               dataKey="value"
-              stroke="#f59e0b"
-              fill="#f59e0b"
+              stroke={CHART_SERIES[0]}
+              fill={CHART_SERIES[0]}
               fillOpacity={0.25}
             />
           </RadarChart>

@@ -9,7 +9,22 @@
   }
 
   body {
-    @apply bg-court-950 text-chalk-100 antialiased;
+    @apply bg-navy-900 text-white antialiased;
+  }
+
+  /* Brand type scale (docs/brand/BRAND-GUIDELINES.md §3):
+     headings render in Barlow Semi Condensed; sizes apply where a page
+     doesn't set its own text-* utility. */
+  h1 {
+    @apply font-display font-bold;
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+
+  h2 {
+    @apply font-display font-semibold;
+    font-size: 1.375rem;
+    line-height: 1.25;
   }
 
   /* Prevent text selection on event buttons during rapid tapping */
@@ -24,70 +39,79 @@
   .btn-event {
     @apply no-select relative flex flex-col items-center justify-center rounded-xl
            font-semibold text-sm leading-tight transition-all duration-75
-           active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-spike-400;
+           active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
     min-height: 76px;
     padding: 10px 8px;
   }
 
+  /* Courtside usability: positive=green, negative=red, neutral=navy.
+     These stay semantic — never gold. */
   .btn-event-positive {
-    @apply btn-event bg-emerald-600 hover:bg-emerald-500 text-white;
+    @apply btn-event bg-success hover:brightness-110 text-white;
   }
 
   .btn-event-negative {
-    @apply btn-event bg-red-700 hover:bg-red-600 text-white;
+    @apply btn-event bg-error hover:brightness-110 text-white;
   }
 
   .btn-event-neutral {
-    @apply btn-event bg-court-700 hover:bg-court-600 text-chalk-200 border border-court-600;
+    @apply btn-event bg-navy-700 hover:bg-navy-500 text-navy-100 border border-navy-600;
   }
 
   /* Nav link */
   .nav-link {
-    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-chalk-400
-           hover:text-chalk-100 hover:bg-court-800 transition-colors text-sm font-medium;
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-navy-300
+           hover:text-white hover:bg-navy-700 transition-colors text-sm font-medium;
   }
 
   .nav-link-active {
-    @apply nav-link text-spike-400 bg-court-800;
+    @apply nav-link text-gold-500 bg-navy-700;
   }
 
   /* Card */
   .card {
-    @apply bg-court-900 border border-court-700 rounded-2xl;
+    @apply bg-navy-800 border border-navy-600 rounded-2xl;
   }
 
   /* Form input */
   .input {
-    @apply w-full bg-court-800 border border-court-700 rounded-xl px-4 py-2.5
-           text-chalk-100 placeholder-chalk-600 focus:outline-none
-           focus:border-spike-500 focus:ring-1 focus:ring-spike-500 transition-colors;
+    @apply w-full bg-navy-700 border border-navy-600 rounded-xl px-4 py-2.5
+           text-white placeholder-navy-300 focus:outline-none
+           focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors;
   }
 
-  /* Primary button */
+  /* Primary button — gold CTA with navy text (never white text on gold) */
   .btn-primary {
-    @apply bg-spike-500 hover:bg-spike-400 text-court-950 font-semibold
+    @apply bg-gold-500 hover:bg-gold-600 text-navy-900 font-semibold
            px-5 py-2.5 rounded-xl transition-colors focus:outline-none
-           focus-visible:ring-2 focus-visible:ring-spike-400 disabled:opacity-50;
+           focus-visible:ring-2 focus-visible:ring-gold-500 disabled:opacity-50;
   }
 
   /* Secondary button */
   .btn-secondary {
-    @apply bg-court-800 hover:bg-court-700 text-chalk-200 font-medium
-           px-5 py-2.5 rounded-xl border border-court-700 transition-colors;
+    @apply bg-navy-700 hover:bg-navy-500 text-navy-100 font-medium
+           px-5 py-2.5 rounded-xl border border-navy-600 transition-colors;
   }
 
   /* Danger button */
   .btn-danger {
-    @apply bg-red-800 hover:bg-red-700 text-white font-medium
+    @apply bg-error hover:brightness-90 text-white font-medium
            px-4 py-2 rounded-xl transition-colors text-sm;
   }
 
-  /* Badge */
+  /* Badge — Inter with tabular figures so inline stats align */
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-mono;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-sans tabular-nums;
   }
 
   .stat-cell {
-    @apply px-3 py-3 text-center font-mono text-chalk-200;
+    @apply px-3 py-3 text-center font-sans tabular-nums text-navy-100;
+  }
+}
+
+@layer utilities {
+  /* Stats/numbers utility (brand §3): Inter + tabular figures */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }

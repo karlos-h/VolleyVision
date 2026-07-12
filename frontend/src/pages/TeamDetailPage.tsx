@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership, useTeamInvitations, useCreateInvitation } from '../hooks';
+import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership, useTeamInvitations, useCreateInvitation, useHasPermission } from '../hooks';
 import type { Position, TeamRole, InvitationStatus, Invitation } from '../types';
 import { POSITION_LABELS } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -17,15 +17,18 @@ const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
 ];
 
 const STATUS_COLORS: Record<InvitationStatus, string> = {
-  PENDING:  'bg-amber-800/30 text-amber-300',
-  ACCEPTED: 'bg-emerald-800/30 text-emerald-300',
-  DECLINED: 'bg-red-900/30 text-red-400',
+  PENDING:  'bg-gold-500/30 text-gold-500',
+  ACCEPTED: 'bg-success/30 text-success-dark',
+  DECLINED: 'bg-error/30 text-error-dark',
   EXPIRED:  'bg-court-700 text-chalk-500',
 };
 
-function TeamInvitationsCard({ teamId, isOwner }: { teamId: string; isOwner: boolean }) {
+function TeamInvitationsCard({ teamId }: { teamId: string }) {
   const { data: invitations, isLoading } = useTeamInvitations(teamId);
   const createInv = useCreateInvitation(teamId);
+  // Invite rights derive from the per-team role (INVITE_USERS), not strict ownership,
+  // so an assigned head coach can invite even if they don't own the team.
+  const canInvite = useHasPermission(teamId, 'INVITE_USERS');
   const [showForm, setShowForm] = useState(false);
   const [invEmail, setInvEmail] = useState('');
   const [invRole, setInvRole] = useState<TeamRole>('PLAYER');
@@ -40,7 +43,7 @@ function TeamInvitationsCard({ teamId, isOwner }: { teamId: string; isOwner: boo
       setInvRole('PLAYER');
       setShowForm(false);
     } catch (err: any) {
-      setInvError(err?.response?.data?.error ?? 'Failed to send invitation.');
+      setInvError(err?.response?.data?.error ?? "Couldn't send that invitation. Try again.");
     }
   }
 
@@ -52,15 +55,15 @@ function TeamInvitationsCard({ teamId, isOwner }: { teamId: string; isOwner: boo
           <span className="text-xs text-chalk-400 font-mono">
             {invitations?.filter((i) => i.status === 'PENDING').length ?? 0} pending
           </span>
-          {isOwner && (
-            <button className="btn-primary text-xs px-3 py-1.5" onClick={() => setShowForm(!showForm)}>
+          {canInvite && (
+            <button className="btn-secondary text-xs px-3 py-1.5" onClick={() => setShowForm(!showForm)}>
               {showForm ? 'Cancel' : '+ Invite'}
             </button>
           )}
         </div>
       </div>
 
-      {showForm && isOwner && (
+      {showForm && canInvite && (
         <form onSubmit={handleCreate} className="px-5 py-4 border-b border-court-800 bg-court-900/50 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
@@ -87,9 +90,9 @@ function TeamInvitationsCard({ teamId, isOwner }: { teamId: string; isOwner: boo
               </select>
             </div>
           </div>
-          {invError && <p className="text-red-400 text-xs">{invError}</p>}
-          <button type="submit" className="btn-primary text-sm" disabled={createInv.isPending}>
-            {createInv.isPending ? 'Sending…' : 'Send Invitation'}
+          {invError && <p className="text-error-dark text-xs">{invError}</p>}
+          <button type="submit" className="btn-secondary text-sm" disabled={createInv.isPending}>
+            {createInv.isPending ? 'Sending…' : 'Send invitation'}
           </button>
         </form>
       )}
@@ -97,7 +100,7 @@ function TeamInvitationsCard({ teamId, isOwner }: { teamId: string; isOwner: boo
       {isLoading ? (
         <p className="text-chalk-400 text-sm p-5">Loading…</p>
       ) : !invitations?.length ? (
-        <p className="text-chalk-500 text-sm p-5 italic">No invitations yet.</p>
+        <p className="text-chalk-500 text-sm p-5">No invitations yet.</p>
       ) : (
         <div className="divide-y divide-court-800">
           {invitations.map((inv: Invitation) => (
@@ -132,11 +135,11 @@ const POSITIONS: Position[] = [
 
 const POSITION_COLORS: Record<Position, string> = {
   SETTER: 'bg-purple-800/40 text-purple-300',
-  OUTSIDE_HITTER: 'bg-blue-800/40 text-blue-300',
+  OUTSIDE_HITTER: 'bg-info/40 text-info',
   OPPOSITE: 'bg-cyan-800/40 text-cyan-300',
-  MIDDLE_BLOCKER: 'bg-emerald-800/40 text-emerald-300',
+  MIDDLE_BLOCKER: 'bg-success/40 text-success-dark',
   LIBERO: 'bg-orange-800/40 text-orange-300',
-  DEFENSIVE_SPECIALIST: 'bg-amber-800/40 text-amber-300',
+  DEFENSIVE_SPECIALIST: 'bg-gold-500/40 text-gold-500',
 };
 
 export default function TeamDetailPage() {
@@ -230,8 +233,8 @@ export default function TeamDetailPage() {
             Matches
           </Link>
           <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
-            <button className="btn-primary text-sm" onClick={() => setShowForm(!showForm)}>
-              {showForm ? 'Cancel' : '+ Add Player'}
+            <button className={showForm ? 'btn-secondary text-sm' : 'btn-primary text-sm'} onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : '+ Add player'}
             </button>
           </PermissionGuard>
         </div>
@@ -241,7 +244,7 @@ export default function TeamDetailPage() {
       <div className="card p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold mb-1">Owner</p>
+            <p className="text-xs text-chalk-500 font-semibold mb-1">Owner</p>
             {team.owner ? (
               <p className="text-chalk-100 font-medium">
                 {team.owner.firstName} {team.owner.lastName}
@@ -264,7 +267,7 @@ export default function TeamDetailPage() {
                   }
                 }}
               >
-                {claimTeam.isPending ? 'Claiming…' : 'Claim Team'}
+                {claimTeam.isPending ? 'Claiming…' : 'Claim team'}
               </button>
             )}
 
@@ -303,7 +306,7 @@ export default function TeamDetailPage() {
               onChange={(e) => setTransferEmail(e.target.value)}
               required
             />
-            <button type="submit" className="btn-primary text-sm" disabled={transferOwnership.isPending}>
+            <button type="submit" className="btn-secondary text-sm" disabled={transferOwnership.isPending}>
               {transferOwnership.isPending ? 'Transferring…' : 'Confirm'}
             </button>
             <button type="button" className="btn-secondary text-sm" onClick={() => setShowTransfer(false)}>
@@ -313,13 +316,13 @@ export default function TeamDetailPage() {
         )}
 
         {claimTeam.isError && (
-          <p className="mt-2 text-red-400 text-sm">
-            {(claimTeam.error as any)?.response?.data?.error ?? 'Failed to claim team.'}
+          <p className="mt-2 text-error-dark text-sm">
+            {(claimTeam.error as any)?.response?.data?.error ?? "Couldn't claim this team. Try again."}
           </p>
         )}
         {transferOwnership.isError && (
-          <p className="mt-2 text-red-400 text-sm">
-            {(transferOwnership.error as any)?.response?.data?.error ?? 'Failed to transfer ownership.'}
+          <p className="mt-2 text-error-dark text-sm">
+            {(transferOwnership.error as any)?.response?.data?.error ?? "Couldn't transfer ownership. Try again."}
           </p>
         )}
       </div>
@@ -328,7 +331,7 @@ export default function TeamDetailPage() {
       <TeamMembersCard teamId={teamId!} ownerId={team.ownerId} />
 
       {/* Invitations */}
-      <TeamInvitationsCard teamId={teamId!} isOwner={!!user && user.id === team.ownerId} />
+      <TeamInvitationsCard teamId={teamId!} />
 
       {/* Add player form */}
       {showForm && user && (
@@ -394,7 +397,7 @@ export default function TeamDetailPage() {
         </div>
 
         {!team.players?.length ? (
-          <p className="text-chalk-400 text-sm p-5">No players yet.</p>
+          <p className="text-chalk-400 text-sm p-5">No players yet — add your roster to start tracking.</p>
         ) : (
           <div className="divide-y divide-court-800">
             {team.players?.map((player) => (
@@ -448,7 +451,7 @@ export default function TeamDetailPage() {
                       </select>
                     </div>
                     <div className="col-span-2 sm:col-span-4 flex gap-2">
-                      <button type="submit" className="btn-primary text-xs px-3 py-1.5" disabled={updatePlayer.isPending}>
+                      <button type="submit" className="btn-secondary text-xs px-3 py-1.5" disabled={updatePlayer.isPending}>
                         {updatePlayer.isPending ? 'Saving…' : 'Save'}
                       </button>
                       <button type="button" className="btn-secondary text-xs px-3 py-1.5" onClick={() => setEditingId(null)}>
@@ -479,7 +482,7 @@ export default function TeamDetailPage() {
                           Edit
                         </button>
                         <button
-                          className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
+                          className="text-chalk-600 hover:text-error-dark transition-colors text-xs"
                           onClick={() => {
                             if (confirm(`Remove ${player.firstName} ${player.lastName}?`)) {
                               deletePlayer.mutate({ id: player.id, teamId: teamId! });

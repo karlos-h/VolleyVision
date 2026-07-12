@@ -10,6 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { RotationData } from '../../types';
+import { CHART_SERIES, CHART_NEGATIVE, CHART_GRID, CHART_TICK, CHART_REFERENCE } from '../../lib/chartColors';
 
 interface Props {
   data: RotationData;
@@ -22,9 +23,9 @@ function RotationTooltip({ active, payload }: any) {
     <div className="bg-court-900 border border-court-700 rounded-lg px-3 py-2 text-xs shadow-xl">
       <div className="font-semibold text-chalk-100 mb-1">Rotation {d.rotation}</div>
       <div className="space-y-0.5 text-chalk-300">
-        <div>Points Won: <span className="text-emerald-400 font-mono">{d.won}</span></div>
-        <div>Points Lost: <span className="text-red-400 font-mono">{d.lost}</span></div>
-        <div>Net: <span className={`font-mono font-bold ${d.net >= 0 ? 'text-spike-400' : 'text-red-400'}`}>{d.net > 0 ? '+' : ''}{d.net}</span></div>
+        <div>Points won: <span className="text-success-dark font-mono">{d.won}</span></div>
+        <div>Points lost: <span className="text-error-dark font-mono">{d.lost}</span></div>
+        <div>Net: <span className={`font-mono font-bold ${d.net >= 0 ? 'text-spike-400' : 'text-error-dark'}`}>{d.net > 0 ? '+' : ''}{d.net}</span></div>
         {d.efficiency != null && (
           <div>Efficiency: <span className="font-mono text-chalk-100">{d.efficiency}%</span></div>
         )}
@@ -52,29 +53,29 @@ export default function RotationAnalytics({ data }: Props) {
       {/* Insight cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {insights.best && (
-          <div className="card p-3 border-emerald-500/20 bg-emerald-500/5">
-            <p className="text-xs text-chalk-500 uppercase tracking-wider mb-1">Best Rotation</p>
-            <p className="font-mono text-2xl font-bold text-emerald-400">R{insights.best.rotation}</p>
+          <div className="card p-3 border-success/20 bg-success/5">
+            <p className="text-xs text-chalk-500 mb-1">Best rotation</p>
+            <p className="font-mono text-2xl font-bold text-success-dark">R{insights.best.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">Net +{insights.best.net}</p>
           </div>
         )}
         {insights.worst && (
-          <div className="card p-3 border-red-500/20 bg-red-500/5">
-            <p className="text-xs text-chalk-500 uppercase tracking-wider mb-1">Worst Rotation</p>
-            <p className="font-mono text-2xl font-bold text-red-400">R{insights.worst.rotation}</p>
+          <div className="card p-3 border-error/20 bg-error/5">
+            <p className="text-xs text-chalk-500 mb-1">Worst rotation</p>
+            <p className="font-mono text-2xl font-bold text-error-dark">R{insights.worst.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">Net {insights.worst.net}</p>
           </div>
         )}
         {insights.highestSideOut && (
           <div className="card p-3">
-            <p className="text-xs text-chalk-500 uppercase tracking-wider mb-1">Best Side-Out</p>
+            <p className="text-xs text-chalk-500 mb-1">Best side-out</p>
             <p className="font-mono text-2xl font-bold text-spike-400">R{insights.highestSideOut.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">{insights.highestSideOut.efficiency}%</p>
           </div>
         )}
         {insights.lowestSideOut && (
           <div className="card p-3">
-            <p className="text-xs text-chalk-500 uppercase tracking-wider mb-1">Worst Side-Out</p>
+            <p className="text-xs text-chalk-500 mb-1">Worst side-out</p>
             <p className="font-mono text-2xl font-bold text-chalk-400">R{insights.lowestSideOut.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">{insights.lowestSideOut.efficiency}%</p>
           </div>
@@ -83,30 +84,30 @@ export default function RotationAnalytics({ data }: Props) {
 
       {/* Net efficiency chart */}
       <div className="card p-4">
-        <h3 className="text-sm font-semibold text-chalk-300 mb-4">Net Points Per Rotation</h3>
+        <h3 className="text-sm font-semibold text-chalk-300 mb-4">Net points per rotation</h3>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={rotations} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-            <CartesianGrid stroke="#162d58" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="rotation"
               tickFormatter={(v) => `R${v}`}
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              tick={{ fill: CHART_TICK, fontSize: 11 }}
               tickLine={false}
             />
             <YAxis
               domain={[-maxAbs - 1, maxAbs + 1]}
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              tick={{ fill: CHART_TICK, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={28}
             />
             <Tooltip content={<RotationTooltip />} />
-            <ReferenceLine y={0} stroke="#475569" />
+            <ReferenceLine y={0} stroke={CHART_REFERENCE} />
             <Bar dataKey="net" radius={[4, 4, 0, 0]}>
               {rotations.map((r) => (
                 <Cell
                   key={r.rotation}
-                  fill={r.net > 0 ? '#f59e0b' : r.net < 0 ? '#ef4444' : '#334155'}
+                  fill={r.net > 0 ? CHART_SERIES[0] : r.net < 0 ? CHART_NEGATIVE : CHART_REFERENCE}
                 />
               ))}
             </Bar>
@@ -118,7 +119,7 @@ export default function RotationAnalytics({ data }: Props) {
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-court-800 text-xs text-chalk-500 uppercase tracking-wider">
+            <tr className="border-b border-court-800 text-xs text-chalk-500">
               <th className="text-left px-4 py-3">Rotation</th>
               <th className="text-right px-4 py-3">Won</th>
               <th className="text-right px-4 py-3">Lost</th>
@@ -130,9 +131,9 @@ export default function RotationAnalytics({ data }: Props) {
             {rotations.map((r) => (
               <tr key={r.rotation} className={r.total === 0 ? 'opacity-30' : ''}>
                 <td className="px-4 py-2.5 font-semibold text-chalk-200">Rotation {r.rotation}</td>
-                <td className="px-4 py-2.5 text-right font-mono text-emerald-400">{r.won}</td>
-                <td className="px-4 py-2.5 text-right font-mono text-red-400">{r.lost}</td>
-                <td className={`px-4 py-2.5 text-right font-mono font-bold ${r.net > 0 ? 'text-spike-400' : r.net < 0 ? 'text-red-400' : 'text-chalk-500'}`}>
+                <td className="px-4 py-2.5 text-right font-mono text-success-dark">{r.won}</td>
+                <td className="px-4 py-2.5 text-right font-mono text-error-dark">{r.lost}</td>
+                <td className={`px-4 py-2.5 text-right font-mono font-bold ${r.net > 0 ? 'text-spike-400' : r.net < 0 ? 'text-error-dark' : 'text-chalk-500'}`}>
                   {r.net > 0 ? '+' : ''}{r.net}
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono text-chalk-300">

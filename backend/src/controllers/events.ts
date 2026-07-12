@@ -60,7 +60,7 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
       include: { player: { select: { firstName: true, lastName: true, jerseyNumber: true } } },
     });
 
-    const team = scoringTeam(eventType);
+    const team = scoringTeam(eventType, isOpponent);
     if (team === 'home') {
       await prisma.match.update({ where: { id: matchId }, data: { homeScore: { increment: 1 } } });
       await checkSetCompletion(matchId);

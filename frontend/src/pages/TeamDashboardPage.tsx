@@ -14,6 +14,7 @@ import CoachingRecommendationsPanel from '../components/analytics/CoachingRecomm
 import SeasonIntelligenceCard from '../components/analytics/SeasonIntelligenceCard';
 import TrainingRecommendationsPanel from '../components/analytics/TrainingRecommendationsPanel';
 import AssistantPanel from '../components/analytics/AssistantPanel';
+import { features } from '../config/features';
 
 export default function TeamDashboardPage() {
   const { teamId } = useParams<{ teamId: string }>();
@@ -34,17 +35,17 @@ export default function TeamDashboardPage() {
     : [];
 
 
-  if (isLoading) return <p className="text-chalk-400">Loading analytics...</p>;
-  if (isError || !data) return <p className="text-red-400">Unable to load team analytics.</p>;
+  if (isLoading) return <p className="text-navy-300">Loading analytics...</p>;
+  if (isError || !data) return <p className="text-error-dark">Couldn't load team analytics.</p>;
 
   return (
     <div className="space-y-6">
       <div>
-        <Link to={`/teams/${data.team.id}`} className="text-sm text-chalk-400 hover:text-chalk-100">
+        <Link to={`/teams/${data.team.id}`} className="text-sm text-navy-300 hover:text-white">
           Back to roster
         </Link>
-        <h1 className="text-2xl font-bold text-chalk-100 mt-2">{data.team.name} Dashboard</h1>
-        <p className="text-sm text-chalk-400 mt-1">
+        <h1 className="text-2xl font-bold text-white mt-2">{data.team.name} Dashboard</h1>
+        <p className="text-sm text-navy-300 mt-1">
           {data.team.division && `${data.team.division} | `}Season {data.team.season}
         </p>
       </div>
@@ -52,23 +53,23 @@ export default function TeamDashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {Object.entries(data.matchSummary).map(([label, value]) => (
           <div key={label} className="card p-4">
-            <p className="text-xs uppercase tracking-wider text-chalk-400">{label.replace(/([A-Z])/g, ' $1')}</p>
-            <p className="font-mono text-2xl font-bold mt-1">{value}</p>
+            <p className="text-xs text-navy-300">{label.replace(/([A-Z])/g, ' $1')}</p>
+            <p className="tabular-nums text-2xl font-bold mt-1">{value}</p>
           </div>
         ))}
       </div>
 
       <StatsCards stats={data.teamStats} />
         {trends.data && trends.data.length === 0 && (
-        <div className="card p-6 text-center text-chalk-400 text-sm">
+        <div className="card p-6 text-center text-navy-300 text-sm">
           Complete matches to see performance trends over time.
         </div>
       )}
 
       {/* Phase 6 Sprint 4 — Season Intelligence */}
-      {seasonData && (
+      {features.recommendations && seasonData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Season Intelligence</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Season Intelligence</h2>
           <SeasonIntelligenceCard report={seasonData} />
         </section>
       )}
@@ -133,70 +134,74 @@ export default function TeamDashboardPage() {
       </div>
       
       {/* Phase 4 Sprint 5 — Advanced Metrics */}
-      {advancedData && (
+      {features.recommendations && advancedData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Advanced Performance Metrics</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Advanced Performance Metrics</h2>
           <AdvancedMetricsPanel data={advancedData} heatmapData={heatmapData} />
         </section>
       )}
 
       {/* Phase 4 — Rotation Analytics */}
-      <section>
-        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Rotation Analytics</h2>
-        {rotationData ? (
-          <RotationAnalytics data={rotationData} />
-        ) : (
-          <div className="card p-6 text-center text-chalk-400 text-sm">Loading rotation data...</div>
-        )}
-      </section>
+      {features.rotationAnalytics && (
+        <section>
+          <h2 className="text-lg font-semibold text-white mb-3">Rotation Analytics</h2>
+          {rotationData ? (
+            <RotationAnalytics data={rotationData} />
+          ) : (
+            <div className="card p-6 text-center text-navy-300 text-sm">Loading rotation data...</div>
+          )}
+        </section>
+      )}
 
       {/* Phase 3 — Season Heat Map */}
-      {heatmapData && (
+      {features.heatMaps && heatmapData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Season Heat Map</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Season Heat Map</h2>
           <HeatMapCourt data={heatmapData} />
         </section>
       )}
 
       {/* Phase 3 — Zone Efficiency */}
-      {zoneDetail && (
+      {features.heatMaps && zoneDetail && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Zone Efficiency</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Zone Efficiency</h2>
           <CourtHeatMap data={zoneDetail} />
         </section>
       )}
 
       {/* Phase 6 Sprint 1 — Coaching Recommendations */}
-      {recommendationsData && (
+      {features.recommendations && recommendationsData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Coaching Recommendations</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Coaching Recommendations</h2>
           <CoachingRecommendationsPanel recommendations={recommendationsData} />
         </section>
       )}
 
       {/* Phase 6 Sprint 5 — Training Recommendations */}
-      {trainingData && (
+      {features.recommendations && trainingData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Practice Allocation</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Practice Allocation</h2>
           <TrainingRecommendationsPanel recommendations={trainingData} />
         </section>
       )}
 
       {/* Phase 6 Sprint 6 — Coaching Assistant */}
-      <section>
-        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Coaching Assistant</h2>
-        <AssistantPanel
-          onAsk={askAssistant}
-          answer={assistantAnswer}
-          isPending={assistantPending}
-        />
-      </section>
+      {features.assistant && (
+        <section>
+          <h2 className="text-lg font-semibold text-white mb-3">Coaching Assistant</h2>
+          <AssistantPanel
+            onAsk={askAssistant}
+            answer={assistantAnswer}
+            isPending={assistantPending}
+          />
+        </section>
+      )}
 
       <CoachInsights insights={insights} />
       <PlayerInsights players={data.playerStats} />
 
       <section>
-        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Season Player Statistics</h2>
+        <h2 className="text-lg font-semibold text-white mb-3">Season Player Statistics</h2>
         <PlayerStatsTable rows={data.playerStats} />
       </section>
     </div>

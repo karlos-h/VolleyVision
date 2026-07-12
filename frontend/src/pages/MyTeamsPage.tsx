@@ -13,19 +13,19 @@ const ROLE_LABELS: Record<TeamRole, string> = {
 
 const ROLE_COLORS: Record<TeamRole, string> = {
   HEAD_COACH:      'bg-spike-600/20 text-spike-400',
-  ASSISTANT_COACH: 'bg-blue-800/30 text-blue-300',
+  ASSISTANT_COACH: 'bg-info/30 text-info',
   STATISTICIAN:    'bg-purple-800/30 text-purple-300',
-  PLAYER:          'bg-emerald-800/30 text-emerald-300',
+  PLAYER:          'bg-success/30 text-success-dark',
   VIEWER:          'bg-court-700 text-chalk-400',
 };
 
-function TeamCard({ id, name, division, season, players, matches, badge, role }: {
+function TeamCard({ id, name, division, season, players, matches, badge, mode }: {
   id: string; name: string; division?: string; season: string;
   players?: number; matches?: number;
   badge?: { label: string; color: string };
-  role?: TeamRole | 'OWNER';
+  mode: 'coach' | 'player';
 }) {
-  const isPlayerOnly = role === 'PLAYER';
+  const isPlayerOnly = mode === 'player';
 
   return (
     <div className="card p-5 flex flex-col gap-4">
@@ -53,7 +53,7 @@ function TeamCard({ id, name, division, season, players, matches, badge, role }:
         {isPlayerOnly ? (
           // Players get a direct portal link as primary action, plus roster/matches as secondary
           <>
-            <Link to="/player" className="btn-primary flex-1 text-center text-sm py-2">My Portal</Link>
+            <Link to="/player" className="btn-secondary flex-1 text-center text-sm py-2">My portal</Link>
             <Link to={`/teams/${id}/matches`} className="btn-secondary flex-1 text-center text-sm py-2">Matches</Link>
           </>
         ) : (
@@ -68,6 +68,8 @@ function TeamCard({ id, name, division, season, players, matches, badge, role }:
   );
 }
 
+const COACH_ROLES: TeamRole[] = ['HEAD_COACH', 'ASSISTANT_COACH', 'STATISTICIAN'];
+
 export default function MyTeamsPage() {
   const { user } = useAuth();
   const { data: ownedTeams, isLoading: loadingOwned } = useMyTeams();
@@ -75,18 +77,24 @@ export default function MyTeamsPage() {
   const { data: invitations } = useMyInvitations();
   const pendingCount = invitations?.length ?? 0;
 
-  // Filter out memberships where user is also the owner (already shown in owned section)
-  const memberTeams = memberships?.filter((m) => m.team.ownerId !== user?.id) ?? [];
+  const ownedIds = new Set(ownedTeams?.map((t) => t.id) ?? []);
+
+  // "Teams I Coach": teams I own, plus memberships with a coaching role.
+  const coachMemberships =
+    memberships?.filter((m) => COACH_ROLES.includes(m.role) && !ownedIds.has(m.team.id)) ?? [];
+
+  // "Teams I Play On": memberships where my role on that team is PLAYER.
+  const playingMemberships = memberships?.filter((m) => m.role === 'PLAYER') ?? [];
 
   const isLoading = loadingOwned || loadingMember;
-  const hasNothing = !ownedTeams?.length && !memberTeams.length;
+  const hasNothing = !ownedTeams?.length && !coachMemberships.length && !playingMemberships.length;
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-chalk-100">My Teams</h1>
+          <h1 className="text-2xl font-bold text-chalk-100">My teams</h1>
           <p className="text-chalk-400 text-sm mt-0.5">
             Teams you own or belong to, {user?.firstName} {user?.lastName}
           </p>
@@ -118,16 +126,16 @@ export default function MyTeamsPage() {
             <p className="text-chalk-300 font-medium">You're not part of any team yet</p>
             <p className="text-chalk-500 text-sm mt-1">Claim an existing team or ask a coach to add you.</p>
           </div>
-          <Link to="/teams" className="btn-primary inline-block">Browse Teams</Link>
+          <Link to="/teams" className="btn-primary inline-block">Browse teams</Link>
         </div>
       ) : (
         <>
-          {/* ── Owned Teams ── */}
-          {!!ownedTeams?.length && (
+          {/* ── Teams I Coach ── */}
+          {(!!ownedTeams?.length || !!coachMemberships.length) && (
             <section className="space-y-4">
-              <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Owned Teams</h2>
+              <h2 className="text-sm font-semibold text-chalk-400">Teams I Coach</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ownedTeams.map((team) => (
+                {ownedTeams?.map((team) => (
                   <TeamCard
                     key={team.id}
                     id={team.id}
@@ -137,19 +145,10 @@ export default function MyTeamsPage() {
                     players={team._count?.players}
                     matches={team._count?.matches}
                     badge={{ label: 'Owner', color: 'bg-spike-600/20 text-spike-400' }}
-                    role="OWNER"
+                    mode="coach"
                   />
                 ))}
-              </div>
-            </section>
-          )}
-
-          {/* ── Member Teams ── */}
-          {!!memberTeams.length && (
-            <section className="space-y-4">
-              <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Member Teams</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {memberTeams.map((m) => (
+                {coachMemberships.map((m) => (
                   <TeamCard
                     key={m.id}
                     id={m.team.id}
@@ -159,7 +158,29 @@ export default function MyTeamsPage() {
                     players={m.team._count?.players}
                     matches={m.team._count?.matches}
                     badge={{ label: ROLE_LABELS[m.role], color: ROLE_COLORS[m.role] }}
-                    role={m.role}
+                    mode="coach"
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Teams I Play On ── */}
+          {!!playingMemberships.length && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-semibold text-chalk-400">Teams I Play On</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {playingMemberships.map((m) => (
+                  <TeamCard
+                    key={m.id}
+                    id={m.team.id}
+                    name={m.team.name}
+                    division={m.team.division}
+                    season={m.team.season}
+                    players={m.team._count?.players}
+                    matches={m.team._count?.matches}
+                    badge={{ label: ROLE_LABELS[m.role], color: ROLE_COLORS[m.role] }}
+                    mode="player"
                   />
                 ))}
               </div>

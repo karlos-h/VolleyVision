@@ -26,7 +26,7 @@ export default function ResultCard({ fixture, result, myTeamIds = new Set() }: P
         <span className="text-xs text-chalk-500">{dateStr}</span>
         {result.hasDiscrepancy && (
           <span
-            className="badge bg-yellow-900/20 text-yellow-500 text-xs cursor-default"
+            className="badge bg-warning/20 text-warning text-xs cursor-default"
             title="Both teams linked different results. The home team's data is used as authoritative."
           >
             ⚠ Data mismatch

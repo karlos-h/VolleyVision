@@ -28,34 +28,34 @@ export default function CoachingRecommendationsPanel({ recommendations }: Props)
           key={i}
           className={`rounded-lg p-3 text-sm flex gap-3 items-start ${
             rec.priority === 'high'
-              ? 'bg-red-500/10 border border-red-500/20'
+              ? 'bg-error/10 border border-error/20'
               : rec.priority === 'medium'
-              ? 'bg-yellow-500/10 border border-yellow-500/20'
+              ? 'bg-warning/10 border border-warning/20'
               : 'bg-chalk-500/10 border border-chalk-700/30'
           }`}
         >
           <div className="shrink-0 flex flex-col gap-1 pt-0.5">
             <span
-              className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
                 rec.priority === 'high'
-                  ? 'bg-red-500/20 text-red-400'
+                  ? 'bg-error/20 text-error-dark'
                   : rec.priority === 'medium'
-                  ? 'bg-yellow-500/20 text-yellow-400'
+                  ? 'bg-warning/20 text-warning'
                   : 'bg-chalk-500/20 text-chalk-400'
               }`}
             >
               {rec.priority}
             </span>
-            <span className="text-[10px] uppercase tracking-wider text-chalk-500 text-center">
+            <span className="text-[10px]r text-chalk-500 text-center">
               {CATEGORY_LABELS[rec.category]}
             </span>
           </div>
           <p
             className={
               rec.priority === 'high'
-                ? 'text-red-300'
+                ? 'text-error-dark'
                 : rec.priority === 'medium'
-                ? 'text-yellow-300'
+                ? 'text-warning'
                 : 'text-chalk-300'
             }
           >

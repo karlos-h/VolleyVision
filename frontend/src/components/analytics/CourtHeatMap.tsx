@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import type { DetailedHeatmapData, ZoneAttack, ZoneServe, ZonePass, ZoneDefence } from '../../types';
+import { CHART_SERIES, CHART_POSITIVE, CHART_NEGATIVE } from '../../lib/chartColors';
 
 // Standard volleyball zone layout:
 //   4 | 3 | 2   ← front row
@@ -13,10 +14,10 @@ const ZONE_LAYOUT = [
 type Category = 'attack' | 'serve' | 'pass' | 'defence';
 
 const CATEGORIES: { key: Category; label: string; color: string; description: string }[] = [
-  { key: 'attack',  label: 'Attack',  color: '#ef4444', description: 'hitting %' },
-  { key: 'serve',   label: 'Serve',   color: '#3b82f6', description: 'efficiency' },
-  { key: 'pass',    label: 'Pass',    color: '#8b5cf6', description: 'rating / 3.0' },
-  { key: 'defence', label: 'Defence', color: '#10b981', description: 'total contacts' },
+  { key: 'attack',  label: 'Attack',  color: CHART_NEGATIVE,  description: 'hitting %' },
+  { key: 'serve',   label: 'Serve',   color: CHART_SERIES[2], description: 'efficiency' },
+  { key: 'pass',    label: 'Pass',    color: CHART_SERIES[3], description: 'rating / 3.0' },
+  { key: 'defence', label: 'Defence', color: CHART_POSITIVE,  description: 'total contacts' },
 ];
 
 function zoneVolume(zone: string, data: DetailedHeatmapData, category: Category): number {

@@ -99,9 +99,29 @@ export async function deleteMatch(req: Request, res: Response, next: NextFunctio
 }
 
 // Phase 4 Sprint 1 — manual score adjustment (home/away delta or absolute)
+// Stabilization: also persists the change as a ScoreAdjustment delta so it
+// survives recalculateMatchState after undo/delete operations.
 export async function updateScore(req: Request, res: Response, next: NextFunction) {
   try {
     const { homeScore, awayScore, homeSetsWon, awaySetsWon } = req.body;
+
+    const existing = await prisma.match.findUnique({
+      where: { id: req.params.id },
+      select: { homeScore: true, awayScore: true, homeSetsWon: true, awaySetsWon: true },
+    });
+    if (!existing) throw new AppError(404, 'Match not found.');
+
+    // API keeps absolute-value semantics; the delta is derived for persistence.
+    const homeDelta = homeScore != null ? Number(homeScore) - existing.homeScore : 0;
+    const awayDelta = awayScore != null ? Number(awayScore) - existing.awayScore : 0;
+
+    if (homeDelta !== 0 || awayDelta !== 0) {
+      const currentSet = existing.homeSetsWon + existing.awaySetsWon + 1;
+      await prisma.scoreAdjustment.create({
+        data: { matchId: req.params.id, homeDelta, awayDelta, setNumber: currentSet },
+      });
+    }
+
     const match = await prisma.match.update({
       where: { id: req.params.id },
       data: {
@@ -120,8 +140,21 @@ export async function updateScore(req: Request, res: Response, next: NextFunctio
 }
 
 // Phase 4 Sprint 1 — reset current set score (called at end of set)
+// Stabilization: also clears that set's manual adjustments so the reset
+// isn't undone by the next recalculation replaying stale deltas.
 export async function resetSetScore(req: Request, res: Response, next: NextFunction) {
   try {
+    const existing = await prisma.match.findUnique({
+      where: { id: req.params.id },
+      select: { homeSetsWon: true, awaySetsWon: true },
+    });
+    if (!existing) throw new AppError(404, 'Match not found.');
+
+    const currentSet = existing.homeSetsWon + existing.awaySetsWon + 1;
+    await prisma.scoreAdjustment.deleteMany({
+      where: { matchId: req.params.id, setNumber: currentSet },
+    });
+
     const match = await prisma.match.update({
       where: { id: req.params.id },
       data: { homeScore: 0, awayScore: 0 },

@@ -57,7 +57,25 @@ export interface UserProfile {
   dateOfBirth: string | null;
   city: string | null;
   country: string | null;
+  heightCm: number | null;
+  weightKg: number | null;
   createdAt: string;
+}
+
+// Career-best single-match performances (GET /player/bests)
+export interface PlayerBestEntry {
+  value: number;
+  matchId: string;
+  opponent: string;
+  matchDate: string;
+}
+
+export interface PlayerBests {
+  kills: PlayerBestEntry | null;
+  aces: PlayerBestEntry | null;
+  blocks: PlayerBestEntry | null;
+  digs: PlayerBestEntry | null;
+  hittingPercentage: PlayerBestEntry | null;
 }
 
 export interface PlayerRecord {
@@ -78,6 +96,8 @@ export interface CareerStats {
   attackAttempts: number;
   attackErrors: number;
   hittingPercentage: number | null;
+  tips?: number;
+  freeBalls?: number;
   aces: number;
   serviceErrors: number;
   serveAttempts: number;
@@ -114,11 +134,28 @@ export interface DevelopmentPoint extends CareerStats {
   matchDate: string;
 }
 
+export interface UpcomingMatchItem {
+  id: string;
+  matchDate: string;
+  opponent: string;
+  competition: string | null;
+  venue: string | null;
+  team: { id: string; name: string };
+}
+
+export interface TeamStatsBreakdown {
+  playerId: string;
+  team: { id: string; name: string; season: string };
+  stats: CareerStats;
+}
+
 export interface PlayerDashboard {
   players: PlayerRecord[];
   careerStats: CareerStats | null;
   recentMatches: MatchSummaryItem[];
   developmentMetrics: DevelopmentPoint[];
+  upcomingMatches: UpcomingMatchItem[];
+  statsByTeam: TeamStatsBreakdown[];
 }
 
 export interface TeamSummary {
@@ -144,6 +181,7 @@ export interface CoachDashboard {
   memberTeams: TeamSummary[];
   coachingStats: CoachingStats;
   recentMatches: MatchSummaryItem[];
+  upcomingMatches: UpcomingMatchItem[];
 }
 
 // Phase 7 Sprint 0 — onboarding hint only. Never used for permission checks.
@@ -178,6 +216,8 @@ export type EventType =
   | 'KILL'
   | 'ATTACK_ERROR'
   | 'ATTACK_ATTEMPT'
+  | 'TIP'
+  | 'FREE_BALL'
   // Serving
   | 'ACE'
   | 'SERVICE_ERROR'
@@ -418,6 +458,8 @@ export interface StatLine {
   attackErrors: number;
   attackAttempts: number;
   hittingPercentage: number | null;
+  tips?: number;
+  freeBalls?: number;
   aces: number;
   serviceErrors: number;
   serveAttempts: number;
@@ -591,6 +633,8 @@ export const EVENT_META: EventMeta[] = [
   { type: 'KILL', label: 'Kill', category: 'attack', outcome: 'positive' },
   { type: 'ATTACK_ERROR', label: 'Att. Error', category: 'attack', outcome: 'negative' },
   { type: 'ATTACK_ATTEMPT', label: 'Attempt', category: 'attack', outcome: 'neutral' },
+  { type: 'TIP', label: 'Tip', category: 'attack', outcome: 'neutral' },
+  { type: 'FREE_BALL', label: 'Free Ball', category: 'attack', outcome: 'neutral' },
   // Serving
   { type: 'ACE', label: 'Ace', category: 'serve', outcome: 'positive' },
   { type: 'SERVICE_ERROR', label: 'Svc Error', category: 'serve', outcome: 'negative' },

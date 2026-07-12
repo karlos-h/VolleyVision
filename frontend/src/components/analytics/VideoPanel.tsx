@@ -71,7 +71,7 @@ function TimestampList({ video, videoRef }: { video: Video; videoRef: React.RefO
               </span>
               <span className="text-sm text-chalk-200 flex-1">{ts.label}</span>
               <button
-                className="text-chalk-600 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-chalk-600 hover:text-error-dark text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteTs.mutate(ts.id);
@@ -108,7 +108,7 @@ export default function VideoPanel({ matchId }: Props) {
     try {
       await uploadVideo.mutateAsync(file);
     } catch (err: any) {
-      setUploadError(err?.response?.data?.error ?? 'Upload failed.');
+      setUploadError(err?.response?.data?.error ?? "Couldn't upload that video. Check your connection and try again.");
     }
     e.target.value = '';
   }
@@ -128,7 +128,7 @@ export default function VideoPanel({ matchId }: Props) {
           />
         </label>
         <span className="text-xs text-chalk-500">MP4, MOV, WebM · max 500 MB</span>
-        {uploadError && <span className="text-xs text-red-400">{uploadError}</span>}
+        {uploadError && <span className="text-xs text-error-dark">{uploadError}</span>}
       </div>
 
       {/* Video list */}
@@ -136,7 +136,7 @@ export default function VideoPanel({ matchId }: Props) {
         <p className="text-sm text-chalk-400">Loading videos…</p>
       ) : !videos?.length ? (
         <div className="card p-6 text-center text-chalk-500 text-sm">
-          No videos uploaded for this match yet.
+          No videos yet — upload match footage to tag key moments.
         </div>
       ) : (
         <div className="space-y-1">
@@ -155,7 +155,7 @@ export default function VideoPanel({ matchId }: Props) {
                 {new Date(v.uploadedAt).toLocaleDateString()}
               </span>
               <button
-                className="text-chalk-600 hover:text-red-400 text-xs shrink-0"
+                className="text-chalk-600 hover:text-error-dark text-xs shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (confirm(`Delete "${v.filename}"? This cannot be undone.`)) {

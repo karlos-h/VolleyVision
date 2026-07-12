@@ -11,9 +11,9 @@ const ROLE_LABELS: Record<TeamRole, string> = {
 
 const ROLE_COLORS: Record<TeamRole, string> = {
   HEAD_COACH:      'bg-spike-600/20 text-spike-400',
-  ASSISTANT_COACH: 'bg-blue-800/30 text-blue-300',
+  ASSISTANT_COACH: 'bg-info/30 text-info',
   STATISTICIAN:    'bg-purple-800/30 text-purple-300',
-  PLAYER:          'bg-emerald-800/30 text-emerald-300',
+  PLAYER:          'bg-success/30 text-success-dark',
   VIEWER:          'bg-court-700 text-chalk-400',
 };
 
@@ -49,19 +49,19 @@ function InvitationCard({ inv }: { inv: Invitation }) {
       </p>
 
       {accept.isError && (
-        <p className="text-red-400 text-xs">
-          {(accept.error as any)?.response?.data?.error ?? 'Failed to accept.'}
+        <p className="text-error-dark text-xs">
+          {(accept.error as any)?.response?.data?.error ?? "Couldn't accept that invitation. Try again."}
         </p>
       )}
       {decline.isError && (
-        <p className="text-red-400 text-xs">
-          {(decline.error as any)?.response?.data?.error ?? 'Failed to decline.'}
+        <p className="text-error-dark text-xs">
+          {(decline.error as any)?.response?.data?.error ?? "Couldn't decline that invitation. Try again."}
         </p>
       )}
 
       <div className="flex gap-2">
         <button
-          className="btn-primary flex-1 text-sm py-2"
+          className="btn-secondary flex-1 text-sm py-2"
           disabled={accept.isPending}
           onClick={() => accept.mutate(inv.token)}
         >

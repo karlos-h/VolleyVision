@@ -16,14 +16,14 @@ function CreateLeagueForm({ onDone }: { onDone: () => void }) {
       await create.mutateAsync({ name, division: division || undefined });
       onDone();
     } catch {
-      setErr('Failed to create league.');
+      setErr("Couldn't create the league. Try again.");
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="card p-5 space-y-3 mt-4">
       <h3 className="font-semibold text-chalk-200 text-sm">New League</h3>
-      {err && <p className="text-red-400 text-xs">{err}</p>}
+      {err && <p className="text-error-dark text-xs">{err}</p>}
       <input className="input w-full" placeholder="League name *" value={name} onChange={(e) => setName(e.target.value)} required />
       <input className="input w-full" placeholder="Division (optional)" value={division} onChange={(e) => setDivision(e.target.value)} />
       <div className="flex gap-2">
@@ -53,14 +53,14 @@ function CreateSeasonForm({ onDone }: { onDone: () => void }) {
       await create.mutateAsync({ leagueId, name, startDate, endDate: endDate || undefined });
       onDone();
     } catch {
-      setErr('Failed to create season.');
+      setErr("Couldn't create the season. Try again.");
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="card p-5 space-y-3 mt-4">
       <h3 className="font-semibold text-chalk-200 text-sm">New Season</h3>
-      {err && <p className="text-red-400 text-xs">{err}</p>}
+      {err && <p className="text-error-dark text-xs">{err}</p>}
       <select className="input w-full" value={leagueId} onChange={(e) => setLeagueId(e.target.value)} required>
         <option value="">Select league *</option>
         {leagues.map((l) => (
@@ -112,7 +112,7 @@ export default function LeagueHubPage() {
               + League
             </button>
             <button
-              className="btn-primary text-sm"
+              className="btn-secondary text-sm"
               onClick={() => { setShowCreateLeague(false); setShowCreateSeason((v) => !v); }}
             >
               + Season

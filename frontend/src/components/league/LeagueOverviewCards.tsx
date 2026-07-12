@@ -24,7 +24,7 @@ export default function LeagueOverviewCards({ seasons }: Props) {
           className="card p-5 flex flex-col gap-3 hover:border-spike-600/40 transition-colors"
         >
           <div>
-            <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold">
+            <p className="text-xs text-chalk-500 font-semibold">
               {season.league.name}
               {season.league.division && ` · ${season.league.division}`}
             </p>

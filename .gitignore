@@ -1,9 +1,10 @@
 node_modules/
 dist/
+backend/dist/
+frontend/dist/
 .env
 *.env.local
 .DS_Store
-prisma/migrations/
 .claude/
 # Video uploads (local disk MVP — never commit actual video files)
 backend/uploads/

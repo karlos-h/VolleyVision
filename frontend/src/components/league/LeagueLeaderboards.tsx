@@ -11,7 +11,7 @@ interface LeaderboardProps {
 function Leaderboard({ title, entries, formatValue, valueLabel, emptyMessage }: LeaderboardProps) {
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-chalk-400 uppercase tracking-wide">{title}</h3>
+      <h3 className="text-xs font-semibold text-chalk-400">{title}</h3>
       {entries.length === 0 ? (
         <p className="text-chalk-600 text-xs">{emptyMessage ?? 'Not enough data yet.'}</p>
       ) : (

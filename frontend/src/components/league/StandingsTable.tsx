@@ -67,11 +67,11 @@ export default function StandingsTable({ rows }: Props) {
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-court-700">
-              <th className="text-left text-chalk-500 text-xs font-semibold uppercase tracking-wide py-2 pr-4 w-6">#</th>
+              <th className="text-left text-chalk-500 text-xs font-semibold py-2 pr-4 w-6">#</th>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
-                  className={`${col.numeric ? 'text-right' : 'text-left'} text-chalk-500 text-xs font-semibold uppercase tracking-wide py-2 px-2 cursor-pointer select-none hover:text-chalk-300`}
+                  className={`${col.numeric ? 'text-right' : 'text-left'} text-chalk-500 text-xs font-semibold py-2 px-2 cursor-pointer select-none hover:text-chalk-300`}
                   onClick={() => handleSort(col.key)}
                 >
                   {col.label}{arrow(col.key)}
@@ -92,10 +92,10 @@ export default function StandingsTable({ rows }: Props) {
                   </Link>
                 </td>
                 <td className="py-2.5 px-2 text-right font-mono text-chalk-300">{row.matchesPlayed}</td>
-                <td className="py-2.5 px-2 text-right font-mono text-emerald-400">{row.wins}</td>
+                <td className="py-2.5 px-2 text-right font-mono text-success-dark">{row.wins}</td>
                 <td className="py-2.5 px-2 text-right font-mono font-bold text-spike-400">{row.points}</td>
                 <td className="py-2.5 px-2 text-right font-mono text-chalk-300">{row.setsWon}</td>
-                <td className={`py-2.5 px-2 text-right font-mono ${row.setDifferential >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <td className={`py-2.5 px-2 text-right font-mono ${row.setDifferential >= 0 ? 'text-success-dark' : 'text-error-dark'}`}>
                   {row.setDifferential >= 0 ? `+${row.setDifferential}` : row.setDifferential}
                 </td>
               </tr>

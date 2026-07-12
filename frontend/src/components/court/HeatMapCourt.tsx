@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import type { HeatmapData } from '../../types';
+import { CHART_SERIES, CHART_GRID, CHART_TICK, CHART_COURT_BG, CHART_EMPTY, CHART_TOOLTIP_TEXT } from '../../lib/chartColors';
+
+// Heat intensity scales GOLD opacity on navy (brand accent), per the guidelines.
+const HEAT_COLOR = CHART_SERIES[0];
 
 const ZONE_RECTS: Record<number, { x: number; y: number; w: number; h: number }> = {
   4: { x: 0,   y: 0,   w: 100, h: 100 },
@@ -12,12 +16,12 @@ const ZONE_RECTS: Record<number, { x: number; y: number; w: number; h: number }>
 };
 
 const HEATMAP_TYPES = [
-  { key: 'attack',  label: 'Attack',   description: 'Kills, errors & attempts', color: '#ef4444' },
-  { key: 'serve',   label: 'Serve',    description: 'Aces, errors & in-serves', color: '#3b82f6' },
-  { key: 'pass',    label: 'Pass',     description: 'Pass ratings 0–3',         color: '#8b5cf6' },
-  { key: 'block',   label: 'Block',    description: 'Solo blocks, assists & errors', color: '#10b981' },
-  { key: 'defence', label: 'Defence',  description: 'Digs & dig errors',        color: '#f59e0b' },
-  { key: 'all',     label: 'All',      description: 'Every event with a zone',  color: '#94a3b8' },
+  { key: 'attack',  label: 'Attack',   description: 'Kills, errors & attempts' },
+  { key: 'serve',   label: 'Serve',    description: 'Aces, errors & in-serves' },
+  { key: 'pass',    label: 'Pass',     description: 'Pass ratings 0–3' },
+  { key: 'block',   label: 'Block',    description: 'Solo blocks, assists & errors' },
+  { key: 'defence', label: 'Defence',  description: 'Digs & dig errors' },
+  { key: 'all',     label: 'All',      description: 'Every event with a zone' },
 ] as const;
 
 type HeatmapType = typeof HEATMAP_TYPES[number];
@@ -31,14 +35,12 @@ function ZoneCell({
   zone,
   count,
   max,
-  color,
   hoveredZone,
   onHover,
 }: {
   zone: number;
   count: number;
   max: number;
-  color: string;
   hoveredZone: number | null;
   onHover: (zone: number | null) => void;
 }) {
@@ -56,18 +58,18 @@ function ZoneCell({
     >
       <rect
         x={x} y={y} width={w} height={h}
-        fill={color}
+        fill={HEAT_COLOR}
         fillOpacity={fillOpacity}
-        stroke={isHovered ? '#fbbf24' : '#162d58'}
+        stroke={isHovered ? HEAT_COLOR : CHART_GRID}
         strokeWidth={isHovered ? 2 : 1}
       />
       {/* Zone label */}
       <text
         x={x + w / 2} y={y + h / 2 - 10}
         textAnchor="middle"
-        fill={count > 0 ? '#94a3b8' : '#334155'}
+        fill={count > 0 ? CHART_TICK : CHART_EMPTY}
         fontSize="16"
-        fontFamily="monospace"
+        fontFamily="Inter, sans-serif"
         fontWeight="bold"
       >
         {zone}
@@ -76,9 +78,9 @@ function ZoneCell({
       <text
         x={x + w / 2} y={y + h / 2 + 10}
         textAnchor="middle"
-        fill={count > 0 ? '#f0f4f8' : '#334155'}
+        fill={count > 0 ? CHART_TOOLTIP_TEXT : CHART_EMPTY}
         fontSize="12"
-        fontFamily="monospace"
+        fontFamily="Inter, sans-serif"
         fontWeight="bold"
       >
         {count > 0 ? count : '0'}
@@ -88,9 +90,9 @@ function ZoneCell({
         <text
           x={x + w / 2} y={y + h / 2 + 24}
           textAnchor="middle"
-          fill="#94a3b8"
+          fill={CHART_TICK}
           fontSize="9"
-          fontFamily="monospace"
+          fontFamily="Inter, sans-serif"
         >
           {Math.round(intensity * 100)}%
         </text>
@@ -128,7 +130,7 @@ export default function HeatMapCourt({ data, title }: Props) {
             )}
             style={
               activeType.key === type.key
-                ? { backgroundColor: type.color, borderColor: type.color }
+                ? { backgroundColor: HEAT_COLOR, borderColor: HEAT_COLOR }
                 : {}
             }
           >
@@ -151,7 +153,7 @@ export default function HeatMapCourt({ data, title }: Props) {
               className="w-full max-w-md mx-auto rounded-xl overflow-hidden"
               style={{ aspectRatio: '3/2' }}
             >
-              <rect x="0" y="0" width="300" height="200" fill="#0a1628" />
+              <rect x="0" y="0" width="300" height="200" fill={CHART_COURT_BG} />
 
               {([4, 3, 2, 5, 6, 1] as const).map((zone) => (
                 <ZoneCell
@@ -159,17 +161,16 @@ export default function HeatMapCourt({ data, title }: Props) {
                   zone={zone}
                   count={counts[String(zone)] ?? 0}
                   max={max}
-                  color={activeType.color}
                   hoveredZone={hoveredZone}
                   onHover={setHoveredZone}
                 />
               ))}
 
               {/* Net */}
-              <line x1="0" y1="100" x2="300" y2="100" stroke="#f59e0b" strokeWidth="2" opacity="0.5" />
-              <text x="150" y="97" textAnchor="middle" fill="#f59e0b" fontSize="7" opacity="0.5" letterSpacing="3">NET</text>
+              <line x1="0" y1="100" x2="300" y2="100" stroke={HEAT_COLOR} strokeWidth="2" opacity="0.5" />
+              <text x="150" y="97" textAnchor="middle" fill={HEAT_COLOR} fontSize="7" opacity="0.5" letterSpacing="3">NET</text>
 
-              <rect x="0" y="0" width="300" height="200" fill="none" stroke="#162d58" strokeWidth="2" />
+              <rect x="0" y="0" width="300" height="200" fill="none" stroke={CHART_GRID} strokeWidth="2" />
             </svg>
           </div>
 
@@ -181,7 +182,7 @@ export default function HeatMapCourt({ data, title }: Props) {
               <div
                 className="flex-1 h-2.5 rounded-full"
                 style={{
-                  background: `linear-gradient(to right, ${activeType.color}14, ${activeType.color}cc)`,
+                  background: `linear-gradient(to right, ${HEAT_COLOR}14, ${HEAT_COLOR}cc)`,
                 }}
               />
               <span className="text-xs text-chalk-500">High</span>

@@ -50,7 +50,7 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
       <div className="flex gap-2 items-center text-xs">
         {/* Home side */}
         {fixture.homeMatch ? (
-          <Link to={`/matches/${fixture.homeMatch.id}/dashboard`} className="badge bg-emerald-800/30 text-emerald-300">
+          <Link to={`/matches/${fixture.homeMatch.id}/dashboard`} className="badge bg-success/30 text-success-dark">
             Home: {fixture.homeMatch.homeSetsWon}–{fixture.homeMatch.awaySetsWon}
           </Link>
         ) : iMyHome ? (
@@ -63,7 +63,7 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
 
         {/* Away side */}
         {fixture.awayMatch ? (
-          <Link to={`/matches/${fixture.awayMatch.id}/dashboard`} className="badge bg-emerald-800/30 text-emerald-300">
+          <Link to={`/matches/${fixture.awayMatch.id}/dashboard`} className="badge bg-success/30 text-success-dark">
             Away: {fixture.awayMatch.homeSetsWon}–{fixture.awayMatch.awaySetsWon}
           </Link>
         ) : iMyAway ? (
@@ -76,10 +76,10 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
 
         {/* Unlink buttons for own sides */}
         {fixture.homeMatch && iMyHome && (
-          <button onClick={() => onUnlink(fixture.id, 'home')} className="text-chalk-600 hover:text-red-400 text-xs">✕</button>
+          <button onClick={() => onUnlink(fixture.id, 'home')} className="text-chalk-600 hover:text-error-dark text-xs">✕</button>
         )}
         {fixture.awayMatch && iMyAway && (
-          <button onClick={() => onUnlink(fixture.id, 'away')} className="text-chalk-600 hover:text-red-400 text-xs">✕</button>
+          <button onClick={() => onUnlink(fixture.id, 'away')} className="text-chalk-600 hover:text-error-dark text-xs">✕</button>
         )}
       </div>
     </div>
@@ -110,7 +110,7 @@ function LinkMatchModal({ fixtureId, side, onDone }: { fixtureId: string; side: 
       await link.mutateAsync({ fixtureId, matchId, side });
       onDone();
     } catch (e: any) {
-      setErr(e?.response?.data?.error ?? 'Failed to link match.');
+      setErr(e?.response?.data?.error ?? "Couldn't link that match. Check the details and try again.");
     }
   }
 
@@ -118,7 +118,7 @@ function LinkMatchModal({ fixtureId, side, onDone }: { fixtureId: string; side: 
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="card p-6 w-full max-w-sm space-y-4">
         <h3 className="font-semibold text-chalk-100">Link {side} match</h3>
-        {err && <p className="text-red-400 text-xs">{err}</p>}
+        {err && <p className="text-error-dark text-xs">{err}</p>}
         {isLoading ? (
           <p className="text-chalk-400 text-sm">Loading matches…</p>
         ) : (
@@ -160,7 +160,7 @@ function AddTeamForm({ seasonId, existingTeamIds, onDone }: { seasonId: string; 
       await addTeam.mutateAsync({ seasonId, teamId });
       onDone();
     } catch (e: any) {
-      setErr(e?.response?.data?.error ?? 'Failed to add team.');
+      setErr(e?.response?.data?.error ?? "Couldn't add that team. Try again.");
     }
   }
 
@@ -177,13 +177,13 @@ function AddTeamForm({ seasonId, existingTeamIds, onDone }: { seasonId: string; 
     <form onSubmit={handleAdd} className="card p-4 flex gap-2 items-end">
       <div className="flex-1">
         <label className="text-xs text-chalk-500 mb-1 block">Add one of your teams</label>
-        {err && <p className="text-red-400 text-xs mb-1">{err}</p>}
+        {err && <p className="text-error-dark text-xs mb-1">{err}</p>}
         <select className="input w-full" value={teamId} onChange={(e) => setTeamId(e.target.value)} required>
           <option value="">Select team…</option>
           {available.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </div>
-      <button type="submit" disabled={addTeam.isPending} className="btn-primary text-sm py-2">
+      <button type="submit" disabled={addTeam.isPending} className="btn-secondary text-sm py-2">
         {addTeam.isPending ? 'Adding…' : 'Add'}
       </button>
       <button type="button" onClick={onDone} className="btn-secondary text-sm py-2">Cancel</button>
@@ -212,14 +212,14 @@ function CreateFixtureForm({ seasonId, leagueTeams, onDone }: {
       await create.mutateAsync({ seasonId, homeLeagueTeamId: home, awayLeagueTeamId: away, scheduledDate: date });
       onDone();
     } catch (e: any) {
-      setErr(e?.response?.data?.error ?? 'Failed to create fixture.');
+      setErr(e?.response?.data?.error ?? "Couldn't create the fixture. Check the details and try again.");
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="card p-5 space-y-3 mt-4">
       <h3 className="font-semibold text-chalk-200 text-sm">Create Fixture</h3>
-      {err && <p className="text-red-400 text-xs">{err}</p>}
+      {err && <p className="text-error-dark text-xs">{err}</p>}
       <div className="flex gap-2">
         <select className="input flex-1" value={home} onChange={(e) => setHome(e.target.value)} required>
           <option value="">Home team *</option>
@@ -270,7 +270,7 @@ export default function LeagueSeasonPage() {
   }
 
   if (loadingSeason) return <p className="text-chalk-400 text-sm">Loading…</p>;
-  if (!season) return <p className="text-red-400 text-sm">Season not found.</p>;
+  if (!season) return <p className="text-error-dark text-sm">Season not found.</p>;
 
   return (
     <div className="space-y-6">
@@ -286,7 +286,7 @@ export default function LeagueSeasonPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold">
+          <p className="text-xs text-chalk-500 font-semibold">
             {season.league.name}{season.league.division ? ` · ${season.league.division}` : ''}
           </p>
           <h1 className="text-2xl font-bold text-chalk-100 mt-0.5">{season.name}</h1>
@@ -301,7 +301,7 @@ export default function LeagueSeasonPage() {
             </button>
           )}
           {isAdmin && (
-            <button onClick={() => setShowCreateFixture((v) => !v)} className="btn-primary text-sm">
+            <button onClick={() => setShowCreateFixture((v) => !v)} className={showCreateFixture ? 'btn-secondary text-sm' : 'btn-primary text-sm'}>
               + Fixture
             </button>
           )}
@@ -320,7 +320,7 @@ export default function LeagueSeasonPage() {
 
       {/* Teams */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Teams ({season.teams.length})</h2>
+        <h2 className="text-sm font-semibold text-chalk-400">Teams ({season.teams.length})</h2>
         <div className="flex flex-wrap gap-2">
           {season.teams.map((lt) => (
             <span
@@ -335,7 +335,7 @@ export default function LeagueSeasonPage() {
 
       {/* Fixtures */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Fixtures ({fixtures.length})</h2>
+        <h2 className="text-sm font-semibold text-chalk-400">Fixtures ({fixtures.length})</h2>
         {loadingFixtures ? (
           <p className="text-chalk-400 text-sm">Loading fixtures…</p>
         ) : !fixtures.length ? (

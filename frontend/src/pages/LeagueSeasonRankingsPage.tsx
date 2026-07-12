@@ -13,20 +13,20 @@ export default function LeagueSeasonRankingsPage() {
       <LeagueNavigation seasonId={seasonId!} />
 
       <div>
-        <h1 className="text-xl font-bold text-chalk-100">League Rankings</h1>
+        <h1 className="text-xl font-bold text-chalk-100">League rankings</h1>
         <p className="text-chalk-500 text-sm mt-0.5">
           Computed from linked, completed league fixtures only. Min. 2 matches to appear.
         </p>
       </div>
 
       {isLoading && <p className="text-chalk-400 text-sm">Loading rankings…</p>}
-      {error && <p className="text-red-400 text-sm">Failed to load rankings.</p>}
+      {error && <p className="text-error-dark text-sm">Failed to load rankings.</p>}
 
       {data && (
         <>
           {/* Team Rankings */}
           <section className="space-y-4">
-            <h2 className="text-sm font-semibold text-chalk-300 uppercase tracking-wide border-b border-court-700 pb-1">
+            <h2 className="text-sm font-semibold text-chalk-300 border-b border-court-700 pb-1">
               Team Rankings
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -55,7 +55,7 @@ export default function LeagueSeasonRankingsPage() {
 
           {/* Player Leaderboards */}
           <section className="space-y-4">
-            <h2 className="text-sm font-semibold text-chalk-300 uppercase tracking-wide border-b border-court-700 pb-1">
+            <h2 className="text-sm font-semibold text-chalk-300 border-b border-court-700 pb-1">
               Player Leaderboards
             </h2>
             <LeagueLeaderboards

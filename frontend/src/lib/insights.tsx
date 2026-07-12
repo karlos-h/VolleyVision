@@ -11,6 +11,8 @@ export function generateTeamInsights(
 
   const insights: TeamInsight[] = [];
 
+  // Brand voice: every claim carries a number; dips are framed as the next
+  // area to attack, never as failure.
   const compare = (
     label: string,
     current: number,
@@ -21,14 +23,14 @@ export function generateTeamInsights(
     if (diff > 0) {
       insights.push({
         type: 'positive',
-        message: `${label} improved by ${diff}`,
+        message: `${label} up ${diff} on last match (${previousValue} → ${current}). Keep the pressure on.`,
       });
     }
 
     if (diff < 0) {
       insights.push({
         type: 'warning',
-        message: `${label} decreased by ${Math.abs(diff)}`,
+        message: `${label} down ${Math.abs(diff)} on last match (${previousValue} → ${current}) — an area to attack next.`,
       });
     }
   };

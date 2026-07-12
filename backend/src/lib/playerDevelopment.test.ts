@@ -8,6 +8,7 @@ import type { StatLine } from './analytics';
 function emptyStats(): StatLine {
   return {
     totalEvents: 0, kills: 0, attackErrors: 0, attackAttempts: 0, hittingPercentage: null,
+    tips: 0, freeBalls: 0,
     aces: 0, serviceErrors: 0, serveAttempts: 0, serveInPercentage: null,
     passAttempts: 0, passingRating: null, soloBlocks: 0, blockAssists: 0, totalBlocks: 0,
     blockErrors: 0, digs: 0, digErrors: 0, assists: 0, settingErrors: 0,

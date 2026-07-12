@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { calculatePlayerStats, calculateSetStats, calculateStats } from '../lib/analytics';
+import { ownEventsOnly } from '../lib/eventFilters';
 import { HOME_POINT_SET, AWAY_POINT_SET } from '../lib/scoringRules';
 import { calculateMomentum } from '../services/momentum.service';
 import { calculateRotations } from '../services/rotation.service';
@@ -38,7 +39,7 @@ const VALID_ROTATION_FILTER = { gte: 1, lte: 6 } as const;
 // ─── Heatmap helper (shared across match / team / player) ─────────────────────
 
 const HEATMAP_CATEGORIES = {
-  attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+  attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT', 'TIP', 'FREE_BALL'],
   serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
   pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
   block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
@@ -80,7 +81,7 @@ function buildAdvancedMetrics(events: { eventType: string; setNumber: number }[]
   const serveErrorRate    = serveAttempts > 0 ? Math.round((c('SERVICE_ERROR') / serveAttempts) * 1000) / 10 : null;
   const servePositiveRate = serveAttempts > 0 ? Math.round(((c('ACE') + c('SERVE_IN')) / serveAttempts) * 1000) / 10 : null;
 
-  const attackAttempts = c('KILL') + c('ATTACK_ERROR') + c('ATTACK_ATTEMPT');
+  const attackAttempts = c('KILL') + c('ATTACK_ERROR') + c('ATTACK_ATTEMPT') + c('TIP') + c('FREE_BALL');
   const killRate       = attackAttempts > 0 ? Math.round((c('KILL') / attackAttempts) * 1000) / 10 : null;
   const hittingPct     = attackAttempts > 0
     ? Math.round(((c('KILL') - c('ATTACK_ERROR')) / attackAttempts) * 1000) / 1000 : null;
@@ -110,7 +111,7 @@ export async function getMatchAnalytics(req: Request, res: Response, next: NextF
       where: { id: req.params.matchId },
       include: {
         team: { include: { players: { select: playerSelect, orderBy: { jerseyNumber: 'asc' } } } },
-        events: { select: eventSelect },
+        events: { where: ownEventsOnly, select: eventSelect },
       },
     });
     if (!match) throw new AppError(404, 'Match not found.');
@@ -139,7 +140,7 @@ export async function getTeamAnalytics(req: Request, res: Response, next: NextFu
       },
     });
     if (!team) throw new AppError(404, 'Team not found.');
-    const events = await prisma.event.findMany({ where: { match: { teamId: team.id } }, select: eventSelect });
+    const events = await prisma.event.findMany({ where: { match: { teamId: team.id }, ...ownEventsOnly }, select: eventSelect });
     res.json({
       team: { id: team.id, name: team.name, division: team.division, season: team.season },
       matchSummary: {
@@ -158,7 +159,7 @@ async function fetchTeamTrends(teamId: string) {
   const matches = await prisma.match.findMany({
     where: { teamId, status: 'COMPLETED' },
     orderBy: { matchDate: 'asc' },
-    include: { events: { select: eventSelect } },
+    include: { events: { where: ownEventsOnly, select: eventSelect } },
   });
   return matches.map((m) => {
     const s = calculateStats(m.events);
@@ -186,7 +187,7 @@ export async function getSeasonIntelligence(req: Request, res: Response, next: N
 export async function getMatchZones(req: Request, res: Response, next: NextFunction) {
   try {
     const CATEGORY_TYPES: Record<string, string[]> = {
-      attack: ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+      attack: ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT', 'TIP', 'FREE_BALL'],
       serve:  ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
       pass:   ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
       block:  ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
@@ -197,7 +198,7 @@ export async function getMatchZones(req: Request, res: Response, next: NextFunct
     const typeFilter = category && CATEGORY_TYPES[category as string]
       ? { eventType: { in: CATEGORY_TYPES[category as string] as any } } : {};
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...typeFilter },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly, ...typeFilter },
       select: { courtZone: true, eventType: true },
     });
     const counts: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 };
@@ -209,7 +210,7 @@ export async function getMatchZones(req: Request, res: Response, next: NextFunct
 export async function getMatchHeatmap(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildHeatmap(events));
@@ -219,7 +220,7 @@ export async function getMatchHeatmap(req: Request, res: Response, next: NextFun
 export async function getTeamHeatmap(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER },
+      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildHeatmap(events));
@@ -231,7 +232,7 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
     const player = await prisma.player.findUnique({ where: { id: req.params.playerId }, select: { id: true } });
     if (!player) throw new AppError(404, 'Player not found.');
     const events = await prisma.event.findMany({
-      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER },
+      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildHeatmap(events));
@@ -240,14 +241,14 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
 
 export async function getMatchAdvanced(req: Request, res: Response, next: NextFunction) {
   try {
-    const events = await prisma.event.findMany({ where: { matchId: req.params.matchId }, select: { eventType: true, setNumber: true } });
+    const events = await prisma.event.findMany({ where: { matchId: req.params.matchId, ...ownEventsOnly }, select: { eventType: true, setNumber: true } });
     res.json(buildAdvancedMetrics(events));
   } catch (err) { next(err); }
 }
 
 export async function getTeamAdvanced(req: Request, res: Response, next: NextFunction) {
   try {
-    const events = await prisma.event.findMany({ where: { match: { teamId: req.params.teamId } }, select: { eventType: true, setNumber: true } });
+    const events = await prisma.event.findMany({ where: { match: { teamId: req.params.teamId }, ...ownEventsOnly }, select: { eventType: true, setNumber: true } });
     res.json(buildAdvancedMetrics(events));
   } catch (err) { next(err); }
 }
@@ -255,7 +256,7 @@ export async function getTeamAdvanced(req: Request, res: Response, next: NextFun
 export async function getMatchMomentum(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
+      where: { matchId: req.params.matchId, ...ownEventsOnly, eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
       select: { eventType: true, setNumber: true, recordedAt: true },
       orderBy: { recordedAt: 'asc' },
     });
@@ -266,7 +267,7 @@ export async function getMatchMomentum(req: Request, res: Response, next: NextFu
 export async function getMatchRotations(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, rotationNumber: VALID_ROTATION_FILTER,
+      where: { matchId: req.params.matchId, rotationNumber: VALID_ROTATION_FILTER, ...ownEventsOnly,
                eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
       select: { rotationNumber: true, eventType: true },
     });
@@ -281,6 +282,7 @@ export async function getTeamRotations(req: Request, res: Response, next: NextFu
       where: {
         match: { teamId: req.params.teamId, ...(season ? { team: { season: String(season) } } : {}) },
         rotationNumber: VALID_ROTATION_FILTER,
+        ...ownEventsOnly,
         eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any },
       },
       select: { rotationNumber: true, eventType: true },
@@ -295,7 +297,7 @@ export async function getMatchReport(req: Request, res: Response, next: NextFunc
     const [match, events, players] = await Promise.all([
       prisma.match.findUnique({ where: { id: matchId }, include: { team: { select: { name: true } } } }),
       prisma.event.findMany({
-        where: { matchId },
+        where: { matchId, ...ownEventsOnly },
         select: { eventType: true, setNumber: true, courtZone: true, rotationNumber: true, playerId: true, recordedAt: true },
         orderBy: { recordedAt: 'asc' },
       }),
@@ -318,7 +320,7 @@ export async function getMatchReport(req: Request, res: Response, next: NextFunc
 export async function getMatchZoneDetail(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
@@ -328,7 +330,7 @@ export async function getMatchZoneDetail(req: Request, res: Response, next: Next
 export async function getTeamZoneDetail(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER },
+      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
@@ -340,7 +342,7 @@ export async function getPlayerZoneDetail(req: Request, res: Response, next: Nex
     const player = await prisma.player.findUnique({ where: { id: req.params.playerId }, select: { id: true } });
     if (!player) throw new AppError(404, 'Player not found.');
     const events = await prisma.event.findMany({
-      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER },
+      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
@@ -356,14 +358,14 @@ async function fetchTeamCoachingRecommendations(teamId: string) {
 // the rotation data without a second query.
 async function fetchTeamCoachingContext(teamId: string) {
   const [statsEvents, rotationEvents, zoneEvents] = await Promise.all([
-    prisma.event.findMany({ where: { match: { teamId } }, select: eventSelect }),
+    prisma.event.findMany({ where: { match: { teamId }, ...ownEventsOnly }, select: eventSelect }),
     prisma.event.findMany({
-      where: { match: { teamId }, rotationNumber: VALID_ROTATION_FILTER,
+      where: { match: { teamId }, rotationNumber: VALID_ROTATION_FILTER, ...ownEventsOnly,
                eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
       select: { rotationNumber: true, eventType: true },
     }),
     prisma.event.findMany({
-      where: { match: { teamId }, courtZone: VALID_ZONE_FILTER },
+      where: { match: { teamId }, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     }),
   ]);
@@ -399,7 +401,7 @@ async function fetchTeamRosterContext(teamId: string, playerIds: string[]) {
     }),
     prisma.event.findMany({
       where: { match: { teamId, status: 'COMPLETED' },
-               playerId: { in: playerIds } },
+               playerId: { in: playerIds }, ...ownEventsOnly },
       select: { matchId: true, playerId: true, eventType: true, setNumber: true },
     }),
   ]);
@@ -492,7 +494,7 @@ export async function getMatchReportNarrative(req: Request, res: Response, next:
     const [match, events, players] = await Promise.all([
       prisma.match.findUnique({ where: { id: matchId }, include: { team: { select: { name: true } } } }),
       prisma.event.findMany({
-        where: { matchId },
+        where: { matchId, ...ownEventsOnly },
         select: { eventType: true, setNumber: true, courtZone: true, rotationNumber: true, playerId: true, recordedAt: true },
         orderBy: { recordedAt: 'asc' },
       }),
@@ -520,7 +522,7 @@ export async function getPlayerAnalytics(req: Request, res: Response, next: Next
     if (!player) throw new AppError(404, 'Player not found.');
     const matchId = typeof req.query.matchId === 'string' ? req.query.matchId : undefined;
     const events = await prisma.event.findMany({
-      where: { playerId: player.id, ...(matchId ? { matchId } : {}) },
+      where: { playerId: player.id, ...(matchId ? { matchId } : {}), ...ownEventsOnly },
       select: eventSelect,
     });
     res.json({ player, matchId: matchId ?? null, stats: calculateStats(events), setStats: calculateSetStats(events) });
@@ -543,7 +545,7 @@ export async function getPlayerDevelopmentReport(req: Request, res: Response, ne
     const matchStats = await Promise.all(
       matches.map(async (m) => {
         const events = await prisma.event.findMany({
-          where: { matchId: m.id, playerId: player.id },
+          where: { matchId: m.id, playerId: player.id, ...ownEventsOnly },
           select: eventSelect,
         });
         return { matchDate: m.matchDate, stats: calculateStats(events) };

@@ -12,8 +12,8 @@ const TREND_LABEL: Record<PlayerDevelopmentReport['trend'], string> = {
 };
 
 const TREND_COLOR: Record<PlayerDevelopmentReport['trend'], string> = {
-  improving:         'text-green-400',
-  declining:         'text-red-400',
+  improving:         'text-success-dark',
+  declining:         'text-error-dark',
   stable:            'text-chalk-400',
   insufficient_data: 'text-chalk-500',
 };
@@ -31,7 +31,7 @@ export default function PlayerDevelopmentCard({ report }: Props) {
     <div className="card p-5 space-y-5">
       {/* Overall trend */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-chalk-300 uppercase tracking-wider">Overall Trend</h3>
+        <h3 className="text-sm font-semibold text-chalk-300">Overall trend</h3>
         <span className={`text-sm font-semibold ${TREND_COLOR[report.trend]}`}>
           {TREND_LABEL[report.trend]}
         </span>
@@ -41,21 +41,21 @@ export default function PlayerDevelopmentCard({ report }: Props) {
       {(report.mostImproved || report.needsAttention) && (
         <div className="grid sm:grid-cols-2 gap-3">
           {report.mostImproved && (
-            <div className="rounded-lg p-3 bg-green-500/10 border border-green-500/20">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-green-500 mb-1">
+            <div className="rounded-lg p-3 bg-success/10 border border-success/20">
+              <p className="text-[10px] font-semibold text-success-dark mb-1">
                 Most Improved
               </p>
-              <p className="text-sm font-semibold text-green-300">{report.mostImproved.category}</p>
-              <p className="text-xs text-green-400 mt-0.5 font-mono">{report.mostImproved.change}</p>
+              <p className="text-sm font-semibold text-success-dark">{report.mostImproved.category}</p>
+              <p className="text-xs text-success-dark mt-0.5 font-mono">{report.mostImproved.change}</p>
             </div>
           )}
           {report.needsAttention && (
-            <div className="rounded-lg p-3 bg-yellow-500/10 border border-yellow-500/20">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-yellow-500 mb-1">
+            <div className="rounded-lg p-3 bg-warning/10 border border-warning/20">
+              <p className="text-[10px] font-semibold text-warning mb-1">
                 Needs Attention
               </p>
-              <p className="text-sm font-semibold text-yellow-300">{report.needsAttention.category}</p>
-              <p className="text-xs text-yellow-400 mt-0.5 font-mono">{report.needsAttention.change}</p>
+              <p className="text-sm font-semibold text-warning">{report.needsAttention.category}</p>
+              <p className="text-xs text-warning mt-0.5 font-mono">{report.needsAttention.change}</p>
             </div>
           )}
         </div>
@@ -64,7 +64,7 @@ export default function PlayerDevelopmentCard({ report }: Props) {
       {/* Strengths / weaknesses */}
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-chalk-500 mb-2">
+          <p className="text-[10px] font-semibold text-chalk-500 mb-2">
             Strengths
           </p>
           {report.strengths.length === 0 ? (
@@ -72,8 +72,8 @@ export default function PlayerDevelopmentCard({ report }: Props) {
           ) : (
             <ul className="space-y-1">
               {report.strengths.map((s) => (
-                <li key={s} className="flex items-center gap-2 text-sm text-green-300">
-                  <span className="text-green-500 text-xs">✓</span>
+                <li key={s} className="flex items-center gap-2 text-sm text-success-dark">
+                  <span className="text-success-dark text-xs">✓</span>
                   {s}
                 </li>
               ))}
@@ -82,7 +82,7 @@ export default function PlayerDevelopmentCard({ report }: Props) {
         </div>
 
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-chalk-500 mb-2">
+          <p className="text-[10px] font-semibold text-chalk-500 mb-2">
             Weaknesses
           </p>
           {report.weaknesses.length === 0 ? (
@@ -90,8 +90,8 @@ export default function PlayerDevelopmentCard({ report }: Props) {
           ) : (
             <ul className="space-y-1">
               {report.weaknesses.map((w) => (
-                <li key={w} className="flex items-center gap-2 text-sm text-red-300">
-                  <span className="text-red-500 text-xs">✗</span>
+                <li key={w} className="flex items-center gap-2 text-sm text-error-dark">
+                  <span className="text-error-dark text-xs">✗</span>
                   {w}
                 </li>
               ))}

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { User } from '../types';
 import { authApi } from '../lib/api';
+import { getToken, setToken as storeToken, clearToken } from '../lib/tokenStorage';
 
 interface AuthContextValue {
   user: User | null;
@@ -13,21 +14,19 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY = 'vv_token';
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => getToken());
   const [isLoading, setIsLoading] = useState(true);
 
   // On mount, restore session from stored token
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
+    const stored = getToken();
     if (!stored) { setIsLoading(false); return; }
     authApi.me()
       .then((u) => setUser(u))
       .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
+        clearToken();
         setToken(null);
       })
       .finally(() => setIsLoading(false));
@@ -35,21 +34,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login({ email, password });
-    localStorage.setItem(TOKEN_KEY, res.token);
+    storeToken(res.token);
     setToken(res.token);
     setUser(res.user);
   }, []);
 
   const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null }) => {
     const res = await authApi.register(data);
-    localStorage.setItem(TOKEN_KEY, res.token);
+    storeToken(res.token);
     setToken(res.token);
     setUser(res.user);
   }, []);
 
   const logout = useCallback(() => {
     authApi.logout().catch(() => {});
-    localStorage.removeItem(TOKEN_KEY);
+    clearToken();
     setToken(null);
     setUser(null);
   }, []);

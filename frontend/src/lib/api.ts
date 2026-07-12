@@ -1,5 +1,6 @@
 import axios from 'axios';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer, PlayerTeamsResponse, Video, VideoTimestamp } from '../types';
+import { getToken } from './tokenStorage';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerBests, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer, PlayerTeamsResponse, Video, VideoTimestamp } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -11,14 +12,16 @@ export interface TeamTrend {
   hittingPercentage: number | null;
 }
 
+// Base URL is env-configurable for non-proxied deployments (e.g. the future
+// mobile client); defaults to /api/v1 so the Vite dev proxy keeps working.
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 });
 
 // Attach stored JWT to every request automatically
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('vv_token');
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -254,6 +257,7 @@ export const profileApi = {
 export const playerPortalApi = {
   dashboard: () => api.get<PlayerDashboard>('/player/dashboard').then((r) => r.data),
   stats: () => api.get('/player/stats').then((r) => r.data),
+  bests: () => api.get<PlayerBests | null>('/player/bests').then((r) => r.data),
   teams: () => api.get('/player/teams').then((r) => r.data),
   linkPlayer: (playerId: string) =>
     api.post('/player/link', { playerId }).then((r) => r.data),

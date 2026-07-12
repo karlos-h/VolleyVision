@@ -5,6 +5,7 @@ import { POSITION_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
 import HeatMapCourt from '../components/court/HeatMapCourt';
 import PlayerDevelopmentCard from '../components/analytics/PlayerDevelopmentCard';
+import { features } from '../config/features';
 import type { StatLine } from '../types';
 
 export default function PlayerDashboardPage() {
@@ -13,23 +14,23 @@ export default function PlayerDashboardPage() {
   const { data: heatmapData } = usePlayerHeatmap(playerId!);
   const { data: developmentData } = usePlayerDevelopmentReport(playerId!);
 
-  if (isLoading) return <p className="text-chalk-400">Loading analytics…</p>;
-  if (isError || !data) return <p className="text-red-400">Unable to load player analytics.</p>;
+  if (isLoading) return <p className="text-navy-300">Loading analytics…</p>;
+  if (isError || !data) return <p className="text-error-dark">Couldn't load player analytics.</p>;
 
   return (
     <div className="space-y-6">
       <div>
         <Link
           to={`/teams/${data.player.teamId}`}
-          className="text-sm text-chalk-400 hover:text-chalk-100"
+          className="text-sm text-navy-300 hover:text-white"
         >
           ← Back to Roster
         </Link>
 
-        <h1 className="text-2xl font-bold text-chalk-100 mt-2">
+        <h1 className="text-2xl font-bold text-white mt-2">
           #{data.player.jerseyNumber} {data.player.firstName} {data.player.lastName}
         </h1>
-        <p className="text-sm text-chalk-400 mt-1">
+        <p className="text-sm text-navy-300 mt-1">
           {POSITION_LABELS[data.player.position]}
         </p>
       </div>
@@ -38,24 +39,24 @@ export default function PlayerDashboardPage() {
       <PlayerRadarChart stats={data.stats} />
 
       {/* Phase 6 Sprint 2 — Player Development Intelligence */}
-      {developmentData && (
+      {features.recommendations && developmentData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Development Report</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Development Report</h2>
           <PlayerDevelopmentCard report={developmentData} />
         </section>
       )}
 
-      {heatmapData && (
+      {features.heatMaps && heatmapData && (
         <section>
-          <h2 className="text-lg font-semibold text-chalk-100 mb-3">Player Heat Map</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Player Heat Map</h2>
           <HeatMapCourt data={heatmapData} />
         </section>
       )}
 
       <section>
-        <h2 className="text-lg font-semibold text-chalk-100 mb-3">Set Breakdown</h2>
+        <h2 className="text-lg font-semibold text-white mb-3">Set Breakdown</h2>
         {data.setStats.length === 0 ? (
-          <div className="card p-6 text-chalk-400 text-sm text-center">
+          <div className="card p-6 text-navy-300 text-sm text-center">
             Record events to generate set statistics.
           </div>
         ) : (
@@ -63,14 +64,14 @@ export default function PlayerDashboardPage() {
             {data.setStats.map((set: StatLine & { setNumber: number }) => (
               <div key={set.setNumber} className="card p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-chalk-100">Set {set.setNumber}</h3>
-                  <span className="font-mono text-xs text-chalk-400">{set.totalEvents} events</span>
+                  <h3 className="font-semibold text-white">Set {set.setNumber}</h3>
+                  <span className="tabular-nums text-xs text-navy-300">{set.totalEvents} events</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="text-chalk-500">Kills</span><span className="font-mono ml-2 text-chalk-100">{set.kills}</span></div>
-                  <div><span className="text-chalk-500">Aces</span><span className="font-mono ml-2 text-chalk-100">{set.aces}</span></div>
-                  <div><span className="text-chalk-500">Blocks</span><span className="font-mono ml-2 text-chalk-100">{set.totalBlocks}</span></div>
-                  <div><span className="text-chalk-500">Digs</span><span className="font-mono ml-2 text-chalk-100">{set.digs}</span></div>
+                  <div><span className="text-navy-300">Kills</span><span className="tabular-nums ml-2 text-white">{set.kills}</span></div>
+                  <div><span className="text-navy-300">Aces</span><span className="tabular-nums ml-2 text-white">{set.aces}</span></div>
+                  <div><span className="text-navy-300">Blocks</span><span className="tabular-nums ml-2 text-white">{set.totalBlocks}</span></div>
+                  <div><span className="text-navy-300">Digs</span><span className="tabular-nums ml-2 text-white">{set.digs}</span></div>
                 </div>
               </div>
             ))}

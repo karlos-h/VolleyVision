@@ -58,7 +58,7 @@ export default function AssistantPanel({ onAsk, answer, isPending }: Props) {
         <div className={`rounded-lg p-4 text-sm ${
           answer.matchedIntent
             ? 'bg-court-800 border border-court-700 text-chalk-200'
-            : 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-200'
+            : 'bg-warning/10 border border-warning/20 text-warning'
         }`}>
           <p className="whitespace-pre-line leading-relaxed">{answer.answer}</p>
         </div>
@@ -66,7 +66,7 @@ export default function AssistantPanel({ onAsk, answer, isPending }: Props) {
 
       {/* Example questions */}
       <div className="space-y-1">
-        <p className="text-[10px] uppercase tracking-wider text-chalk-500 mb-2">Try asking:</p>
+        <p className="text-[10px]r text-chalk-500 mb-2">Try asking:</p>
         <div className="flex flex-wrap gap-2">
           {EXAMPLE_QUESTIONS.map((q) => (
             <button

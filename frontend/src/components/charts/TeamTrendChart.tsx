@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from 'recharts';
+import { CHART_SERIES, CHART_GRID, CHART_TICK, CHART_TOOLTIP_BG, CHART_TOOLTIP_TEXT } from '../../lib/chartColors';
 
 interface Props {
   title: string;
@@ -24,33 +25,33 @@ export default function TeamTrendChart({ title, data, dataKey }: Props) {
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid stroke="#162d58" strokeDasharray="3 3" />
+            <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" />
             <XAxis
               dataKey="opponent"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
-              axisLine={{ stroke: '#162d58' }}
+              tick={{ fill: CHART_TICK, fontSize: 11 }}
+              axisLine={{ stroke: CHART_GRID }}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              tick={{ fill: CHART_TICK, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={30}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#0a1628',
-                border: '1px solid #162d58',
+                backgroundColor: CHART_TOOLTIP_BG,
+                border: `1px solid ${CHART_GRID}`,
                 borderRadius: '8px',
-                color: '#f0f4f8',
+                color: CHART_TOOLTIP_TEXT,
               }}
-              labelStyle={{ color: '#94a3b8' }}
+              labelStyle={{ color: CHART_TICK }}
             />
 
             <Line
             type="monotone"
             dataKey={dataKey}
-            stroke="#fbbf24"
+            stroke={CHART_SERIES[0]}
             strokeWidth={3}
             />
           </LineChart>

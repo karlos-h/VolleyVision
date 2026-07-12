@@ -28,7 +28,7 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
       await addLink.mutateAsync(selectedTeamId);
       setSelectedTeamId('');
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Failed to link team.');
+      setError(err?.response?.data?.error ?? "Couldn't link that team. Try again.");
     }
   }
 
@@ -36,7 +36,7 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
 
   return (
     <div className="mt-2 pt-2 border-t border-court-800 space-y-2">
-      <p className="text-[10px] uppercase tracking-wider text-chalk-500 font-semibold">
+      <p className="text-[10px]r text-chalk-500 font-semibold">
         {playerName}'s teams
       </p>
 
@@ -52,7 +52,7 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
           >
             {l.team.name}
             <button
-              className="text-chalk-600 hover:text-red-400 transition-colors leading-none"
+              className="text-chalk-600 hover:text-error-dark transition-colors leading-none"
               onClick={() => removeLink.mutate(l.team.id)}
               title={`Remove link to ${l.team.name}`}
             >
@@ -84,7 +84,7 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
           </button>
         </div>
       )}
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-error-dark text-xs">{error}</p>}
     </div>
   );
 }

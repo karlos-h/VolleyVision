@@ -26,7 +26,7 @@ export default function FixturesPage() {
   const isLoading = loadingSeason || loadingUpcoming || loadingPending;
 
   if (loadingSeason) return <p className="text-chalk-400 text-sm">Loading…</p>;
-  if (!season) return <p className="text-red-400 text-sm">Season not found.</p>;
+  if (!season) return <p className="text-error-dark text-sm">Season not found.</p>;
 
   return (
     <div className="space-y-6">
@@ -41,7 +41,7 @@ export default function FixturesPage() {
       </div>
 
       <div>
-        <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold">
+        <p className="text-xs text-chalk-500 font-semibold">
           {season.league.name}{season.league.division ? ` · ${season.league.division}` : ''}
         </p>
         <h1 className="text-2xl font-bold text-chalk-100 mt-0.5">{season.name} — Fixtures</h1>
@@ -66,9 +66,9 @@ export default function FixturesPage() {
           {/* Pending — date passed, still unresolved */}
           {pending.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-warning flex items-center gap-2">
                 Awaiting Result
-                <span className="badge bg-yellow-900/30 text-yellow-400">{pending.length}</span>
+                <span className="badge bg-warning/30 text-warning">{pending.length}</span>
               </h2>
               <div className="space-y-2">
                 {pending.map((f) => (
@@ -80,7 +80,7 @@ export default function FixturesPage() {
 
           {/* Upcoming */}
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-chalk-400 flex items-center gap-2">
               Upcoming
               <span className="badge bg-court-800 text-chalk-400">{upcoming.length}</span>
             </h2>

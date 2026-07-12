@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import type { ZoneCounts } from '../../types';
+import { CHART_SERIES, CHART_GRID, CHART_TICK, CHART_EMPTY, CHART_TOOLTIP_BG } from '../../lib/chartColors';
+
+// Heat intensity scales GOLD opacity on navy (brand accent).
+const HEAT_COLOR = CHART_SERIES[0];
+const HEAT_RGB = '255,184,28'; // gold-500 as r,g,b for rgba() fills
 
 // Zone layout positions on the SVG court
 // Court is 300×200. Zones share the space:
@@ -75,7 +80,7 @@ export default function CourtVisualization({ heatmapData, title }: Props) {
               style={{ aspectRatio: '3/2' }}
             >
               {/* Court background */}
-              <rect x="0" y="0" width="300" height="200" fill="#0f2040" rx="4" />
+              <rect x="0" y="0" width="300" height="200" fill={CHART_TOOLTIP_BG} rx="4" />
 
               {/* Zone rectangles */}
               {([4, 3, 2, 5, 6, 1] as const).map((zone) => {
@@ -86,17 +91,17 @@ export default function CourtVisualization({ heatmapData, title }: Props) {
                   <g key={zone}>
                     <rect
                       x={x} y={y} width={w} height={h}
-                      fill={`rgba(245,158,11,${opacity})`}
-                      stroke="#162d58"
+                      fill={`rgba(${HEAT_RGB},${opacity})`}
+                      stroke={CHART_GRID}
                       strokeWidth="1"
                     />
                     {/* Zone number */}
                     <text
                       x={x + w / 2} y={y + h / 2 - 8}
                       textAnchor="middle"
-                      fill="#64748b"
+                      fill={CHART_TICK}
                       fontSize="18"
-                      fontFamily="monospace"
+                      fontFamily="Inter, sans-serif"
                       fontWeight="bold"
                     >
                       {zone}
@@ -105,9 +110,9 @@ export default function CourtVisualization({ heatmapData, title }: Props) {
                     <text
                       x={x + w / 2} y={y + h / 2 + 12}
                       textAnchor="middle"
-                      fill={count > 0 ? '#fbbf24' : '#334155'}
+                      fill={count > 0 ? HEAT_COLOR : CHART_EMPTY}
                       fontSize="13"
-                      fontFamily="monospace"
+                      fontFamily="Inter, sans-serif"
                       fontWeight="bold"
                     >
                       {count > 0 ? count : '—'}
@@ -117,19 +122,19 @@ export default function CourtVisualization({ heatmapData, title }: Props) {
               })}
 
               {/* Net line */}
-              <line x1="0" y1="100" x2="300" y2="100" stroke="#f59e0b" strokeWidth="2" opacity="0.6" />
-              <text x="150" y="97" textAnchor="middle" fill="#f59e0b" fontSize="8" opacity="0.5" letterSpacing="3">
+              <line x1="0" y1="100" x2="300" y2="100" stroke={HEAT_COLOR} strokeWidth="2" opacity="0.6" />
+              <text x="150" y="97" textAnchor="middle" fill={HEAT_COLOR} fontSize="8" opacity="0.5" letterSpacing="3">
                 NET
               </text>
 
               {/* Court border */}
-              <rect x="0" y="0" width="300" height="200" fill="none" stroke="#162d58" strokeWidth="2" rx="4" />
+              <rect x="0" y="0" width="300" height="200" fill="none" stroke={CHART_GRID} strokeWidth="2" rx="4" />
             </svg>
           </div>
 
           {/* Zone breakdown list */}
           <div className="flex-1 min-w-[140px] space-y-2">
-            <p className="text-xs text-chalk-400 font-medium uppercase tracking-wider">Zone Breakdown</p>
+            <p className="text-xs text-chalk-400 font-medium">Zone breakdown</p>
             {([4, 3, 2, 5, 6, 1] as const).map((zone) => {
               const count = counts[String(zone)] ?? 0;
               const pct = total > 0 ? Math.round((count / total) * 100) : 0;

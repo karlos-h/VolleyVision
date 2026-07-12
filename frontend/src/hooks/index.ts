@@ -577,6 +577,10 @@ export function usePlayerDashboard() {
   return useQuery({ queryKey: ['player', 'dashboard'], queryFn: playerPortalApi.dashboard });
 }
 
+export function usePlayerBests() {
+  return useQuery({ queryKey: ['player', 'bests'], queryFn: playerPortalApi.bests });
+}
+
 export function useLinkPlayer() {
   const qc = useQueryClient();
   return useMutation({

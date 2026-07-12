@@ -41,6 +41,8 @@ enum EventType {
   KILL
   ATTACK_ERROR
   ATTACK_ATTEMPT
+  TIP        // non-scoring tip over the block; a winning tip is recorded as KILL
+  FREE_BALL  // ball sent over on a free pass; counts as an attack attempt
 
   // Serving
   ACE
@@ -133,6 +135,10 @@ model User {
   dateOfBirth  DateTime? @map("date_of_birth")
   city         String?
   country      String?
+
+  // Stabilization — physical profile (optional, profile-level not per-team)
+  heightCm     Int?     @map("height_cm")
+  weightKg     Int?     @map("weight_kg")
 
   // Phase 5 Sprint 5 — Player link
   playerRecords Player[]
@@ -308,6 +314,7 @@ model Match {
 
   events      Event[]
   videos      Video[]
+  scoreAdjustments ScoreAdjustment[]
 
   // Phase 7 Sprint 1 — League Intelligence (nullable FKs on LeagueMatch, set by each side)
   homeLeagueMatches LeagueMatch[] @relation("LeagueMatchHome")
@@ -317,6 +324,23 @@ model Match {
   updatedAt   DateTime    @updatedAt
 
   @@map("matches")
+}
+
+// Stabilization — manual score corrections recorded as deltas so that
+// recalculateMatchState can replay them alongside events. Without this,
+// any undo/delete wiped manual adjustments (it replayed events only).
+model ScoreAdjustment {
+  id        String   @id @default(cuid())
+  matchId   String   @map("match_id")
+  homeDelta Int      @map("home_delta")
+  awayDelta Int      @map("away_delta")
+  setNumber Int      @map("set_number")
+  createdAt DateTime @default(now())
+
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@map("score_adjustments")
 }
 
 // Phase 7 — Video upload & timestamp tagging

@@ -42,8 +42,8 @@ export default function TeamsPage() {
           <h1 className="text-2xl font-bold text-chalk-100">Teams</h1>
           <p className="text-chalk-400 text-sm mt-0.5">Manage your rosters and schedules</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New Team'}
+        <button className={showForm ? 'btn-secondary' : 'btn-primary'} onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancel' : '+ New team'}
         </button>
       </div>
 
@@ -95,7 +95,7 @@ export default function TeamsPage() {
         <p className="text-chalk-400 text-sm">Loading teams…</p>
       ) : teams?.length === 0 ? (
         <div className="card p-12 text-center">
-          <p className="text-chalk-400">No teams yet. Create one to get started.</p>
+          <p className="text-chalk-400">No teams yet — create one to start tracking matches.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -131,7 +131,7 @@ export default function TeamsPage() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <button type="submit" className="btn-primary text-sm" disabled={updateTeam.isPending}>
+                    <button type="submit" className="btn-secondary text-sm" disabled={updateTeam.isPending}>
                       {updateTeam.isPending ? 'Saving…' : 'Save'}
                     </button>
                     <button type="button" className="btn-secondary text-sm" onClick={() => setEditingId(null)}>
@@ -153,7 +153,7 @@ export default function TeamsPage() {
                           Edit
                         </button>
                         <button
-                          className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
+                          className="text-chalk-600 hover:text-error-dark transition-colors text-xs"
                           onClick={() => {
                             if (confirm(`Delete "${team.name}"? This cannot be undone.`)) {
                               deleteTeam.mutate(team.id);

@@ -22,7 +22,7 @@ export default function ResultsPage() {
   const seasonTeams = season?.teams ?? [];
 
   if (loadingSeason) return <p className="text-chalk-400 text-sm">Loading…</p>;
-  if (!season) return <p className="text-red-400 text-sm">Season not found.</p>;
+  if (!season) return <p className="text-error-dark text-sm">Season not found.</p>;
 
   // Resolve all fixture results via the shared util — the home/away naming
   // nuance is encapsulated there; this page never re-derives it.
@@ -42,7 +42,7 @@ export default function ResultsPage() {
       </div>
 
       <div>
-        <p className="text-xs text-chalk-500 uppercase tracking-wide font-semibold">
+        <p className="text-xs text-chalk-500 font-semibold">
           {season.league.name}{season.league.division ? ` · ${season.league.division}` : ''}
         </p>
         <h1 className="text-2xl font-bold text-chalk-100 mt-0.5">{season.name} — Results</h1>
@@ -51,7 +51,7 @@ export default function ResultsPage() {
       <LeagueNavigation seasonId={seasonId!} />
 
       {discrepancyCount > 0 && (
-        <div className="card p-3 border-l-4 border-yellow-500/50 bg-yellow-900/10 text-xs text-yellow-400">
+        <div className="card p-3 border-l-4 border-warning/50 bg-warning/10 text-xs text-warning">
           {discrepancyCount} result{discrepancyCount > 1 ? 's have' : ' has'} conflicting data between teams.
           Home team data is used as authoritative. Hover the ⚠ icon on each card for details.
         </div>
