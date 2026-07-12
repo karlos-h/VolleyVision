@@ -12,9 +12,9 @@ const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
 
 const ROLE_COLORS: Record<TeamRole, string> = {
   HEAD_COACH:      'bg-spike-600/20 text-spike-400',
-  ASSISTANT_COACH: 'bg-blue-800/30 text-blue-300',
+  ASSISTANT_COACH: 'bg-info/30 text-info',
   STATISTICIAN:    'bg-purple-800/30 text-purple-300',
-  PLAYER:          'bg-emerald-800/30 text-emerald-300',
+  PLAYER:          'bg-success/30 text-success-dark',
   VIEWER:          'bg-court-700 text-chalk-400',
 };
 
@@ -53,7 +53,7 @@ export default function TeamMembersCard({ teamId }: Props) {
       setSearchQ('');
       setSelectedUserId('');
     } catch (err: any) {
-      setAddError(err?.response?.data?.error ?? 'Failed to add member.');
+      setAddError(err?.response?.data?.error ?? "Couldn't add that member. Try again.");
     }
   }
 
@@ -65,7 +65,7 @@ export default function TeamMembersCard({ teamId }: Props) {
           <span className="text-xs text-chalk-400 font-mono">{members?.length ?? 0} members</span>
           {isOwner && (
             <button
-              className="btn-primary text-xs px-3 py-1.5"
+              className="btn-secondary text-xs px-3 py-1.5"
               onClick={() => setShowAdd(!showAdd)}
             >
               {showAdd ? 'Cancel' : '+ Add Member'}
@@ -117,10 +117,10 @@ export default function TeamMembersCard({ teamId }: Props) {
             </select>
           </div>
 
-          {addError && <p className="text-red-400 text-xs">{addError}</p>}
+          {addError && <p className="text-error-dark text-xs">{addError}</p>}
 
           <button
-            className="btn-primary text-sm"
+            className="btn-secondary text-sm"
             onClick={handleAdd}
             disabled={addMember.isPending || !selectedUserId}
           >
@@ -200,7 +200,7 @@ function MemberRow({ member, canManage, onRoleChange, onRemove }: MemberRowProps
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </select>
-          <button className="btn-primary text-xs px-2 py-1" onClick={saveRole}>Save</button>
+          <button className="btn-secondary text-xs px-2 py-1" onClick={saveRole}>Save</button>
           <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setEditing(false); setRole(member.role); }}>✕</button>
         </div>
       ) : (
@@ -217,7 +217,7 @@ function MemberRow({ member, canManage, onRoleChange, onRemove }: MemberRowProps
                 Edit
               </button>
               <button
-                className="text-chalk-600 hover:text-red-400 transition-colors text-xs"
+                className="text-chalk-600 hover:text-error-dark transition-colors text-xs"
                 onClick={onRemove}
               >
                 Remove

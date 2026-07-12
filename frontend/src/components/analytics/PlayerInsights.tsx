@@ -95,7 +95,7 @@ export default function PlayerInsights({ players }: Props) {
             key={card.title}
             className="rounded-lg border border-court-700 p-3"
           >
-            <p className="text-xs uppercase tracking-wide text-chalk-400">
+            <p className="text-xs text-chalk-400">
               {card.title}
             </p>
 

@@ -1,9 +1,10 @@
 import { prisma } from '../lib/prisma';
 import { EventType } from '@prisma/client';
+import { ownEventsOnly } from '../lib/eventFilters';
 
 // Reuses the same stat derivation logic as the existing analytics engine
 function deriveStats(events: { eventType: EventType }[]) {
-  let kills = 0, attackAttempts = 0, attackErrors = 0;
+  let kills = 0, attackAttempts = 0, attackErrors = 0, tips = 0, freeBalls = 0;
   let aces = 0, serviceErrors = 0, serveIn = 0;
   let passAttempts = 0, passSum = 0;
   let soloBlocks = 0, blockAssists = 0, blockErrors = 0;
@@ -15,6 +16,8 @@ function deriveStats(events: { eventType: EventType }[]) {
       case EventType.KILL:           kills++;          attackAttempts++; break;
       case EventType.ATTACK_ERROR:   attackErrors++;   attackAttempts++; break;
       case EventType.ATTACK_ATTEMPT: attackAttempts++; break;
+      case EventType.TIP:            tips++;           attackAttempts++; break;
+      case EventType.FREE_BALL:      freeBalls++;      attackAttempts++; break;
       case EventType.ACE:            aces++;           serveIn++;        break;
       case EventType.SERVICE_ERROR:  serviceErrors++;  break;
       case EventType.SERVE_IN:       serveIn++;        break;
@@ -40,7 +43,7 @@ function deriveStats(events: { eventType: EventType }[]) {
   const serveInPercentage = serveAttempts > 0 ? serveIn / serveAttempts : null;
 
   return {
-    kills, attackAttempts, attackErrors, hittingPercentage,
+    kills, attackAttempts, attackErrors, hittingPercentage, tips, freeBalls,
     aces, serviceErrors, serveAttempts, serveInPercentage,
     passAttempts, passingRating,
     soloBlocks, blockAssists, blockErrors, totalBlocks,
@@ -79,7 +82,7 @@ export async function getPlayerCareerStats(userId: string) {
 
   const playerIds = players.map((p) => p.id);
   const events = await prisma.event.findMany({
-    where: { playerId: { in: playerIds } },
+    where: { playerId: { in: playerIds }, ...ownEventsOnly },
     select: { eventType: true },
   });
 
@@ -148,7 +151,7 @@ export async function getDevelopmentMetrics(userId: string, matchCount = 5) {
   const results = await Promise.all(
     recentMatches.map(async (match) => {
       const events = await prisma.event.findMany({
-        where: { matchId: match.id, playerId: { in: playerIds } },
+        where: { matchId: match.id, playerId: { in: playerIds }, ...ownEventsOnly },
         select: { eventType: true },
       });
       return {
@@ -163,13 +166,145 @@ export async function getDevelopmentMetrics(userId: string, matchCount = 5) {
   return results.reverse(); // chronological order
 }
 
+// Career-best single-match performances across all linked player records.
+// null when the user has no linked players or no recorded matches.
+export async function getPlayerBests(userId: string) {
+  const players = await prisma.player.findMany({ where: { userId }, select: { id: true } });
+  if (!players.length) return null;
+
+  const playerIds = players.map((p) => p.id);
+
+  const matchEvents = await prisma.event.findMany({
+    where: { playerId: { in: playerIds } },
+    select: { matchId: true },
+    distinct: ['matchId'],
+  });
+  const matchIds = matchEvents.map((e) => e.matchId);
+  if (!matchIds.length) return null;
+
+  const matches = await prisma.match.findMany({
+    where: { id: { in: matchIds } },
+    select: { id: true, opponent: true, matchDate: true },
+  });
+  const matchInfo = new Map(matches.map((m) => [m.id, m]));
+
+  // Derive per-match stat lines using the same derivation as the rest of the portal.
+  const perMatch = await Promise.all(
+    matchIds.map(async (matchId) => {
+      const events = await prisma.event.findMany({
+        where: { matchId, playerId: { in: playerIds }, ...ownEventsOnly },
+        select: { eventType: true },
+      });
+      return { matchId, stats: deriveStats(events) };
+    }),
+  );
+
+  type Best = { value: number; matchId: string; opponent: string; matchDate: Date } | null;
+
+  function best(metric: (s: ReturnType<typeof deriveStats>) => number | null, minGuard?: (s: ReturnType<typeof deriveStats>) => boolean): Best {
+    let top: Best = null;
+    for (const { matchId, stats } of perMatch) {
+      const value = metric(stats);
+      if (value == null) continue;
+      if (minGuard && !minGuard(stats)) continue;
+      if (top === null || value > top.value) {
+        const info = matchInfo.get(matchId);
+        top = { value, matchId, opponent: info?.opponent ?? '', matchDate: info?.matchDate ?? new Date(0) };
+      }
+    }
+    // A best of 0 is not a meaningful "best" — only report categories the player has actually scored in.
+    return top && top.value > 0 ? top : null;
+  }
+
+  return {
+    kills:  best((s) => s.kills),
+    aces:   best((s) => s.aces),
+    blocks: best((s) => s.totalBlocks),
+    digs:   best((s) => s.digs),
+    // Hitting percentage needs a minimum sample (5 attempts) to avoid 1-for-1 outliers.
+    hittingPercentage: (() => {
+      let top: Best = null;
+      for (const { matchId, stats } of perMatch) {
+        if (stats.hittingPercentage == null || stats.attackAttempts < 5) continue;
+        if (top === null || stats.hittingPercentage > top.value) {
+          const info = matchInfo.get(matchId);
+          top = { value: stats.hittingPercentage, matchId, opponent: info?.opponent ?? '', matchDate: info?.matchDate ?? new Date(0) };
+        }
+      }
+      return top;
+    })(),
+  };
+}
+
+// Per-team stat breakdown: one StatLine per linked player record, derived from
+// that record's events only. A player on multiple teams has one entry per team.
+export async function getPlayerStatsByTeam(userId: string) {
+  const players = await prisma.player.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      team: { select: { id: true, name: true, season: true } },
+    },
+  });
+  if (!players.length) return [];
+
+  return Promise.all(
+    players.map(async (p) => {
+      const events = await prisma.event.findMany({
+        where: { playerId: p.id, ...ownEventsOnly },
+        select: { eventType: true },
+      });
+      return {
+        playerId: p.id,
+        team: p.team,
+        stats: deriveStats(events),
+      };
+    }),
+  );
+}
+
+export async function getPlayerUpcomingMatches(userId: string, limit = 5) {
+  const players = await prisma.player.findMany({
+    where: { userId },
+    select: { id: true, teamId: true },
+  });
+  if (!players.length) return [];
+
+  // Teams from primary player records plus any explicit PlayerTeamLink teams.
+  const links = await prisma.playerTeamLink.findMany({
+    where: { playerId: { in: players.map((p) => p.id) } },
+    select: { teamId: true },
+  });
+  const teamIds = [...new Set([...players.map((p) => p.teamId), ...links.map((l) => l.teamId)])];
+
+  return prisma.match.findMany({
+    where: {
+      teamId: { in: teamIds },
+      status: 'SCHEDULED',
+      matchDate: { gte: new Date() },
+    },
+    orderBy: { matchDate: 'asc' },
+    take: limit,
+    select: {
+      id: true,
+      matchDate: true,
+      opponent: true,
+      competition: true,
+      venue: true,
+      team: { select: { id: true, name: true } },
+    },
+  });
+}
+
 export async function getPlayerDashboard(userId: string) {
-  const [players, careerStats, recentMatches, developmentMetrics] = await Promise.all([
+  const [players, careerStats, recentMatches, developmentMetrics, upcomingMatches, statsByTeam] = await Promise.all([
     getLinkedPlayers(userId),
     getPlayerCareerStats(userId),
     getPlayerRecentMatches(userId),
     getDevelopmentMetrics(userId),
+    getPlayerUpcomingMatches(userId),
+    getPlayerStatsByTeam(userId),
   ]);
 
-  return { players, careerStats, recentMatches, developmentMetrics };
+  return { players, careerStats, recentMatches, developmentMetrics, upcomingMatches, statsByTeam };
 }

@@ -2,10 +2,19 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { calculatePlayerStats, calculateSetStats, calculateStats } from '../lib/analytics';
+import { ownEventsOnly } from '../lib/eventFilters';
 import { HOME_POINT_SET, AWAY_POINT_SET } from '../lib/scoringRules';
 import { calculateMomentum } from '../services/momentum.service';
 import { calculateRotations } from '../services/rotation.service';
 import { generateMatchReport } from '../services/report.service';
+import { narrateMatchReport } from '../services/aiNarration.service';
+import { buildDetailedHeatmap } from '../lib/heatmap';
+import { generateCoachingRecommendations } from '../services/coachingRecommendations.service';
+import { generatePlayerDevelopmentReport } from '../services/playerDevelopment.service';
+import { generateSeasonIntelligence } from '../services/seasonIntelligence.service';
+import { generateTrainingRecommendations } from '../services/trainingRecommendations.service';
+import { answerQuestion } from '../services/assistant.service';
+import { generateOpponentScoutingReport } from '../services/opponentScouting.service';
 
 // ─── Shared query shapes ──────────────────────────────────────────────────────
 
@@ -30,7 +39,7 @@ const VALID_ROTATION_FILTER = { gte: 1, lte: 6 } as const;
 // ─── Heatmap helper (shared across match / team / player) ─────────────────────
 
 const HEATMAP_CATEGORIES = {
-  attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+  attack:  ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT', 'TIP', 'FREE_BALL'],
   serve:   ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
   pass:    ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
   block:   ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
@@ -53,81 +62,7 @@ function buildHeatmap(events: { courtZone: number | null; eventType: string }[])
   return result;
 }
 
-// ─── Detailed heatmap helper (per-zone efficiency stats) ─────────────────────
-
-interface ZoneAttack  { kills: number; errors: number; attempts: number; hittingPct: number | null }
-interface ZoneServe   { aces: number; errors: number; serveIn: number; attempts: number; efficiency: number | null }
-interface ZonePass    { pass3: number; pass2: number; pass1: number; pass0: number; attempts: number; rating: number | null }
-interface ZoneDefence { digs: number; soloBlocks: number; blockAssists: number; total: number }
-
-type DetailedZoneStats = {
-  attack:  Record<string, ZoneAttack>;
-  serve:   Record<string, ZoneServe>;
-  pass:    Record<string, ZonePass>;
-  defence: Record<string, ZoneDefence>;
-};
-
-function buildDetailedHeatmap(events: { courtZone: number | null; eventType: string }[]): DetailedZoneStats {
-  const ZONES = ['1', '2', '3', '4', '5', '6'];
-  type Acc = {
-    aKills: number; aErrors: number; aInPlay: number;
-    sAces: number; sErrors: number; sIn: number;
-    p3: number; p2: number; p1: number; p0: number;
-    digs: number; soloBlocks: number; blockAssists: number;
-  };
-  const acc: Record<string, Acc> = {};
-  for (const z of ZONES) {
-    acc[z] = { aKills: 0, aErrors: 0, aInPlay: 0, sAces: 0, sErrors: 0, sIn: 0,
-               p3: 0, p2: 0, p1: 0, p0: 0, digs: 0, soloBlocks: 0, blockAssists: 0 };
-  }
-  for (const e of events) {
-    if (e.courtZone == null) continue;
-    const z = String(e.courtZone);
-    if (!acc[z]) continue;
-    switch (e.eventType) {
-      case 'KILL':           acc[z].aKills++;      break;
-      case 'ATTACK_ERROR':   acc[z].aErrors++;     break;
-      case 'ATTACK_ATTEMPT': acc[z].aInPlay++;     break;
-      case 'ACE':            acc[z].sAces++;       break;
-      case 'SERVICE_ERROR':  acc[z].sErrors++;     break;
-      case 'SERVE_IN':       acc[z].sIn++;         break;
-      case 'PASS_3':         acc[z].p3++;          break;
-      case 'PASS_2':         acc[z].p2++;          break;
-      case 'PASS_1':         acc[z].p1++;          break;
-      case 'PASS_0':         acc[z].p0++;          break;
-      case 'DIG':            acc[z].digs++;        break;
-      case 'SOLO_BLOCK':     acc[z].soloBlocks++;  break;
-      case 'BLOCK_ASSIST':   acc[z].blockAssists++; break;
-    }
-  }
-  const r2 = (n: number) => Math.round(n * 100) / 100;
-  const r3 = (n: number) => Math.round(n * 1000) / 1000;
-  const attack:  Record<string, ZoneAttack>  = {};
-  const serve:   Record<string, ZoneServe>   = {};
-  const pass:    Record<string, ZonePass>    = {};
-  const defence: Record<string, ZoneDefence> = {};
-  for (const z of ZONES) {
-    const a = acc[z];
-    const attackAttempts = a.aKills + a.aErrors + a.aInPlay;
-    attack[z] = {
-      kills: a.aKills, errors: a.aErrors, attempts: attackAttempts,
-      hittingPct: attackAttempts > 0 ? r3((a.aKills - a.aErrors) / attackAttempts) : null,
-    };
-    const serveAttempts = a.sAces + a.sErrors + a.sIn;
-    serve[z] = {
-      aces: a.sAces, errors: a.sErrors, serveIn: a.sIn, attempts: serveAttempts,
-      efficiency: serveAttempts > 0 ? r2((a.sAces - a.sErrors) / serveAttempts) : null,
-    };
-    const passAttempts = a.p3 + a.p2 + a.p1 + a.p0;
-    pass[z] = {
-      pass3: a.p3, pass2: a.p2, pass1: a.p1, pass0: a.p0, attempts: passAttempts,
-      rating: passAttempts > 0 ? r2((3 * a.p3 + 2 * a.p2 + 1 * a.p1) / passAttempts) : null,
-    };
-    const defTotal = a.digs + a.soloBlocks + a.blockAssists;
-    defence[z] = { digs: a.digs, soloBlocks: a.soloBlocks, blockAssists: a.blockAssists, total: defTotal };
-  }
-  return { attack, serve, pass, defence };
-}
+// ─── Detailed heatmap helper — implemented in lib/heatmap.ts, imported above ──
 
 // ─── Advanced metrics helper ──────────────────────────────────────────────────
 
@@ -146,7 +81,7 @@ function buildAdvancedMetrics(events: { eventType: string; setNumber: number }[]
   const serveErrorRate    = serveAttempts > 0 ? Math.round((c('SERVICE_ERROR') / serveAttempts) * 1000) / 10 : null;
   const servePositiveRate = serveAttempts > 0 ? Math.round(((c('ACE') + c('SERVE_IN')) / serveAttempts) * 1000) / 10 : null;
 
-  const attackAttempts = c('KILL') + c('ATTACK_ERROR') + c('ATTACK_ATTEMPT');
+  const attackAttempts = c('KILL') + c('ATTACK_ERROR') + c('ATTACK_ATTEMPT') + c('TIP') + c('FREE_BALL');
   const killRate       = attackAttempts > 0 ? Math.round((c('KILL') / attackAttempts) * 1000) / 10 : null;
   const hittingPct     = attackAttempts > 0
     ? Math.round(((c('KILL') - c('ATTACK_ERROR')) / attackAttempts) * 1000) / 1000 : null;
@@ -176,7 +111,7 @@ export async function getMatchAnalytics(req: Request, res: Response, next: NextF
       where: { id: req.params.matchId },
       include: {
         team: { include: { players: { select: playerSelect, orderBy: { jerseyNumber: 'asc' } } } },
-        events: { select: eventSelect },
+        events: { where: ownEventsOnly, select: eventSelect },
       },
     });
     if (!match) throw new AppError(404, 'Match not found.');
@@ -205,7 +140,7 @@ export async function getTeamAnalytics(req: Request, res: Response, next: NextFu
       },
     });
     if (!team) throw new AppError(404, 'Team not found.');
-    const events = await prisma.event.findMany({ where: { match: { teamId: team.id } }, select: eventSelect });
+    const events = await prisma.event.findMany({ where: { match: { teamId: team.id }, ...ownEventsOnly }, select: eventSelect });
     res.json({
       team: { id: team.id, name: team.name, division: team.division, season: team.season },
       matchSummary: {
@@ -220,26 +155,39 @@ export async function getTeamAnalytics(req: Request, res: Response, next: NextFu
   } catch (err) { next(err); }
 }
 
+async function fetchTeamTrends(teamId: string) {
+  const matches = await prisma.match.findMany({
+    where: { teamId, status: 'COMPLETED' },
+    orderBy: { matchDate: 'asc' },
+    include: { events: { where: ownEventsOnly, select: eventSelect } },
+  });
+  return matches.map((m) => {
+    const s = calculateStats(m.events);
+    return { matchId: m.id, opponent: m.opponent, matchDate: m.matchDate,
+             kills: s.kills, aces: s.aces, blocks: s.totalBlocks, digs: s.digs,
+             hittingPercentage: s.hittingPercentage };
+  });
+}
+
 export async function getTeamTrends(req: Request, res: Response, next: NextFunction) {
   try {
-    const matches = await prisma.match.findMany({
-      where: { teamId: req.params.teamId, status: 'COMPLETED' },
-      orderBy: { matchDate: 'asc' },
-      include: { events: { select: eventSelect } },
-    });
-    res.json(matches.map((m) => {
-      const s = calculateStats(m.events);
-      return { matchId: m.id, opponent: m.opponent, matchDate: m.matchDate,
-               kills: s.kills, aces: s.aces, blocks: s.totalBlocks, digs: s.digs,
-               hittingPercentage: s.hittingPercentage };
-    }));
+    res.json(await fetchTeamTrends(req.params.teamId));
+  } catch (err) { next(err); }
+}
+
+export async function getSeasonIntelligence(req: Request, res: Response, next: NextFunction) {
+  try {
+    const team = await prisma.team.findUnique({ where: { id: req.params.teamId }, select: { id: true } });
+    if (!team) throw new AppError(404, 'Team not found.');
+    const trends = await fetchTeamTrends(req.params.teamId);
+    res.json(generateSeasonIntelligence(trends));
   } catch (err) { next(err); }
 }
 
 export async function getMatchZones(req: Request, res: Response, next: NextFunction) {
   try {
     const CATEGORY_TYPES: Record<string, string[]> = {
-      attack: ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT'],
+      attack: ['KILL', 'ATTACK_ERROR', 'ATTACK_ATTEMPT', 'TIP', 'FREE_BALL'],
       serve:  ['ACE', 'SERVICE_ERROR', 'SERVE_IN'],
       pass:   ['PASS_3', 'PASS_2', 'PASS_1', 'PASS_0'],
       block:  ['SOLO_BLOCK', 'BLOCK_ASSIST', 'BLOCK_ERROR'],
@@ -250,7 +198,7 @@ export async function getMatchZones(req: Request, res: Response, next: NextFunct
     const typeFilter = category && CATEGORY_TYPES[category as string]
       ? { eventType: { in: CATEGORY_TYPES[category as string] as any } } : {};
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...typeFilter },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly, ...typeFilter },
       select: { courtZone: true, eventType: true },
     });
     const counts: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 };
@@ -262,7 +210,7 @@ export async function getMatchZones(req: Request, res: Response, next: NextFunct
 export async function getMatchHeatmap(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildHeatmap(events));
@@ -272,7 +220,7 @@ export async function getMatchHeatmap(req: Request, res: Response, next: NextFun
 export async function getTeamHeatmap(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER },
+      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildHeatmap(events));
@@ -284,7 +232,7 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
     const player = await prisma.player.findUnique({ where: { id: req.params.playerId }, select: { id: true } });
     if (!player) throw new AppError(404, 'Player not found.');
     const events = await prisma.event.findMany({
-      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER },
+      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildHeatmap(events));
@@ -293,14 +241,14 @@ export async function getPlayerHeatmap(req: Request, res: Response, next: NextFu
 
 export async function getMatchAdvanced(req: Request, res: Response, next: NextFunction) {
   try {
-    const events = await prisma.event.findMany({ where: { matchId: req.params.matchId }, select: { eventType: true, setNumber: true } });
+    const events = await prisma.event.findMany({ where: { matchId: req.params.matchId, ...ownEventsOnly }, select: { eventType: true, setNumber: true } });
     res.json(buildAdvancedMetrics(events));
   } catch (err) { next(err); }
 }
 
 export async function getTeamAdvanced(req: Request, res: Response, next: NextFunction) {
   try {
-    const events = await prisma.event.findMany({ where: { match: { teamId: req.params.teamId } }, select: { eventType: true, setNumber: true } });
+    const events = await prisma.event.findMany({ where: { match: { teamId: req.params.teamId }, ...ownEventsOnly }, select: { eventType: true, setNumber: true } });
     res.json(buildAdvancedMetrics(events));
   } catch (err) { next(err); }
 }
@@ -308,7 +256,7 @@ export async function getTeamAdvanced(req: Request, res: Response, next: NextFun
 export async function getMatchMomentum(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
+      where: { matchId: req.params.matchId, ...ownEventsOnly, eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
       select: { eventType: true, setNumber: true, recordedAt: true },
       orderBy: { recordedAt: 'asc' },
     });
@@ -319,7 +267,7 @@ export async function getMatchMomentum(req: Request, res: Response, next: NextFu
 export async function getMatchRotations(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, rotationNumber: VALID_ROTATION_FILTER,
+      where: { matchId: req.params.matchId, rotationNumber: VALID_ROTATION_FILTER, ...ownEventsOnly,
                eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
       select: { rotationNumber: true, eventType: true },
     });
@@ -334,6 +282,7 @@ export async function getTeamRotations(req: Request, res: Response, next: NextFu
       where: {
         match: { teamId: req.params.teamId, ...(season ? { team: { season: String(season) } } : {}) },
         rotationNumber: VALID_ROTATION_FILTER,
+        ...ownEventsOnly,
         eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any },
       },
       select: { rotationNumber: true, eventType: true },
@@ -348,7 +297,7 @@ export async function getMatchReport(req: Request, res: Response, next: NextFunc
     const [match, events, players] = await Promise.all([
       prisma.match.findUnique({ where: { id: matchId }, include: { team: { select: { name: true } } } }),
       prisma.event.findMany({
-        where: { matchId },
+        where: { matchId, ...ownEventsOnly },
         select: { eventType: true, setNumber: true, courtZone: true, rotationNumber: true, playerId: true, recordedAt: true },
         orderBy: { recordedAt: 'asc' },
       }),
@@ -371,7 +320,7 @@ export async function getMatchReport(req: Request, res: Response, next: NextFunc
 export async function getMatchZoneDetail(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER },
+      where: { matchId: req.params.matchId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
@@ -381,7 +330,7 @@ export async function getMatchZoneDetail(req: Request, res: Response, next: Next
 export async function getTeamZoneDetail(req: Request, res: Response, next: NextFunction) {
   try {
     const events = await prisma.event.findMany({
-      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER },
+      where: { match: { teamId: req.params.teamId }, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
@@ -393,10 +342,177 @@ export async function getPlayerZoneDetail(req: Request, res: Response, next: Nex
     const player = await prisma.player.findUnique({ where: { id: req.params.playerId }, select: { id: true } });
     if (!player) throw new AppError(404, 'Player not found.');
     const events = await prisma.event.findMany({
-      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER },
+      where: { playerId: req.params.playerId, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
       select: { courtZone: true, eventType: true },
     });
     res.json(buildDetailedHeatmap(events));
+  } catch (err) { next(err); }
+}
+
+async function fetchTeamCoachingRecommendations(teamId: string) {
+  const { recommendations } = await fetchTeamCoachingContext(teamId);
+  return recommendations;
+}
+
+// Returns both recommendations and rotation result so the assistant can reuse
+// the rotation data without a second query.
+async function fetchTeamCoachingContext(teamId: string) {
+  const [statsEvents, rotationEvents, zoneEvents] = await Promise.all([
+    prisma.event.findMany({ where: { match: { teamId }, ...ownEventsOnly }, select: eventSelect }),
+    prisma.event.findMany({
+      where: { match: { teamId }, rotationNumber: VALID_ROTATION_FILTER, ...ownEventsOnly,
+               eventType: { in: [...HOME_POINT_SET, ...AWAY_POINT_SET] as any } },
+      select: { rotationNumber: true, eventType: true },
+    }),
+    prisma.event.findMany({
+      where: { match: { teamId }, courtZone: VALID_ZONE_FILTER, ...ownEventsOnly },
+      select: { courtZone: true, eventType: true },
+    }),
+  ]);
+  const rotations = calculateRotations(rotationEvents);
+  return {
+    recommendations: generateCoachingRecommendations({
+      stats: calculateStats(statsEvents),
+      rotations,
+      zones: buildDetailedHeatmap(zoneEvents),
+    }),
+    rotations,
+  };
+}
+
+export async function getTeamCoachingRecommendations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const team = await prisma.team.findUnique({ where: { id: req.params.teamId }, select: { id: true } });
+    if (!team) throw new AppError(404, 'Team not found.');
+    res.json(await fetchTeamCoachingRecommendations(req.params.teamId));
+  } catch (err) { next(err); }
+}
+
+// ── Shared batch context builder ──────────────────────────────────────────────
+// Used by both getTeamTrainingRecommendations and postTeamAssistantQuestion so
+// they share query logic without duplication.
+
+async function fetchTeamRosterContext(teamId: string, playerIds: string[]) {
+  const [completedMatches, allPlayerEvents] = await Promise.all([
+    prisma.match.findMany({
+      where: { teamId, status: 'COMPLETED' },
+      select: { id: true, matchDate: true },
+      orderBy: { matchDate: 'asc' },
+    }),
+    prisma.event.findMany({
+      where: { match: { teamId, status: 'COMPLETED' },
+               playerId: { in: playerIds }, ...ownEventsOnly },
+      select: { matchId: true, playerId: true, eventType: true, setNumber: true },
+    }),
+  ]);
+
+  // Group events by playerId → matchId.
+  // playerId is guaranteed non-null here since we filtered by playerId: { in: playerIds }.
+  const eventsByPlayerMatch = new Map<string, Map<string, { matchId: string; playerId: string; eventType: string; setNumber: number }[]>>();
+  for (const ev of allPlayerEvents) {
+    const pid = ev.playerId as string;
+    if (!eventsByPlayerMatch.has(pid)) eventsByPlayerMatch.set(pid, new Map());
+    const byMatch = eventsByPlayerMatch.get(pid)!;
+    if (!byMatch.has(ev.matchId)) byMatch.set(ev.matchId, []);
+    byMatch.get(ev.matchId)!.push({ ...ev, playerId: pid });
+  }
+
+  return { completedMatches, eventsByPlayerMatch };
+}
+
+function buildPlayerReports(
+  players: { id: string; firstName: string; lastName: string }[],
+  completedMatches: { id: string; matchDate: Date }[],
+  eventsByPlayerMatch: Map<string, Map<string, { matchId: string; playerId: string; eventType: string; setNumber: number }[]>>,
+) {
+  return players.map((player) => {
+    const byMatch = eventsByPlayerMatch.get(player.id) ?? new Map();
+    const matchStats = completedMatches
+      .filter((m) => byMatch.has(m.id))
+      .map((m) => ({ matchDate: m.matchDate, stats: calculateStats(byMatch.get(m.id)!) }));
+    return {
+      playerName: `${player.firstName} ${player.lastName}`,
+      report: generatePlayerDevelopmentReport(matchStats),
+    };
+  });
+}
+
+export async function getTeamTrainingRecommendations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { teamId } = req.params;
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { id: true, players: { select: playerSelect } },
+    });
+    if (!team) throw new AppError(404, 'Team not found.');
+
+    const [teamRecommendations, { completedMatches, eventsByPlayerMatch }] = await Promise.all([
+      fetchTeamCoachingRecommendations(teamId),
+      fetchTeamRosterContext(teamId, team.players.map((p) => p.id)),
+    ]);
+
+    const playerReports = buildPlayerReports(team.players, completedMatches, eventsByPlayerMatch);
+    res.json(generateTrainingRecommendations({ teamRecommendations, playerReports }));
+  } catch (err) { next(err); }
+}
+
+export async function postTeamAssistantQuestion(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { teamId } = req.params;
+    const { question } = req.body as { question?: string };
+    if (!question || !question.trim()) throw new AppError(400, 'question is required.');
+
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { id: true, players: { select: playerSelect } },
+    });
+    if (!team) throw new AppError(404, 'Team not found.');
+
+    const [{ recommendations, rotations }, trends, { completedMatches, eventsByPlayerMatch }] = await Promise.all([
+      fetchTeamCoachingContext(teamId),
+      fetchTeamTrends(teamId),
+      fetchTeamRosterContext(teamId, team.players.map((p) => p.id)),
+    ]);
+
+    const playerReports = buildPlayerReports(team.players, completedMatches, eventsByPlayerMatch);
+    const seasonIntelligence = generateSeasonIntelligence(trends);
+    const trainingRecommendations = generateTrainingRecommendations({ teamRecommendations: recommendations, playerReports });
+
+    res.json(answerQuestion(question, {
+      teamRecommendations: recommendations,
+      rotations,
+      seasonIntelligence,
+      trainingRecommendations,
+      playerReports,
+    }));
+  } catch (err) { next(err); }
+}
+
+export async function getMatchReportNarrative(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+    const [match, events, players] = await Promise.all([
+      prisma.match.findUnique({ where: { id: matchId }, include: { team: { select: { name: true } } } }),
+      prisma.event.findMany({
+        where: { matchId, ...ownEventsOnly },
+        select: { eventType: true, setNumber: true, courtZone: true, rotationNumber: true, playerId: true, recordedAt: true },
+        orderBy: { recordedAt: 'asc' },
+      }),
+      prisma.player.findMany({
+        where: { team: { matches: { some: { id: matchId } } } },
+        select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true },
+      }),
+    ]);
+    if (!match) throw new AppError(404, 'Match not found.');
+    const report = generateMatchReport(
+      { teamName: match.team.name, opponent: match.opponent,
+        homeSetsWon: match.homeSetsWon, awaySetsWon: match.awaySetsWon,
+        setScores: match.setScores },
+      events,
+      players,
+    );
+    const narrative = await narrateMatchReport(report);
+    res.json(narrative);
   } catch (err) { next(err); }
 }
 
@@ -406,9 +522,51 @@ export async function getPlayerAnalytics(req: Request, res: Response, next: Next
     if (!player) throw new AppError(404, 'Player not found.');
     const matchId = typeof req.query.matchId === 'string' ? req.query.matchId : undefined;
     const events = await prisma.event.findMany({
-      where: { playerId: player.id, ...(matchId ? { matchId } : {}) },
+      where: { playerId: player.id, ...(matchId ? { matchId } : {}), ...ownEventsOnly },
       select: eventSelect,
     });
     res.json({ player, matchId: matchId ?? null, stats: calculateStats(events), setStats: calculateSetStats(events) });
+  } catch (err) { next(err); }
+}
+
+export async function getPlayerDevelopmentReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const player = await prisma.player.findUnique({ where: { id: req.params.playerId }, select: playerSelect });
+    if (!player) throw new AppError(404, 'Player not found.');
+
+    // Fetch all completed matches the player appeared in, ordered chronologically.
+    const matches = await prisma.match.findMany({
+      where: { status: 'COMPLETED', events: { some: { playerId: player.id } } },
+      select: { id: true, matchDate: true },
+      orderBy: { matchDate: 'asc' },
+    });
+
+    // For each match, aggregate that player's events into a StatLine.
+    const matchStats = await Promise.all(
+      matches.map(async (m) => {
+        const events = await prisma.event.findMany({
+          where: { matchId: m.id, playerId: player.id, ...ownEventsOnly },
+          select: eventSelect,
+        });
+        return { matchDate: m.matchDate, stats: calculateStats(events) };
+      }),
+    );
+
+    res.json(generatePlayerDevelopmentReport(matchStats));
+  } catch (err) { next(err); }
+}
+
+export async function getOpponentScoutingReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { matchId } = req.params;
+    const match = await prisma.match.findUnique({ where: { id: matchId }, select: { id: true } });
+    if (!match) throw new AppError(404, 'Match not found.');
+
+    const events = await prisma.event.findMany({
+      where: { matchId, isOpponentEvent: true },
+      select: { courtZone: true, eventType: true, opponentJerseyNumber: true },
+    });
+
+    res.json(generateOpponentScoutingReport(events));
   } catch (err) { next(err); }
 }

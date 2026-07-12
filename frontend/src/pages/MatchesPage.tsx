@@ -4,16 +4,27 @@ import { format } from 'date-fns';
 import { useTeam, useMatches, useCreateMatch, useDeleteMatch } from '../hooks';
 
 const STATUS_STYLES = {
-  SCHEDULED: 'bg-blue-900/40 text-blue-300',
+  SCHEDULED: 'bg-info/40 text-info',
   IN_PROGRESS: 'bg-spike-600/30 text-spike-400',
-  COMPLETED: 'bg-emerald-900/40 text-emerald-300',
-  CANCELLED: 'bg-red-900/40 text-red-400',
+  COMPLETED: 'bg-success/40 text-success-dark',
+  CANCELLED: 'bg-error/40 text-error-dark',
 };
+
+const MATCH_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
 
 export default function MatchesPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { data: team } = useTeam(teamId!);
-  const { data: matches, isLoading } = useMatches(teamId!);
+
+  const [filters, setFilters] = useState({ opponent: '', status: '', from: '', to: '' });
+  const activeFilters = {
+    opponent: filters.opponent || undefined,
+    status:   filters.status   || undefined,
+    from:     filters.from     || undefined,
+    to:       filters.to       || undefined,
+  };
+
+  const { data: matches, isLoading } = useMatches(teamId!, activeFilters);
   const createMatch = useCreateMatch();
   const deleteMatch = useDeleteMatch();
   const navigate = useNavigate();
@@ -49,9 +60,63 @@ export default function MatchesPage() {
           <h1 className="text-2xl font-bold text-chalk-100">Matches</h1>
           <p className="text-chalk-400 text-sm mt-0.5">{team?.name}</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New Match'}
+        <button className={showForm ? 'btn-secondary' : 'btn-primary'} onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancel' : '+ New match'}
         </button>
+      </div>
+
+      {/* Filter bar */}
+      <div className="card p-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">Opponent</label>
+          <input
+            className="input text-sm"
+            placeholder="Search opponent…"
+            value={filters.opponent}
+            onChange={(e) => setFilters({ ...filters, opponent: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">Status</label>
+          <select
+            className="input text-sm"
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          >
+            <option value="">All statuses</option>
+            {MATCH_STATUSES.map((s) => (
+              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">From</label>
+          <input
+            type="date"
+            className="input text-sm"
+            value={filters.from}
+            onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-chalk-400 mb-1">To</label>
+          <input
+            type="date"
+            className="input text-sm"
+            value={filters.to}
+            onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+          />
+        </div>
+        {(filters.opponent || filters.status || filters.from || filters.to) && (
+          <div className="sm:col-span-4">
+            <button
+              className="text-xs text-chalk-400 hover:text-chalk-100 transition-colors"
+              onClick={() => setFilters({ opponent: '', status: '', from: '', to: '' })}
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Create form */}
@@ -111,7 +176,7 @@ export default function MatchesPage() {
         <p className="text-chalk-400 text-sm">Loading…</p>
       ) : matches?.length === 0 ? (
         <div className="card p-12 text-center">
-          <p className="text-chalk-400">No matches yet. Create one to start tracking.</p>
+          <p className="text-chalk-400">No matches yet — record your first match to unlock your stats.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -137,11 +202,11 @@ export default function MatchesPage() {
                   <Link to={`/matches/${match.id}/dashboard`} className="btn-secondary text-sm py-1.5 px-3">
                     Stats
                   </Link>
-                  <Link to={`/track/${match.id}`} className="btn-primary text-sm py-1.5 px-3">
+                  <Link to={`/track/${match.id}`} className="btn-secondary text-sm py-1.5 px-3">
                     {match.status === 'COMPLETED' ? 'Events' : 'Track'}
                   </Link>
                   <button
-                    className="text-chalk-600 hover:text-red-400 transition-colors text-xs px-1"
+                    className="text-chalk-600 hover:text-error-dark transition-colors text-xs px-1"
                     onClick={() => {
                       if (confirm(`Delete match vs ${match.opponent}? This cannot be undone.`)) {
                         deleteMatch.mutate({ id: match.id, teamId: teamId! });

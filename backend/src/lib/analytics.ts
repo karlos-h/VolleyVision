@@ -2,7 +2,7 @@ import { EventType, Position } from '@prisma/client';
 
 export interface AnalyticsEvent {
   eventType: EventType;
-  playerId: string;
+  playerId: string | null; // null for opponent events (isOpponentEvent=true)
   setNumber: number;
 }
 
@@ -20,6 +20,8 @@ export interface StatLine {
   attackErrors: number;
   attackAttempts: number;
   hittingPercentage: number | null;
+  tips: number;
+  freeBalls: number;
   aces: number;
   serviceErrors: number;
   serveAttempts: number;
@@ -52,7 +54,11 @@ function count(events: AnalyticsEvent[], eventType: EventType) {
 export function calculateStats(events: AnalyticsEvent[]): StatLine {
   const kills = count(events, EventType.KILL);
   const attackErrors = count(events, EventType.ATTACK_ERROR);
-  const attackAttempts = kills + attackErrors + count(events, EventType.ATTACK_ATTEMPT);
+  const tips = count(events, EventType.TIP);
+  const freeBalls = count(events, EventType.FREE_BALL);
+  // TIP and FREE_BALL are non-scoring attack actions — they count as attempts.
+  const attackAttempts =
+    kills + attackErrors + count(events, EventType.ATTACK_ATTEMPT) + tips + freeBalls;
   const aces = count(events, EventType.ACE);
   const serviceErrors = count(events, EventType.SERVICE_ERROR);
   const serveAttempts = aces + serviceErrors + count(events, EventType.SERVE_IN);
@@ -71,6 +77,8 @@ export function calculateStats(events: AnalyticsEvent[]): StatLine {
     attackAttempts,
     hittingPercentage:
       attackAttempts > 0 ? round((kills - attackErrors) / attackAttempts) : null,
+    tips,
+    freeBalls,
     aces,
     serviceErrors,
     serveAttempts,
@@ -94,10 +102,11 @@ export function calculatePlayerStats(
   players: AnalyticsPlayer[],
   events: AnalyticsEvent[]
 ): PlayerStatLine[] {
+  const ownEvents = events.filter((e): e is AnalyticsEvent & { playerId: string } => e.playerId != null);
   return players
     .map((player) => ({
       player,
-      ...calculateStats(events.filter((event) => event.playerId === player.id)),
+      ...calculateStats(ownEvents.filter((event) => event.playerId === player.id)),
     }))
     .sort((a, b) => b.totalEvents - a.totalEvents || a.player.jerseyNumber - b.player.jerseyNumber);
 }

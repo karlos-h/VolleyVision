@@ -19,7 +19,7 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-xs font-semibold text-chalk-500 uppercase tracking-widest">
+        <span className="text-xs font-semibold text-chalk-500">
           Court Zone <span className="normal-case font-normal text-chalk-600">(optional)</span>
         </span>
         {value !== null && (

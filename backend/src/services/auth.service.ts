@@ -20,6 +20,7 @@ export interface AuthResponse {
     lastName: string;
     role: string;
     profileImage: string | null;
+    signupIntent: string | null;
   };
 }
 
@@ -49,11 +50,14 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return bcrypt.compare(plain, hash);
 }
 
+const VALID_SIGNUP_INTENTS = new Set(['COACH', 'PLAYER', 'UNSURE']);
+
 export async function registerUser(
   email: string,
   password: string,
   firstName: string,
   lastName: string,
+  signupIntent: string | null = null,
 ): Promise<AuthResponse> {
   if (password.length < 8) {
     throw new AppError(400, 'Password must be at least 8 characters.');
@@ -64,12 +68,17 @@ export async function registerUser(
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+  const intent = signupIntent && VALID_SIGNUP_INTENTS.has(signupIntent)
+    ? (signupIntent as 'COACH' | 'PLAYER' | 'UNSURE')
+    : null;
+
   const user = await prisma.user.create({
     data: {
       email: email.toLowerCase(),
       passwordHash,
       firstName,
       lastName,
+      ...(intent ? { signupIntent: intent } : {}),
     },
   });
 
@@ -85,6 +94,7 @@ export async function registerUser(
       lastName: user.lastName,
       role: user.role,
       profileImage: user.profileImage,
+      signupIntent: user.signupIntent ?? null,
     },
   };
 }
@@ -108,6 +118,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
       lastName: user.lastName,
       role: user.role,
       profileImage: user.profileImage,
+      signupIntent: user.signupIntent ?? null,
     },
   };
 }
@@ -122,6 +133,7 @@ export async function getCurrentUser(userId: string) {
       lastName: true,
       role: true,
       profileImage: true,
+      signupIntent: true,
       createdAt: true,
     },
   });

@@ -23,9 +23,9 @@ export default function CoachInsights({
             key={index}
             className={`rounded-lg p-3 text-sm ${
               insight.type === 'positive'
-                ? 'bg-green-500/10 text-green-300'
+                ? 'bg-success/10 text-success-dark'
                 : insight.type === 'warning'
-                ? 'bg-red-500/10 text-red-300'
+                ? 'bg-error/10 text-error-dark'
                 : 'bg-chalk-500/10 text-chalk-300'
             }`}
           >

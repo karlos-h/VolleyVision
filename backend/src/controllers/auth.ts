@@ -4,11 +4,11 @@ import { registerUser, loginUser, getCurrentUser } from '../services/auth.servic
 
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, signupIntent } = req.body;
     if (!email || !password || !firstName || !lastName) {
       throw new AppError(400, 'email, password, firstName, and lastName are required.');
     }
-    const result = await registerUser(email, password, firstName, lastName);
+    const result = await registerUser(email, password, firstName, lastName, signupIntent ?? null);
     res.status(201).json(result);
   } catch (err) {
     next(err);

@@ -86,13 +86,45 @@ export async function getCoachRecentMatches(userId: string, limit = 5) {
   });
 }
 
+export async function getCoachUpcomingMatches(userId: string, limit = 5) {
+  const [ownedTeams, memberships] = await Promise.all([
+    prisma.team.findMany({ where: { ownerId: userId }, select: { id: true } }),
+    prisma.teamMembership.findMany({ where: { userId }, select: { teamId: true } }),
+  ]);
+
+  const teamIds = [
+    ...new Set([...ownedTeams.map((t) => t.id), ...memberships.map((m) => m.teamId)]),
+  ];
+
+  if (!teamIds.length) return [];
+
+  return prisma.match.findMany({
+    where: {
+      teamId: { in: teamIds },
+      status: MatchStatus.SCHEDULED,
+      matchDate: { gte: new Date() },
+    },
+    orderBy: { matchDate: 'asc' },
+    take: limit,
+    select: {
+      id: true,
+      matchDate: true,
+      opponent: true,
+      competition: true,
+      venue: true,
+      team: { select: { id: true, name: true } },
+    },
+  });
+}
+
 export async function getCoachDashboard(userId: string) {
-  const [ownedTeams, memberTeams, coachingStats, recentMatches] = await Promise.all([
+  const [ownedTeams, memberTeams, coachingStats, recentMatches, upcomingMatches] = await Promise.all([
     getCoachOwnedTeams(userId),
     getCoachMemberTeams(userId),
     getCoachingStats(userId),
     getCoachRecentMatches(userId),
+    getCoachUpcomingMatches(userId),
   ]);
 
-  return { ownedTeams, memberTeams, coachingStats, recentMatches };
+  return { ownedTeams, memberTeams, coachingStats, recentMatches, upcomingMatches };
 }

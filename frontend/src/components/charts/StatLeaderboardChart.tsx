@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from 'recharts';
 import type { PlayerStatLine } from '../../types';
+import { CHART_SERIES, CHART_TICK, CHART_TOOLTIP_BG, CHART_TOOLTIP_TEXT, CHART_GRID } from '../../lib/chartColors';
 
 interface Props {
   title: string;
@@ -44,27 +45,27 @@ export default function StatLeaderboardChart({
           <BarChart data={data}>
             <XAxis
               dataKey="name"
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              tick={{ fill: CHART_TICK, fontSize: 12 }}
             />
             <YAxis
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              tick={{ fill: CHART_TICK, fontSize: 12 }}
             />
             <Tooltip
               formatter={(value) => [value, title]}
               contentStyle={{
-                backgroundColor: '#020617',
-                border: '1px solid #1e40af',
+                backgroundColor: CHART_TOOLTIP_BG,
+                border: `1px solid ${CHART_GRID}`,
                 borderRadius: '8px',
-                color: '#f8fafc',
+                color: CHART_TOOLTIP_TEXT,
               }}
               labelStyle={{
-                color: '#f8fafc',
+                color: CHART_TOOLTIP_TEXT,
                 fontWeight: 'bold',
               }}
             />
             <Bar
               dataKey="value"
-              fill="#fbbf24"
+              fill={CHART_SERIES[0]}
               radius={[4, 4, 0, 0]}
               cursor="pointer"
               onClick={(data) => {

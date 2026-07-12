@@ -10,7 +10,7 @@ interface Props {
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-court-800 pt-4">
-      <h4 className="text-xs font-semibold text-chalk-500 uppercase tracking-widest mb-2">{title}</h4>
+      <h4 className="text-xs font-semibold text-chalk-500 mb-2">{title}</h4>
       {children}
     </div>
   );
@@ -102,7 +102,7 @@ export default function MatchReportCard({ report }: Props) {
       <div className="bg-court-900 border-b border-court-800 px-5 py-4 flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-xs font-semibold text-spike-400 uppercase tracking-widest">Match Report</span>
+            <span className="text-xs font-semibold text-spike-400">Match Report</span>
           </div>
           <p className="text-xs text-chalk-500">
             Generated {format(new Date(report.generatedAt), 'PPP · p')}
@@ -229,7 +229,7 @@ export default function MatchReportCard({ report }: Props) {
                     <p className="text-xs text-chalk-500 mt-0.5">Kills</p>
                   </div>
                   <div className="text-center">
-                    <p className={`font-mono text-xl font-bold ${attack.hittingPct != null && attack.hittingPct >= 0.25 ? 'text-emerald-400' : attack.hittingPct != null && attack.hittingPct >= 0 ? 'text-spike-400' : 'text-red-400'}`}>
+                    <p className={`font-mono text-xl font-bold ${attack.hittingPct != null && attack.hittingPct >= 0.25 ? 'text-success-dark' : attack.hittingPct != null && attack.hittingPct >= 0 ? 'text-spike-400' : 'text-error-dark'}`}>
                       {attack.hittingPct != null ? `${attack.hittingPct >= 0 ? '+' : ''}${(attack.hittingPct * 100).toFixed(0)}%` : '—'}
                     </p>
                     <p className="text-xs text-chalk-500 mt-0.5">Hit %</p>

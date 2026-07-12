@@ -1,12 +1,29 @@
 import { useState, useEffect } from 'react';
-import { useProfile, useUpdateProfile } from '../hooks';
+import { useProfile, useUpdateProfile, usePlayerBests } from '../hooks';
+import type { PlayerBestEntry } from '../types';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Admin', COACH: 'Coach', PLAYER: 'Player', VIEWER: 'Viewer',
 };
 
+function BestStatCard({ label, entry, format }: { label: string; entry: PlayerBestEntry | null; format?: (v: number) => string }) {
+  if (!entry) return null;
+  return (
+    <div className="bg-court-800/60 rounded-lg p-3 text-center">
+      <div className="font-mono font-bold text-xl text-spike-400">
+        {format ? format(entry.value) : entry.value}
+      </div>
+      <div className="text-xs text-chalk-400 mt-0.5">{label}</div>
+      <div className="text-xs text-chalk-600 mt-1 truncate" title={`vs ${entry.opponent}`}>
+        vs {entry.opponent}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { data: profile, isLoading } = useProfile();
+  const { data: bests } = usePlayerBests();
   const updateProfile = useUpdateProfile();
 
   const [editing, setEditing] = useState(false);
@@ -19,6 +36,8 @@ export default function ProfilePage() {
     country: '',
     profileImage: '',
     dateOfBirth: '',
+    heightCm: '',
+    weightKg: '',
   });
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -34,6 +53,8 @@ export default function ProfilePage() {
         country: profile.country ?? '',
         profileImage: profile.profileImage ?? '',
         dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '',
+        heightCm: profile.heightCm != null ? String(profile.heightCm) : '',
+        weightKg: profile.weightKg != null ? String(profile.weightKg) : '',
       });
     }
   }, [profile]);
@@ -52,17 +73,19 @@ export default function ProfilePage() {
         country: form.country || undefined,
         profileImage: form.profileImage || undefined,
         dateOfBirth: form.dateOfBirth || null,
+        heightCm: form.heightCm === '' ? null : Number(form.heightCm),
+        weightKg: form.weightKg === '' ? null : Number(form.weightKg),
       } as any);
       setEditing(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
-      setSaveError(err?.response?.data?.error ?? 'Failed to save profile.');
+      setSaveError(err?.response?.data?.error ?? "Couldn't save your profile. Check your connection and try again.");
     }
   }
 
   if (isLoading) return <p className="text-chalk-400">Loading profile…</p>;
-  if (!profile) return <p className="text-red-400">Unable to load profile.</p>;
+  if (!profile) return <p className="text-error-dark">Couldn't load profile.</p>;
 
   const initials = `${profile.firstName[0] ?? ''}${profile.lastName[0] ?? ''}`;
 
@@ -75,7 +98,7 @@ export default function ProfilePage() {
       </div>
 
       {saveSuccess && (
-        <div className="bg-emerald-900/30 border border-emerald-800 rounded-xl px-4 py-3 text-emerald-300 text-sm">
+        <div className="bg-success/30 border border-success rounded-xl px-4 py-3 text-success-dark text-sm">
           Profile updated successfully.
         </div>
       )}
@@ -134,6 +157,18 @@ export default function ProfilePage() {
               </span>
             </>
           )}
+          {profile.heightCm != null && (
+            <>
+              <span className="text-chalk-500">Height</span>
+              <span className="text-chalk-200">{profile.heightCm} cm</span>
+            </>
+          )}
+          {profile.weightKg != null && (
+            <>
+              <span className="text-chalk-500">Weight</span>
+              <span className="text-chalk-200">{profile.weightKg} kg</span>
+            </>
+          )}
           <span className="text-chalk-500">Member since</span>
           <span className="text-chalk-200">{new Date(profile.createdAt).toLocaleDateString()}</span>
         </div>
@@ -145,6 +180,21 @@ export default function ProfilePage() {
           {editing ? 'Cancel' : 'Edit Profile'}
         </button>
       </div>
+
+      {/* Top game stats — only for users with linked player records that have data */}
+      {bests && (bests.kills || bests.aces || bests.blocks || bests.digs || bests.hittingPercentage) && (
+        <div className="card p-6">
+          <h2 className="font-semibold text-chalk-100 mb-1">Top game stats</h2>
+          <p className="text-chalk-500 text-xs mb-4">Career-best single-match performances</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <BestStatCard label="Kills" entry={bests.kills} />
+            <BestStatCard label="Aces" entry={bests.aces} />
+            <BestStatCard label="Blocks" entry={bests.blocks} format={(v) => v.toFixed(1)} />
+            <BestStatCard label="Digs" entry={bests.digs} />
+            <BestStatCard label="Hitting %" entry={bests.hittingPercentage} format={(v) => v.toFixed(3)} />
+          </div>
+        </div>
+      )}
 
       {/* Edit form */}
       {editing && (
@@ -215,6 +265,30 @@ export default function ProfilePage() {
                   onChange={(e) => setForm({ ...form, country: e.target.value })}
                 />
               </div>
+              <div>
+                <label className="block text-xs text-chalk-400 mb-1">Height (cm)</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={100}
+                  max={250}
+                  placeholder="e.g. 185"
+                  value={form.heightCm}
+                  onChange={(e) => setForm({ ...form, heightCm: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-chalk-400 mb-1">Weight (kg)</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={30}
+                  max={200}
+                  placeholder="e.g. 78"
+                  value={form.weightKg}
+                  onChange={(e) => setForm({ ...form, weightKg: e.target.value })}
+                />
+              </div>
             </div>
 
             <div>
@@ -228,7 +302,7 @@ export default function ProfilePage() {
               />
             </div>
 
-            {saveError && <p className="text-red-400 text-sm">{saveError}</p>}
+            {saveError && <p className="text-error-dark text-sm">{saveError}</p>}
 
             <button type="submit" className="btn-primary" disabled={updateProfile.isPending}>
               {updateProfile.isPending ? 'Saving…' : 'Save Changes'}

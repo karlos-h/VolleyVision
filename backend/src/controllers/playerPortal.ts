@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import {
   getPlayerDashboard,
   getPlayerCareerStats,
+  getPlayerBests,
   getLinkedPlayers,
   linkPlayerToUser,
   unlinkPlayer,
@@ -20,6 +21,15 @@ export async function playerStatsHandler(req: Request, res: Response, next: Next
   try {
     const stats = await getPlayerCareerStats(req.user!.userId);
     res.json(stats);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function playerBestsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const bests = await getPlayerBests(req.user!.userId);
+    res.json(bests);
   } catch (err) {
     next(err);
   }

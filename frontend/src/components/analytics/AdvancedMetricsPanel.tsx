@@ -45,7 +45,7 @@ function StatBar({
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div className="card p-3 text-center">
-      <p className="text-xs text-chalk-500 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-xs text-chalk-500 mb-1">{label}</p>
       <p className="font-mono text-2xl font-bold text-chalk-100">{value}</p>
       {sub && <p className="text-xs text-chalk-500 mt-0.5">{sub}</p>}
     </div>
@@ -98,12 +98,12 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
           <StatBar
             label="Ace Rate"
             value={data.serve.aceRate}
-            color="bg-emerald-500"
+            color="bg-success"
           />
           <StatBar
             label="Service Error Rate"
             value={data.serve.errorRate}
-            color="bg-red-500"
+            color="bg-error"
             sublabel={`${data.serve.errors} errors`}
           />
         </div>
@@ -120,15 +120,15 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
           <StatBar
             label="Perfect Pass Rate (3)"
             value={data.sideOut.perfectPassRate}
-            color="bg-emerald-500"
+            color="bg-success"
             sublabel={`${data.sideOut.pass3} perfect passes`}
           />
           <div className="grid grid-cols-4 gap-2 pt-1 border-t border-court-800">
             {[
-              { label: 'Pass 3', count: data.sideOut.pass3, color: 'text-emerald-400' },
+              { label: 'Pass 3', count: data.sideOut.pass3, color: 'text-success-dark' },
               { label: 'Pass 2', count: data.sideOut.pass2, color: 'text-spike-400' },
               { label: 'Pass 1', count: data.sideOut.pass1, color: 'text-chalk-400' },
-              { label: 'Pass 0', count: data.sideOut.pass0, color: 'text-red-400' },
+              { label: 'Pass 0', count: data.sideOut.pass0, color: 'text-error-dark' },
             ].map(({ label, count, color }) => (
               <div key={label} className="text-center">
                 <p className={`font-mono text-lg font-bold ${color}`}>{count}</p>
@@ -154,17 +154,17 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
                 ? Math.round((data.attack.errors / data.attack.attempts) * 1000) / 10
                 : null
             }
-            color="bg-red-500"
+            color="bg-error"
             sublabel={`${data.attack.errors} errors`}
           />
           <div className="flex items-center justify-between pt-1 border-t border-court-800">
             <span className="text-xs text-chalk-500">Hitting Percentage</span>
             <span className={`font-mono text-sm font-bold ${
               data.attack.hittingPct != null && data.attack.hittingPct >= 0.25
-                ? 'text-emerald-400'
+                ? 'text-success-dark'
                 : data.attack.hittingPct != null && data.attack.hittingPct >= 0
                 ? 'text-spike-400'
-                : 'text-red-400'
+                : 'text-error-dark'
             }`}>
               {data.attack.hittingPct != null
                 ? (data.attack.hittingPct >= 0 ? '+' : '') + (data.attack.hittingPct * 100).toFixed(1) + '%'

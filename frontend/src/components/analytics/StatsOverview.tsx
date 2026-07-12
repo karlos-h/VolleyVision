@@ -36,9 +36,9 @@ export function StatsCards({ stats }: { stats: StatLine }) {
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
       {cards.map((card) => (
         <div key={card.label} className="card p-4">
-          <p className="text-xs uppercase tracking-wider text-chalk-400">{card.label}</p>
-          <p className="font-mono text-2xl font-bold text-chalk-100 mt-1">{card.value}</p>
-          <p className="text-xs text-chalk-600 mt-1">{card.detail}</p>
+          <p className="text-xs text-navy-300">{card.label}</p>
+          <p className="tabular-nums text-2xl font-bold text-white mt-1">{card.value}</p>
+          <p className="text-xs text-grey-600 mt-1">{card.detail}</p>
         </div>
       ))}
     </div>
@@ -49,7 +49,7 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
-        <thead className="bg-court-800 text-chalk-400 text-xs uppercase tracking-wider">
+        <thead className="bg-navy-700 text-navy-100 text-xs">
           <tr>
             <th className="text-left px-4 py-3">Player</th>
             <th className="text-center px-3 py-3">K</th>
@@ -64,23 +64,23 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
             <th className="text-center px-3 py-3">Ast</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-court-800">
+        <tbody className="divide-y divide-navy-700">
           {rows.map((row) => (
-            <tr key={row.player.id} className="hover:bg-court-800/50">
+            <tr key={row.player.id} className="hover:bg-navy-700/50">
               <td className="px-4 py-3">
-                <span className="font-mono text-spike-400 mr-2">#{row.player.jerseyNumber}</span>
+                <span className="tabular-nums text-gold-500 mr-2">#{row.player.jerseyNumber}</span>
                 <Link
                   to={`/players/${row.player.id}/dashboard`}
-                  className="font-medium text-chalk-100 hover:text-spike-400 transition-colors"
+                  className="font-medium text-white hover:text-gold-500 transition-colors"
                 >
                   {row.player.firstName} {row.player.lastName}
                 </Link>
-                <span className="text-xs text-chalk-600 ml-2">{POSITION_LABELS[row.player.position]}</span>
+                <span className="text-xs text-grey-600 ml-2">{POSITION_LABELS[row.player.position]}</span>
               </td>
               <td className="stat-cell">{row.kills}</td>
               <td className="stat-cell">{row.attackErrors}</td>
               <td className="stat-cell">{row.attackAttempts}</td>
-              <td className="stat-cell font-semibold text-spike-400">{percentage(row.hittingPercentage)}</td>
+              <td className="stat-cell font-semibold text-gold-500">{percentage(row.hittingPercentage)}</td>
               <td className="stat-cell">{row.aces}</td>
               <td className="stat-cell">{row.serviceErrors}</td>
               <td className="stat-cell">{decimal(row.passingRating)}</td>
@@ -91,7 +91,7 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
           ))}
         </tbody>
       </table>
-      {!rows.length && <p className="text-chalk-400 text-sm p-5">No player statistics yet.</p>}
+      {!rows.length && <p className="text-navy-300 text-sm p-5">No player statistics yet.</p>}
     </div>
   );
 }

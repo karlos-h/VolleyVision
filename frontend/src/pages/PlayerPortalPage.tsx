@@ -5,7 +5,38 @@ import { useAuth } from '../context/AuthContext';
 import { StatsCards } from '../components/analytics/StatsOverview';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
 import TeamTrendChart from '../components/charts/TeamTrendChart';
-import type { PlayerRecord, MatchSummaryItem, DevelopmentPoint } from '../types';
+import type { PlayerRecord, MatchSummaryItem, DevelopmentPoint, TeamStatsBreakdown } from '../types';
+import UpcomingGamesCard from '../components/ui/UpcomingGamesCard';
+
+// Collapsible per-team stat card — one per linked player record.
+function TeamStatsSection({ entry }: { entry: TeamStatsBreakdown }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-court-800/50 transition-colors"
+      >
+        <div>
+          <span className="text-chalk-100 font-medium text-sm">{entry.team.name}</span>
+          <span className="text-chalk-500 text-xs ml-2">Season {entry.team.season}</span>
+        </div>
+        <span className="text-chalk-500 text-xs">
+          {entry.stats.totalEvents} events {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open && (
+        <div className="p-4 border-t border-court-800">
+          {entry.stats.totalEvents > 0 ? (
+            <StatsCards stats={entry.stats} />
+          ) : (
+            <p className="text-chalk-500 text-sm">No recorded events for this team yet.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MatchRow({ match }: { match: MatchSummaryItem }) {
   const won = match.homeSetsWon > match.awaySetsWon;
@@ -19,11 +50,11 @@ function MatchRow({ match }: { match: MatchSummaryItem }) {
         </p>
       </div>
       {isCompleted ? (
-        <span className={`badge text-xs ${won ? 'bg-emerald-800/30 text-emerald-300' : 'bg-red-900/30 text-red-400'}`}>
+        <span className={`badge text-sm ${won ? 'bg-success/30 text-success-dark' : 'bg-error/30 text-error-dark'}`}>
           {match.homeSetsWon}–{match.awaySetsWon} {won ? 'W' : 'L'}
         </span>
       ) : (
-        <span className="badge bg-amber-800/30 text-amber-300 text-xs">{match.status.replace('_', ' ')}</span>
+        <span className="badge bg-gold-500/30 text-gold-500 text-xs">{match.status.replace('_', ' ')}</span>
       )}
       <Link to={`/matches/${match.id}/dashboard`} className="text-chalk-600 hover:text-chalk-200 text-xs transition-colors">
         View →
@@ -52,7 +83,7 @@ function LinkedPlayerCard({ player, onUnlink }: { player: PlayerRecord; onUnlink
           Analytics
         </Link>
         <button
-          className="text-chalk-600 hover:text-red-400 text-xs transition-colors"
+          className="text-chalk-600 hover:text-error-dark text-xs transition-colors"
           onClick={onUnlink}
         >
           Unlink
@@ -79,7 +110,7 @@ function LinkPlayerPanel() {
       setSelectedTeamId('');
       setSelectedPlayerId('');
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Failed to link player.');
+      setError(err?.response?.data?.error ?? "Couldn't link that player. Try again.");
     }
   }
 
@@ -125,7 +156,7 @@ function LinkPlayerPanel() {
         </div>
       </div>
 
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-error-dark text-xs">{error}</p>}
 
       <button
         className="btn-primary text-sm"
@@ -144,9 +175,9 @@ export default function PlayerPortalPage() {
   const unlinkPlayer = useUnlinkPlayer();
 
   if (isLoading) return <p className="text-chalk-400">Loading player dashboard…</p>;
-  if (!data) return <p className="text-red-400">Unable to load player dashboard.</p>;
+  if (!data) return <p className="text-error-dark">Couldn't load player dashboard.</p>;
 
-  const { players, careerStats, recentMatches, developmentMetrics } = data;
+  const { players, careerStats, recentMatches, developmentMetrics, upcomingMatches, statsByTeam } = data;
 
   const trendData = developmentMetrics.map((d: DevelopmentPoint) => ({
     name: d.opponent.length > 10 ? d.opponent.slice(0, 10) + '…' : d.opponent,
@@ -169,7 +200,7 @@ export default function PlayerPortalPage() {
 
       {/* Linked player records */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">My Player Records</h2>
+        <h2 className="text-sm font-semibold text-chalk-400">My Player Records</h2>
         {players.length === 0 ? (
           <LinkPlayerPanel />
         ) : (
@@ -196,14 +227,26 @@ export default function PlayerPortalPage() {
       {careerStats && careerStats.totalEvents > 0 ? (
         <>
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Career Statistics</h2>
+            <h2 className="text-sm font-semibold text-chalk-400">Career statistics</h2>
             <StatsCards stats={careerStats} />
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Skill Profile</h2>
+            <h2 className="text-sm font-semibold text-chalk-400">Skill profile</h2>
             <PlayerRadarChart stats={careerStats} />
           </section>
+
+          {/* Per-team breakdown — only meaningful with more than one linked team */}
+          {(statsByTeam ?? []).length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold text-chalk-400">Stats by team</h2>
+              <div className="space-y-2">
+                {statsByTeam.map((entry: TeamStatsBreakdown) => (
+                  <TeamStatsSection key={entry.playerId} entry={entry} />
+                ))}
+              </div>
+            </section>
+          )}
         </>
       ) : (
         players.length > 0 && (
@@ -217,7 +260,7 @@ export default function PlayerPortalPage() {
       {/* Development trends */}
       {trendData.length >= 2 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide">Development Trends</h2>
+          <h2 className="text-sm font-semibold text-chalk-400">Development Trends</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <TeamTrendChart title="Kills per Match" data={trendData} dataKey="kills" />
             <TeamTrendChart title="Aces per Match" data={trendData} dataKey="aces" />
@@ -227,10 +270,17 @@ export default function PlayerPortalPage() {
         </section>
       )}
 
+      {/* Upcoming games */}
+      {(upcomingMatches ?? []).length > 0 && (
+        <section>
+          <UpcomingGamesCard matches={upcomingMatches} />
+        </section>
+      )}
+
       {/* Recent matches */}
       {recentMatches.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-chalk-400 uppercase tracking-wide mb-3">Recent Matches</h2>
+          <h2 className="text-sm font-semibold text-chalk-400 mb-3">Recent matches</h2>
           <div className="card overflow-hidden divide-y divide-court-800">
             {recentMatches.map((match: MatchSummaryItem) => (
               <MatchRow key={match.id} match={match} />

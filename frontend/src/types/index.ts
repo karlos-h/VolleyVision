@@ -57,7 +57,25 @@ export interface UserProfile {
   dateOfBirth: string | null;
   city: string | null;
   country: string | null;
+  heightCm: number | null;
+  weightKg: number | null;
   createdAt: string;
+}
+
+// Career-best single-match performances (GET /player/bests)
+export interface PlayerBestEntry {
+  value: number;
+  matchId: string;
+  opponent: string;
+  matchDate: string;
+}
+
+export interface PlayerBests {
+  kills: PlayerBestEntry | null;
+  aces: PlayerBestEntry | null;
+  blocks: PlayerBestEntry | null;
+  digs: PlayerBestEntry | null;
+  hittingPercentage: PlayerBestEntry | null;
 }
 
 export interface PlayerRecord {
@@ -78,6 +96,8 @@ export interface CareerStats {
   attackAttempts: number;
   attackErrors: number;
   hittingPercentage: number | null;
+  tips?: number;
+  freeBalls?: number;
   aces: number;
   serviceErrors: number;
   serveAttempts: number;
@@ -114,11 +134,28 @@ export interface DevelopmentPoint extends CareerStats {
   matchDate: string;
 }
 
+export interface UpcomingMatchItem {
+  id: string;
+  matchDate: string;
+  opponent: string;
+  competition: string | null;
+  venue: string | null;
+  team: { id: string; name: string };
+}
+
+export interface TeamStatsBreakdown {
+  playerId: string;
+  team: { id: string; name: string; season: string };
+  stats: CareerStats;
+}
+
 export interface PlayerDashboard {
   players: PlayerRecord[];
   careerStats: CareerStats | null;
   recentMatches: MatchSummaryItem[];
   developmentMetrics: DevelopmentPoint[];
+  upcomingMatches: UpcomingMatchItem[];
+  statsByTeam: TeamStatsBreakdown[];
 }
 
 export interface TeamSummary {
@@ -144,7 +181,11 @@ export interface CoachDashboard {
   memberTeams: TeamSummary[];
   coachingStats: CoachingStats;
   recentMatches: MatchSummaryItem[];
+  upcomingMatches: UpcomingMatchItem[];
 }
+
+// Phase 7 Sprint 0 — onboarding hint only. Never used for permission checks.
+export type SignupIntent = 'COACH' | 'PLAYER' | 'UNSURE';
 
 export interface User {
   id: string;
@@ -153,6 +194,7 @@ export interface User {
   lastName: string;
   role: UserRole;
   profileImage: string | null;
+  signupIntent?: SignupIntent | null;
   createdAt?: string;
 }
 
@@ -174,6 +216,8 @@ export type EventType =
   | 'KILL'
   | 'ATTACK_ERROR'
   | 'ATTACK_ATTEMPT'
+  | 'TIP'
+  | 'FREE_BALL'
   // Serving
   | 'ACE'
   | 'SERVICE_ERROR'
@@ -414,6 +458,8 @@ export interface StatLine {
   attackErrors: number;
   attackAttempts: number;
   hittingPercentage: number | null;
+  tips?: number;
+  freeBalls?: number;
   aces: number;
   serviceErrors: number;
   serveAttempts: number;
@@ -480,6 +526,98 @@ export interface TeamInsight {
   message: string;
 }
 
+// ─── Coaching Recommendations (Phase 6 Sprint 1) ─────────────────────────────
+
+export interface Recommendation {
+  category: 'attack' | 'serve' | 'pass' | 'defence' | 'rotation';
+  priority: 'high' | 'medium' | 'low';
+  message: string;
+}
+
+// ─── Player Development (Phase 6 Sprint 2) ───────────────────────────────────
+
+export interface PlayerDevelopmentReport {
+  strengths:      string[];
+  weaknesses:     string[];
+  mostImproved:   { category: string; change: string } | null;
+  needsAttention: { category: string; change: string } | null;
+  trend:          'improving' | 'declining' | 'stable' | 'insufficient_data';
+}
+
+// ─── Season Intelligence (Phase 6 Sprint 4) ──────────────────────────────────
+
+export interface SeasonInsight {
+  category: 'kills' | 'aces' | 'blocks' | 'digs' | 'hittingPercentage';
+  message: string;
+  direction: 'positive' | 'negative';
+}
+
+export interface SeasonIntelligenceReport {
+  seasonAverages: {
+    kills: number;
+    aces: number;
+    blocks: number;
+    digs: number;
+    hittingPercentage: number | null;
+  };
+  insights: SeasonInsight[];
+  trajectory: 'improving' | 'declining' | 'mixed' | 'insufficient_data';
+}
+
+// ─── Phase 7 — Video upload & timestamp tagging ──────────────────────────────
+
+export interface Video {
+  id:               string;
+  matchId:          string;
+  filename:         string;
+  filePath:         string;
+  mimeType:         string;
+  uploadedAt:       string;
+  uploadedByUserId: string;
+}
+
+export interface VideoTimestamp {
+  id:               string;
+  videoId:          string;
+  timestampSeconds: number;
+  label:            string;
+  eventId:          string | null;
+}
+
+// ─── Phase 7 — Multi-team player links ───────────────────────────────────────
+
+export interface TeamSummary {
+  id:       string;
+  name:     string;
+  division: string | null;
+  season:   string;
+}
+
+export interface PlayerTeamLink {
+  linkId:   string;
+  team:     TeamSummary;
+  linkedAt: string;
+}
+
+export interface PlayerTeamsResponse {
+  homeTeam:    TeamSummary;
+  linkedTeams: PlayerTeamLink[];
+}
+
+// ─── Phase 6 Sprint 5 — Training Recommendations ─────────────────────────────
+
+export interface TrainingRecommendation {
+  focus:         string;
+  category:      'attack' | 'serve' | 'pass' | 'defence' | 'rotation' | 'player_development';
+  allocationPct: number;
+  rationale:     string;
+}
+
+export interface AssistantAnswer {
+  matchedIntent: string | null;
+  answer:        string;
+}
+
 // ─── Event metadata (UI helpers) ─────────────────────────────────────────────
 
 export interface EventMeta {
@@ -495,6 +633,8 @@ export const EVENT_META: EventMeta[] = [
   { type: 'KILL', label: 'Kill', category: 'attack', outcome: 'positive' },
   { type: 'ATTACK_ERROR', label: 'Att. Error', category: 'attack', outcome: 'negative' },
   { type: 'ATTACK_ATTEMPT', label: 'Attempt', category: 'attack', outcome: 'neutral' },
+  { type: 'TIP', label: 'Tip', category: 'attack', outcome: 'neutral' },
+  { type: 'FREE_BALL', label: 'Free Ball', category: 'attack', outcome: 'neutral' },
   // Serving
   { type: 'ACE', label: 'Ace', category: 'serve', outcome: 'positive' },
   { type: 'SERVICE_ERROR', label: 'Svc Error', category: 'serve', outcome: 'negative' },
@@ -542,4 +682,255 @@ export interface Invitation {
   createdAt: string;
   team?: { id: string; name: string; division?: string; season: string };
   invitedBy?: { id: string; firstName: string; lastName: string; email: string };
+}
+
+// ─── Opponent Scouting (Phase 6 Sprint 3) ────────────────────────────────────
+
+export interface JerseyTally {
+  jerseyNumber: number;
+  kills: number;
+  aces: number;
+  errors: number;
+}
+
+export interface OpponentScoutingReport {
+  insufficientData: false;
+  totalEvents: number;
+  zoneBreakdown: {
+    attack: Record<string, { kills: number; errors: number; attempts: number; hittingPct: number | null }>;
+    serve: Record<string, { aces: number; errors: number; serveIn: number; attempts: number; efficiency: number | null }>;
+    pass: Record<string, { pass3: number; pass2: number; pass1: number; pass0: number; attempts: number; rating: number | null }>;
+    defence: Record<string, { digs: number; soloBlocks: number; blockAssists: number; total: number }>;
+  };
+  dominantErrorType: string | null;
+  dominantErrorCount: number;
+  jerseyTallies: JerseyTally[] | null;
+}
+
+export interface OpponentScoutingInsufficient {
+  insufficientData: true;
+  totalEvents: number;
+}
+
+export type OpponentScoutingResult = OpponentScoutingReport | OpponentScoutingInsufficient;
+
+// ─── Phase 7 Sprint 1 — League Intelligence ───────────────────────────────────
+
+export interface LeagueTeamSummary {
+  id: string;
+  teamId: string;
+  team: { id: string; name: string; division?: string; season: string };
+}
+
+export interface MatchSummary {
+  id: string;
+  matchDate: string;
+  homeScore: number;
+  awayScore: number;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  status: MatchStatus;
+}
+
+export interface LeagueMatch {
+  id: string;
+  leagueSeasonId: string;
+  scheduledDate: string;
+  homeLeagueTeam: LeagueTeamSummary;
+  awayLeagueTeam: LeagueTeamSummary;
+  homeMatchId: string | null;
+  awayMatchId: string | null;
+  homeMatch: MatchSummary | null;
+  awayMatch: MatchSummary | null;
+  createdAt: string;
+}
+
+export interface LeagueSeasonSummary {
+  id: string;
+  leagueId: string;
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  createdAt: string;
+  _count: { teams: number; fixtures: number };
+}
+
+export interface League {
+  id: string;
+  name: string;
+  division: string | null;
+  createdByUserId: string;
+  createdAt: string;
+  seasons: LeagueSeasonSummary[];
+}
+
+// Resolved result for a single fixture — encapsulates the home/away-naming translation.
+export interface ResolvedFixtureResult {
+  fixtureId: string;
+  played: boolean;
+  /** Sets won by the *fixture's* home LeagueTeam (not the Match owner) */
+  homeSetsWon: number;
+  /** Sets won by the *fixture's* away LeagueTeam */
+  awaySetsWon: number;
+  hasDiscrepancy: boolean;
+}
+
+export interface FixtureFilters {
+  teamId?: string;
+  from?: string;
+  to?: string;
+  status?: 'upcoming' | 'pending' | 'completed';
+}
+
+export interface StandingsRow {
+  leagueTeamId: string;
+  teamId: string;
+  teamName: string;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  setsWon: number;
+  setsLost: number;
+  setDifferential: number;
+  points: number;
+}
+
+export interface LeagueTeamRecentResult {
+  fixtureId: string;
+  scheduledDate: string;
+  opponentName: string;
+  result: 'W' | 'L';
+  homeSetsWon: number;
+  awaySetsWon: number;
+  isHome: boolean;
+  hasDiscrepancy: boolean;
+}
+
+export interface LeagueTeamUpcomingFixture {
+  fixtureId: string;
+  scheduledDate: string;
+  opponentName: string;
+  isHome: boolean;
+}
+
+export interface PrivateIntel {
+  heatmapUrl: string;
+  recentMatchReports: Array<{
+    matchId: string;
+    matchDate: string;
+    opponent: string;
+    reportUrl: string;
+    narrativeUrl: string;
+  }>;
+}
+
+export interface LeagueTeamProfile {
+  leagueTeamId: string;
+  teamId: string;
+  teamName: string;
+  division: string | null;
+  season: string;
+  standing: StandingsRow | null;
+  winLossTrend: ('W' | 'L')[];
+  recentResults: LeagueTeamRecentResult[];
+  upcomingFixtures: LeagueTeamUpcomingFixture[];
+  privateIntel?: PrivateIntel;
+}
+
+// ─── Match Centre ──────────────────────────────────────────────────────────────
+
+export interface LiveFixture {
+  fixtureId: string;
+  isLive: true;
+  scheduledDate: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeagueTeamId: string;
+  awayLeagueTeamId: string;
+  currentSet: number;
+  homeSetScore: number;
+  awaySetScore: number;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  sourceMatchId: string | null;
+}
+
+export interface RecentlyFinishedFixture {
+  fixtureId: string;
+  scheduledDate: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeagueTeamId: string;
+  awayLeagueTeamId: string;
+  homeSetsWon: number;
+  awaySetsWon: number;
+  hasDiscrepancy: boolean;
+}
+
+export interface UpcomingFixtureSummary {
+  fixtureId: string;
+  scheduledDate: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLeagueTeamId: string;
+  awayLeagueTeamId: string;
+}
+
+export interface MatchCentreData {
+  live: LiveFixture[];
+  recentlyFinished: RecentlyFinishedFixture[];
+  upcoming: UpcomingFixtureSummary[];
+}
+
+export interface TeamRankingEntry {
+  leagueTeamId: string;
+  teamName: string;
+  value: number;
+  matchesPlayed: number;
+}
+
+export interface PlayerLeaderboardEntry {
+  playerId: string;
+  playerName: string;
+  teamName: string;
+  value: number;
+}
+
+export interface LeagueRankings {
+  teamRankings: {
+    attackEfficiency: TeamRankingEntry[];
+    serveEfficiency: TeamRankingEntry[];
+    blocking: TeamRankingEntry[];
+    defense: TeamRankingEntry[];
+  };
+  playerLeaderboards: {
+    kills: PlayerLeaderboardEntry[];
+    aces: PlayerLeaderboardEntry[];
+    blocks: PlayerLeaderboardEntry[];
+    digs: PlayerLeaderboardEntry[];
+    assists: PlayerLeaderboardEntry[];
+  };
+}
+
+export interface StandingsResult {
+  standings: StandingsRow[];
+  fixtureResults: Array<{
+    fixtureId: string;
+    played: boolean;
+    homeSetsWon: number;
+    awaySetsWon: number;
+    hasDiscrepancy: boolean;
+  }>;
+}
+
+export interface LeagueSeason {
+  id: string;
+  leagueId: string;
+  league: { id: string; name: string; division: string | null };
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  teams: LeagueTeamSummary[];
+  _count: { fixtures: number; teams: number };
+  createdAt: string;
 }
