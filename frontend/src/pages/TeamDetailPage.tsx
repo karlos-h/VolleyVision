@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership, useTeamInvitations, useCreateInvitation, useHasPermission } from '../hooks';
-import type { Position, TeamRole, InvitationStatus, Invitation } from '../types';
-import { POSITION_LABELS } from '../types';
+import { useTeam, useUpdateTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership, useTeamInvitations, useCreateInvitation, useHasPermission, useApprovalRequests, useApproveRequest, useRejectRequest } from '../hooks';
+import type { Position, TeamRole, InvitationStatus, Invitation, ApprovalRequest } from '../types';
+import { POSITION_LABELS, isPendingApproval } from '../types';
 import { useAuth } from '../context/AuthContext';
 import TeamMembersCard from '../components/team/TeamMembersCard';
 import PermissionGuard from '../components/ui/PermissionGuard';
@@ -33,15 +33,29 @@ function TeamInvitationsCard({ teamId }: { teamId: string }) {
   const [invEmail, setInvEmail] = useState('');
   const [invRole, setInvRole] = useState<TeamRole>('PLAYER');
   const [invError, setInvError] = useState('');
+  const [invNotice, setInvNotice] = useState('');
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setInvError('');
+    setInvNotice('');
+    const email = invEmail.trim();
     try {
-      await createInv.mutateAsync({ email: invEmail.trim(), role: invRole });
+      const result = await createInv.mutateAsync({ email, role: invRole });
       setInvEmail('');
       setInvRole('PLAYER');
       setShowForm(false);
+      if (isPendingApproval(result)) {
+        setInvNotice(`Invitation to ${email} submitted for the head coach's approval.`);
+      } else if (result.emailSent) {
+        setInvNotice(`Invitation sent to ${email} — they'll receive a join code by email.`);
+      } else {
+        // Email didn't go out (SMTP not configured or delivery failed) — give the
+        // coach the code to share manually rather than failing the whole action.
+        setInvNotice(
+          `Invite created, but the email failed to send — share this code manually${result.joinCode ? `: ${result.joinCode}` : '.'}`,
+        );
+      }
     } catch (err: any) {
       setInvError(err?.response?.data?.error ?? "Couldn't send that invitation. Try again.");
     }
@@ -97,6 +111,13 @@ function TeamInvitationsCard({ teamId }: { teamId: string }) {
         </form>
       )}
 
+      {invNotice && (
+        <div className="px-5 py-3 border-b border-court-800 text-sm text-chalk-100 bg-gold-500/10 flex items-center justify-between gap-3">
+          <span>{invNotice}</span>
+          <button className="text-chalk-500 hover:text-chalk-200 text-xs" onClick={() => setInvNotice('')}>Dismiss</button>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-chalk-400 text-sm p-5">Loading…</p>
       ) : !invitations?.length ? (
@@ -142,6 +163,81 @@ const POSITION_COLORS: Record<Position, string> = {
   DEFENSIVE_SPECIALIST: 'bg-gold-500/40 text-gold-500',
 };
 
+// ── Approval queue (Stabilization Pass 2) ────────────────────────────────────
+// Head coach / owner reviews structural changes submitted by other staff.
+const APPROVAL_LABELS: Record<ApprovalRequest['action'], string> = {
+  PLAYER_CREATE: 'Add player',
+  PLAYER_UPDATE: 'Edit player',
+  PLAYER_DELETE: 'Remove player',
+  MATCH_CREATE: 'Create match',
+  MATCH_UPDATE: 'Edit match',
+  MATCH_DELETE: 'Delete match',
+  INVITATION_CREATE: 'Send invitation',
+};
+
+function describeApproval(req: ApprovalRequest): string {
+  const p = req.payload as Record<string, unknown>;
+  switch (req.action) {
+    case 'PLAYER_CREATE':
+      return `#${p.jerseyNumber} ${p.firstName} ${p.lastName}`;
+    case 'MATCH_CREATE':
+      return `vs ${p.opponent}`;
+    case 'INVITATION_CREATE':
+      return `${p.email} as ${String(p.role).replace(/_/g, ' ').toLowerCase()}`;
+    default:
+      return '';
+  }
+}
+
+function ApprovalQueueCard({ teamId }: { teamId: string }) {
+  const { data: requests, isLoading } = useApprovalRequests(teamId, 'PENDING');
+  const approve = useApproveRequest(teamId);
+  const reject = useRejectRequest(teamId);
+
+  if (isLoading || !requests || requests.length === 0) return null;
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3 border-b border-court-800 flex items-center justify-between">
+        <h2 className="font-semibold text-chalk-100">Pending approval</h2>
+        <span className="badge bg-gold-500/30 text-gold-500 text-xs">{requests.length}</span>
+      </div>
+      <div className="divide-y divide-court-800">
+        {requests.map((req) => (
+          <div key={req.id} className="px-5 py-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-chalk-100">
+                <span className="font-medium">{APPROVAL_LABELS[req.action]}</span>
+                {describeApproval(req) && <span className="text-chalk-400"> · {describeApproval(req)}</span>}
+              </p>
+              <p className="text-xs text-chalk-500 mt-0.5">
+                Requested by {req.requestedBy.firstName} {req.requestedBy.lastName} ·{' '}
+                {new Date(req.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                className="btn-secondary text-xs px-3 py-1.5"
+                disabled={reject.isPending}
+                onClick={() => reject.mutate(req.id)}
+              >
+                Reject
+              </button>
+              <button
+                className="btn-primary text-xs px-3 py-1.5"
+                disabled={approve.isPending}
+                onClick={() => approve.mutate(req.id)}
+              >
+                Approve
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { data: team, isLoading } = useTeam(teamId!);
@@ -151,11 +247,14 @@ export default function TeamDetailPage() {
   const updatePlayer = useUpdatePlayer(teamId!);
   const claimTeam = useClaimTeam();
   const transferOwnership = useTransferOwnership();
+  const updateTeam = useUpdateTeam();
+  const canManageTeam = useHasPermission(teamId!, 'MANAGE_TEAM');
 
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferEmail, setTransferEmail] = useState('');
 
   const [showForm, setShowForm] = useState(false);
+  const [pendingNotice, setPendingNotice] = useState('');
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -174,13 +273,21 @@ export default function TeamDetailPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    await createPlayer.mutateAsync({
+    const playerName = `${form.firstName} ${form.lastName}`.trim();
+    const result = await createPlayer.mutateAsync({
       ...form,
       jerseyNumber: Number(form.jerseyNumber),
       teamId: teamId!,
     });
     setForm({ firstName: '', lastName: '', jerseyNumber: '', position: 'SETTER' });
     setShowForm(false);
+    // Non-head-coach adds are queued rather than applied — reflect that instead
+    // of implying the player is already on the roster.
+    setPendingNotice(
+      isPendingApproval(result)
+        ? `${playerName} submitted for the head coach's approval.`
+        : '',
+    );
   }
 
   function startEdit(player: { id: string; firstName: string; lastName: string; jerseyNumber: number; position: Position }) {
@@ -222,8 +329,22 @@ export default function TeamDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-chalk-100">{team.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-chalk-100">{team.name}</h1>
+            {team.isPublic === false && (
+              <span className="badge bg-navy-700 text-navy-100 text-xs">Private</span>
+            )}
+          </div>
           <p className="text-chalk-400 text-sm mt-0.5">{team.division} · Season {team.season}</p>
+          {canManageTeam && (
+            <button
+              className="text-xs text-chalk-500 hover:text-chalk-200 transition-colors mt-1"
+              disabled={updateTeam.isPending}
+              onClick={() => updateTeam.mutate({ id: teamId!, data: { isPublic: !(team.isPublic ?? true) } })}
+            >
+              {team.isPublic === false ? 'Make public' : 'Make private'}
+            </button>
+          )}
         </div>
         <div className="flex gap-2">
           <Link to={`/teams/${teamId}/dashboard`} className="btn-secondary text-sm">
@@ -232,13 +353,24 @@ export default function TeamDetailPage() {
           <Link to={`/teams/${teamId}/matches`} className="btn-secondary text-sm">
             Matches
           </Link>
-          <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
+          <PermissionGuard teamId={teamId!} permission="MANAGE_ROSTER">
             <button className={showForm ? 'btn-secondary text-sm' : 'btn-primary text-sm'} onClick={() => setShowForm(!showForm)}>
               {showForm ? 'Cancel' : '+ Add player'}
             </button>
           </PermissionGuard>
         </div>
       </div>
+
+      {/* Pending-approval confirmation after a queued action */}
+      {pendingNotice && (
+        <div className="card p-4 border border-gold-500/30 bg-gold-500/10 text-sm text-chalk-100 flex items-center justify-between gap-3">
+          <span>{pendingNotice}</span>
+          <button className="text-chalk-500 hover:text-chalk-200 text-xs" onClick={() => setPendingNotice('')}>Dismiss</button>
+        </div>
+      )}
+
+      {/* Approval queue — head coach / owner only */}
+      {canManageTeam && <ApprovalQueueCard teamId={teamId!} />}
 
       {/* Ownership card */}
       <div className="card p-5">

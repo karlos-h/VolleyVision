@@ -100,6 +100,23 @@ enum InvitationStatus {
   EXPIRED
 }
 
+// Stabilization Pass 2 — Head-coach approval queue
+enum ApprovalAction {
+  PLAYER_CREATE
+  PLAYER_UPDATE
+  PLAYER_DELETE
+  MATCH_CREATE
+  MATCH_UPDATE
+  MATCH_DELETE
+  INVITATION_CREATE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Phase 5 Sprint 1 — Authentication
@@ -129,6 +146,10 @@ model User {
   // Phase 5 Sprint 4 — Invitations
   sentInvitations Invitation[]
 
+  // Stabilization Pass 2 — Approval queue
+  requestedApprovals ApprovalRequest[] @relation("ApprovalRequester")
+  resolvedApprovals  ApprovalRequest[] @relation("ApprovalResolver")
+
   // Phase 5 Sprint 5 — Profile
   bio          String?
   phoneNumber  String?  @map("phone_number")
@@ -155,6 +176,11 @@ model Team {
   division  String?
   season    String
 
+  // Stabilization Pass 2 — team visibility. Default true keeps existing rows and
+  // current behaviour (all teams public). New teams pre-fill from
+  // DEFAULT_TEAM_VISIBILITY at creation, but the coach chooses per-team.
+  isPublic  Boolean  @default(true) @map("is_public")
+
   // Phase 5 Sprint 2 — nullable so existing teams remain intact
   ownerId   String?  @map("owner_id")
   owner     User?    @relation(fields: [ownerId], references: [id])
@@ -173,6 +199,9 @@ model Team {
 
   // Phase 5 Sprint 4 — Invitations
   invitations Invitation[]
+
+  // Stabilization Pass 2 — Approval queue
+  approvalRequests ApprovalRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -227,6 +256,10 @@ model Invitation {
   status      InvitationStatus @default(PENDING)
   token       String           @unique
 
+  // Stabilization Pass 2 — short human-enterable code for the email flow.
+  // Nullable so pre-existing invitations remain valid (they use `token`).
+  joinCode    String?          @unique @map("join_code")
+
   expiresAt   DateTime         @map("expires_at")
   acceptedAt  DateTime?        @map("accepted_at")
 
@@ -241,6 +274,36 @@ model Invitation {
   @@index([email])
 
   @@map("invitations")
+}
+
+// Stabilization Pass 2 — Head-coach approval queue
+// Structural team changes (player/match CRUD, invitations) attempted by a
+// non-head-coach are recorded here as PENDING instead of applied immediately.
+// The head coach/owner approves (applies the change) or rejects. Live
+// match-tracking actions are intentionally NOT routed through this system.
+model ApprovalRequest {
+  id            String         @id @default(cuid())
+  teamId        String         @map("team_id")
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  requestedById String         @map("requested_by_id")
+  requestedBy   User           @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  action        ApprovalAction
+  // The create/update/delete data needed to apply the change once approved.
+  payload       Json
+  // playerId/matchId for update/delete actions; null for create.
+  targetId      String?        @map("target_id")
+
+  status        ApprovalStatus @default(PENDING)
+  resolvedById  String?        @map("resolved_by_id")
+  resolvedBy    User?          @relation("ApprovalResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt    DateTime?      @map("resolved_at")
+
+  createdAt     DateTime       @default(now())
+
+  @@index([teamId, status])
+  @@map("approval_requests")
 }
 
 model Player {

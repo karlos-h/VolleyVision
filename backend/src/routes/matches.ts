@@ -8,8 +8,9 @@ import {
   updateScore,
   resetSetScore,
 } from '../controllers/matches';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, optionalAuth } from '../middleware/auth';
 import { requireMatchPermission } from '../middleware/permissions';
+import { visibleByTeamParam, visibleByMatchParam } from '../middleware/visibility';
 import { Permission } from '../services/permission.service';
 
 // For POST /matches we need teamId from the body to check permissions.
@@ -29,8 +30,8 @@ async function requireCreateMatch(req: Request, res: Response, next: NextFunctio
 
 const router = Router();
 
-router.get('/by-team/:teamId', getMatchesByTeam);
-router.get('/:id', getMatch);
+router.get('/by-team/:teamId', optionalAuth, visibleByTeamParam('teamId'), getMatchesByTeam);
+router.get('/:id', optionalAuth, visibleByMatchParam('id'), getMatch);
 router.post('/', requireAuth, requireCreateMatch, createMatch);
 router.patch('/:id', requireAuth, requireMatchPermission(Permission.EDIT_MATCH), updateMatch);
 router.patch('/:id/score', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), updateScore);

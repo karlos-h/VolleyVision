@@ -9,6 +9,9 @@ export enum Permission {
   // Membership
   MANAGE_MEMBERS  = 'MANAGE_MEMBERS',
   INVITE_USERS    = 'INVITE_USERS',
+  // Roster (Stabilization Pass 2) — attempt player create/update/delete.
+  // Head coaches apply immediately; assistant coaches route through approval.
+  MANAGE_ROSTER   = 'MANAGE_ROSTER',
   // Matches
   CREATE_MATCH    = 'CREATE_MATCH',
   EDIT_MATCH      = 'EDIT_MATCH',
@@ -29,6 +32,7 @@ const ROLE_PERMISSIONS: Record<string, Set<Permission>> = {
     Permission.TRANSFER_OWNERSHIP,
     Permission.MANAGE_MEMBERS,
     Permission.INVITE_USERS,
+    Permission.MANAGE_ROSTER,
     Permission.CREATE_MATCH,
     Permission.EDIT_MATCH,
     Permission.DELETE_MATCH,
@@ -38,6 +42,7 @@ const ROLE_PERMISSIONS: Record<string, Set<Permission>> = {
     Permission.VIEW_TEAM,
   ]),
   ASSISTANT_COACH: new Set([
+    Permission.MANAGE_ROSTER,
     Permission.CREATE_MATCH,
     Permission.EDIT_MATCH,
     Permission.TRACK_MATCH,
@@ -97,6 +102,17 @@ export async function hasTeamPermission(
   const { role } = await getUserTeamRole(userId, teamId);
   if (!role) return false;
   return roleHasPermission(role, permission);
+}
+
+/**
+ * Stabilization Pass 2 — approval-queue exemption.
+ * The team owner and any HEAD_COACH member apply structural changes
+ * immediately; everyone else routes through the approval queue.
+ * (getUserTeamRole already maps the owner to role 'HEAD_COACH'.)
+ */
+export async function isHeadCoachOrOwner(userId: string, teamId: string): Promise<boolean> {
+  const { role, isOwner } = await getUserTeamRole(userId, teamId);
+  return isOwner || role === 'HEAD_COACH';
 }
 
 // ─── Convenience helpers ──────────────────────────────────────────────────────

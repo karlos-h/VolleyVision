@@ -1,6 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi } from '../lib/api';
-import type { Team, Player, Match, TeamRole } from '../types';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, configApi, approvalApi } from '../lib/api';
+import type { Team, Player, Match, TeamRole, ApprovalStatus } from '../types';
+
+// ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
+export function useApprovalRequests(teamId: string, status?: ApprovalStatus, enabled = true) {
+  return useQuery({
+    queryKey: ['approvals', teamId, status],
+    queryFn: () => approvalApi.listByTeam(teamId, status),
+    enabled: enabled && !!teamId,
+  });
+}
+
+export function useApproveRequest(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => approvalApi.approve(id),
+    onSuccess: () => {
+      // The approved change was applied — refresh everything it could have touched.
+      qc.invalidateQueries({ queryKey: ['approvals', teamId] });
+      qc.invalidateQueries({ queryKey: ['players', teamId] });
+      qc.invalidateQueries({ queryKey: ['matches', teamId] });
+      qc.invalidateQueries({ queryKey: ['teams', teamId] });
+      qc.invalidateQueries({ queryKey: ['invitations', 'team', teamId] });
+    },
+  });
+}
+
+export function useRejectRequest(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => approvalApi.reject(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['approvals', teamId] }),
+  });
+}
+
+// ─── Config ────────────────────────────────────────────────────────────────────
+// Client config (e.g. default team visibility) is static per deployment — cache
+// it for the session so the create-team form can prefill without a flash.
+export function useConfig() {
+  return useQuery({ queryKey: ['config'], queryFn: configApi.get, staleTime: Infinity });
+}
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
 export function useTeams() {
@@ -53,7 +92,12 @@ export function useCreatePlayer() {
   return useMutation({
     mutationFn: (data: Omit<Player, 'id' | 'createdAt' | 'updatedAt'>) =>
       playersApi.create(data),
-    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ['players', vars.teamId] }),
+    // Invalidate both the roster and the approval queue — a non-head-coach add
+    // shows up as pending rather than in the roster.
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['players', vars.teamId] });
+      qc.invalidateQueries({ queryKey: ['approvals', vars.teamId] });
+    },
   });
 }
 
@@ -61,7 +105,10 @@ export function useDeletePlayer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { id: string; teamId: string }) => playersApi.delete(vars.id),
-    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ['players', vars.teamId] }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['players', vars.teamId] });
+      qc.invalidateQueries({ queryKey: ['approvals', vars.teamId] });
+    },
   });
 }
 
@@ -72,6 +119,8 @@ export function useUpdatePlayer(teamId: string) {
       playersApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['teams', teamId] });
+      qc.invalidateQueries({ queryKey: ['players', teamId] });
+      qc.invalidateQueries({ queryKey: ['approvals', teamId] });
     },
   });
 }
@@ -123,7 +172,10 @@ export function useCreateMatch() {
   return useMutation({
     mutationFn: (data: Omit<Match, 'id' | 'createdAt' | 'updatedAt' | 'status'>) =>
       matchesApi.create(data),
-    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ['matches', vars.teamId] }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['matches', vars.teamId] });
+      qc.invalidateQueries({ queryKey: ['approvals', vars.teamId] });
+    },
   });
 }
 
@@ -131,7 +183,10 @@ export function useDeleteMatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { id: string; teamId: string }) => matchesApi.delete(vars.id),
-    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ['matches', vars.teamId] }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['matches', vars.teamId] });
+      qc.invalidateQueries({ queryKey: ['approvals', vars.teamId] });
+    },
   });
 }
 
@@ -533,7 +588,22 @@ export function useCreateInvitation(teamId: string) {
   return useMutation({
     mutationFn: (data: { email: string; role: TeamRole }) =>
       invitationsApi.create(teamId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', 'team', teamId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invitations', 'team', teamId] });
+      qc.invalidateQueries({ queryKey: ['approvals', teamId] });
+    },
+  });
+}
+
+export function useRedeemInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => invitationsApi.redeem(code),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invitations', 'me'] });
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: ['memberships', 'me'] });
+    },
   });
 }
 

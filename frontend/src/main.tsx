@@ -11,6 +11,7 @@ import Layout from './components/ui/Layout';
 import RequireAuth from './components/ui/RequireAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RedeemInvitationPage from './pages/RedeemInvitationPage';
 import MyTeamsPage from './pages/MyTeamsPage';
 import InvitationsPage from './pages/InvitationsPage';
 import DashboardPage from './pages/DashboardPage';
@@ -53,6 +54,8 @@ function App() {
           {/* Auth pages — standalone, no Layout chrome */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          {/* Invitation redemption — public so brand-new / logged-out invitees can join */}
+          <Route path="/invitations/redeem" element={<RedeemInvitationPage />} />
           {/* Post-registration onboarding nudges — one-time, intent-driven */}
           <Route path="/onboarding/coach" element={<OnboardingCoachPage />} />
           <Route path="/onboarding/player" element={<OnboardingPlayerPage />} />

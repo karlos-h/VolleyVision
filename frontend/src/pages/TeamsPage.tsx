@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useTeams, useCreateTeam, useDeleteTeam, useUpdateTeam } from '../hooks';
+import { useTeams, useCreateTeam, useDeleteTeam, useUpdateTeam, useConfig } from '../hooks';
 
 export default function TeamsPage() {
   const { data: teams, isLoading } = useTeams();
+  const { data: config } = useConfig();
   const createTeam = useCreateTeam();
   const deleteTeam = useDeleteTeam();
   const updateTeam = useUpdateTeam();
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', division: '', season: '' });
+  const [form, setForm] = useState({ name: '', division: '', season: '', isPublic: true });
+
+  // Prefill the visibility toggle from the deployment default once config loads.
+  useEffect(() => {
+    if (config) setForm((f) => ({ ...f, isPublic: config.defaultTeamVisibility === 'public' }));
+  }, [config]);
 
   // Per-card edit state: teamId → edit form values
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -19,7 +25,7 @@ export default function TeamsPage() {
     e.preventDefault();
     if (!form.name || !form.season) return;
     await createTeam.mutateAsync(form);
-    setForm({ name: '', division: '', season: '' });
+    setForm({ name: '', division: '', season: '', isPublic: config?.defaultTeamVisibility !== 'private' });
     setShowForm(false);
   }
 
@@ -81,9 +87,39 @@ export default function TeamsPage() {
                 required
               />
             </div>
+            {/* Visibility toggle — prefilled from the deployment default, changeable per team */}
+            <div className="sm:col-span-3">
+              <label className="block text-xs text-chalk-400 mb-1.5">Visibility</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, isPublic: true })}
+                  className={`flex-1 rounded-xl border px-4 py-2.5 text-sm text-left transition-colors ${
+                    form.isPublic
+                      ? 'bg-gold-500/15 border-gold-500/50 text-chalk-100'
+                      : 'bg-navy-700 border-navy-600 text-chalk-400 hover:border-navy-500'
+                  }`}
+                >
+                  <span className="font-medium block">Public</span>
+                  <span className="text-xs text-chalk-500">Anyone can view this team's stats</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, isPublic: false })}
+                  className={`flex-1 rounded-xl border px-4 py-2.5 text-sm text-left transition-colors ${
+                    !form.isPublic
+                      ? 'bg-gold-500/15 border-gold-500/50 text-chalk-100'
+                      : 'bg-navy-700 border-navy-600 text-chalk-400 hover:border-navy-500'
+                  }`}
+                >
+                  <span className="font-medium block">Private</span>
+                  <span className="text-xs text-chalk-500">Only members and admins can view</span>
+                </button>
+              </div>
+            </div>
             <div className="sm:col-span-3 flex gap-2">
               <button type="submit" className="btn-primary" disabled={createTeam.isPending}>
-                {createTeam.isPending ? 'Creating…' : 'Create Team'}
+                {createTeam.isPending ? 'Creating…' : 'Create team'}
               </button>
             </div>
           </form>

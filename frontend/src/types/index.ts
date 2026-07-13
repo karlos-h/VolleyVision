@@ -252,6 +252,8 @@ export interface Team {
   name: string;
   division?: string;
   season: string;
+  // Stabilization Pass 2 — team visibility (defaults true for existing teams)
+  isPublic?: boolean;
   // Phase 5 Sprint 2 — optional because existing teams have no owner
   ownerId?: string | null;
   owner?: TeamOwner | null;
@@ -260,6 +262,42 @@ export interface Team {
   _count?: { players: number; matches: number };
   players?: Player[];
   matches?: Match[];
+}
+
+export interface ClientConfig {
+  defaultTeamVisibility: 'public' | 'private';
+}
+
+// ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
+// A non-head-coach mutation returns this 202 body instead of the created/updated
+// resource — the change is queued for the head coach to approve.
+export interface PendingApproval {
+  status: 'pending_approval';
+  requestId: string;
+}
+
+export function isPendingApproval(x: unknown): x is PendingApproval {
+  return typeof x === 'object' && x !== null && (x as { status?: unknown }).status === 'pending_approval';
+}
+
+export type ApprovalAction =
+  | 'PLAYER_CREATE' | 'PLAYER_UPDATE' | 'PLAYER_DELETE'
+  | 'MATCH_CREATE' | 'MATCH_UPDATE' | 'MATCH_DELETE'
+  | 'INVITATION_CREATE';
+
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface ApprovalRequest {
+  id: string;
+  teamId: string;
+  action: ApprovalAction;
+  status: ApprovalStatus;
+  payload: Record<string, unknown>;
+  targetId: string | null;
+  requestedBy: { id: string; firstName: string; lastName: string; email: string };
+  team: { id: string; name: string };
+  resolvedAt: string | null;
+  createdAt: string;
 }
 
 export interface Player {
@@ -677,6 +715,9 @@ export interface Invitation {
   role: TeamRole;
   status: InvitationStatus;
   token: string;
+  // Stabilization Pass 2 — join code + email-delivery status (present on newly created invitations)
+  joinCode?: string | null;
+  emailSent?: boolean;
   expiresAt: string;
   acceptedAt: string | null;
   createdAt: string;

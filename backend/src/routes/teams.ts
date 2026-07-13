@@ -3,8 +3,10 @@ import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../contro
 import { myTeams, claimTeam, transferTeam, teamOwner } from '../controllers/teamOwnership';
 import { listMembers, createMember, updateMember, deleteMember } from '../controllers/teamMembership';
 import { createTeamInvitation, listTeamInvitations } from '../controllers/invitation';
-import { requireAuth } from '../middleware/auth';
+import { listTeamApprovalRequests } from '../controllers/approval';
+import { requireAuth, optionalAuth } from '../middleware/auth';
 import { requireTeamPermission } from '../middleware/permissions';
+import { visibleByTeamParam } from '../middleware/visibility';
 import { Permission, getUserTeamRole, getPermissionsForRole } from '../services/permission.service';
 
 const router = Router();
@@ -12,9 +14,10 @@ const router = Router();
 // Named routes first (must come before /:id to avoid conflict)
 router.get('/my-teams', requireAuth, myTeams);
 
-// Standard CRUD — reads are public, mutations require auth + permission
-router.get('/', getTeams);
-router.get('/:id', getTeam);
+// Standard CRUD — reads are public for public teams; private teams are gated
+// by visibility (optionalAuth populates req.user when a token is present).
+router.get('/', optionalAuth, getTeams);
+router.get('/:id', optionalAuth, visibleByTeamParam('id'), getTeam);
 router.post('/', requireAuth, createTeam);
 router.patch('/:id', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), updateTeam);
 router.delete('/:id', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), deleteTeam);
@@ -31,12 +34,12 @@ router.get('/:id/my-role', requireAuth, async (req, res, next) => {
 });
 
 // Ownership actions
-router.get('/:id/owner', teamOwner);
+router.get('/:id/owner', optionalAuth, visibleByTeamParam('id'), teamOwner);
 router.post('/:id/claim', requireAuth, claimTeam);
 router.post('/:id/transfer', requireAuth, requireTeamPermission(Permission.TRANSFER_OWNERSHIP), transferTeam);
 
 // Membership management
-router.get('/:id/members', listMembers);
+router.get('/:id/members', optionalAuth, visibleByTeamParam('id'), listMembers);
 router.post('/:id/members',   requireAuth, requireTeamPermission(Permission.MANAGE_MEMBERS), createMember);
 router.patch('/:id/members/:memberId', requireAuth, requireTeamPermission(Permission.MANAGE_MEMBERS), updateMember);
 router.delete('/:id/members/:memberId', requireAuth, requireTeamPermission(Permission.MANAGE_MEMBERS), deleteMember);
@@ -44,5 +47,8 @@ router.delete('/:id/members/:memberId', requireAuth, requireTeamPermission(Permi
 // Invitation management
 router.get('/:id/invitations',  requireAuth, listTeamInvitations);
 router.post('/:id/invitations', requireAuth, requireTeamPermission(Permission.INVITE_USERS), createTeamInvitation);
+
+// Approval queue — list is head-coach/owner only (MANAGE_TEAM = head coach)
+router.get('/:id/approval-requests', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), listTeamApprovalRequests);
 
 export default router;

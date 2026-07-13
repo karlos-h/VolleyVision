@@ -18,6 +18,8 @@ import coachPortalRoutes from './routes/coachPortal';
 import auditRoutes from './routes/audit';
 import videoRoutes from './routes/videos';
 import leagueRoutes from './routes/league';
+import configRoutes from './routes/config';
+import approvalRoutes from './routes/approvals';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -34,6 +36,7 @@ app.use(express.json());
 // ─── Routes ───────────────────────────────────────────────────────────────────
 // All routes versioned under /api/v1 so Phase 2+ can introduce /api/v2 without
 // breaking existing clients (e.g. a tablet app locked on an old version).
+app.use('/api/v1/config', configRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/invitations', invitationRoutes);
@@ -48,6 +51,7 @@ app.use('/api/v1/events', eventRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1', videoRoutes);
 app.use('/api/v1/leagues', leagueRoutes);
+app.use('/api/v1/approval-requests', approvalRoutes);
 
 // Health check — useful for deployment monitoring and CI pipelines
 app.get('/health', (_req, res) => {

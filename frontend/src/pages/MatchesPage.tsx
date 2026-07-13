@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTeam, useMatches, useCreateMatch, useDeleteMatch } from '../hooks';
+import { isPendingApproval } from '../types';
 
 const STATUS_STYLES = {
   SCHEDULED: 'bg-info/40 text-info',
@@ -30,6 +31,7 @@ export default function MatchesPage() {
   const navigate = useNavigate();
 
   const [showForm, setShowForm] = useState(false);
+  const [pendingNotice, setPendingNotice] = useState('');
   const [form, setForm] = useState({
     matchDate: '',
     opponent: '',
@@ -39,8 +41,17 @@ export default function MatchesPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    const match = await createMatch.mutateAsync({ ...form, teamId: teamId! });
-    navigate(`/track/${match.id}`);
+    const opponent = form.opponent;
+    const result = await createMatch.mutateAsync({ ...form, teamId: teamId! });
+    // Non-head-coach creates are queued — no match exists yet, so don't jump to
+    // tracking; confirm it's awaiting approval instead.
+    if (isPendingApproval(result)) {
+      setShowForm(false);
+      setForm({ matchDate: '', opponent: '', competition: '', venue: '' });
+      setPendingNotice(`Match vs ${opponent} submitted for the head coach's approval.`);
+      return;
+    }
+    navigate(`/track/${result.id}`);
   }
 
   return (
@@ -64,6 +75,14 @@ export default function MatchesPage() {
           {showForm ? 'Cancel' : '+ New match'}
         </button>
       </div>
+
+      {/* Pending-approval confirmation */}
+      {pendingNotice && (
+        <div className="card p-4 border border-gold-500/30 bg-gold-500/10 text-sm text-chalk-100 flex items-center justify-between gap-3">
+          <span>{pendingNotice}</span>
+          <button className="text-chalk-500 hover:text-chalk-200 text-xs" onClick={() => setPendingNotice('')}>Dismiss</button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="card p-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
