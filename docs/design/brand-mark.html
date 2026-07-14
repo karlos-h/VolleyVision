@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0}
+  a{color:#1E2D50;text-decoration:none;border-bottom:1px solid rgba(30,45,80,.3)}
+  a:hover{border-bottom-color:#1E2D50}
+</style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+  <symbol id="ic-combo" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M11 27 Q32 20 53 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q22 32 27 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q42 32 37 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <polyline points="13,45 23,39 30,42 41,28 50,17" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M43 16 L50 17 L49.5 24" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="13" cy="45" r="2.4" fill="var(--accent,#FFB81C)"></circle>
+    <circle cx="30" cy="42" r="2.4" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-combo-m" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M11 27 Q32 20 53 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q22 32 27 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q42 32 37 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <polyline points="13,45 23,39 30,42 41,28 50,17" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M43 16 L50 17 L49.5 24" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="13" cy="45" r="2.4" fill="currentColor"></circle>
+    <circle cx="30" cy="42" r="2.4" fill="currentColor"></circle>
+  </symbol>
+  <symbol id="ic-rally-2" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M23 12 Q31 32 23 52" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.4"></path>
+    <polyline points="16,46 25,39 32,42 41,30 48,20" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M41.5 20 L48 20 L48 26.5" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="16" cy="46" r="2.2" fill="var(--accent,#FFB81C)"></circle>
+    <circle cx="32" cy="42" r="2.2" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-spike-2" viewBox="0 0 64 64">
+    <circle cx="28" cy="38" r="19" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M12 34 Q28 28 44 34" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M28 19 Q20.5 38 25 56" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M28 19 Q35.5 38 31 56" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M14 44 Q30 4 54 22" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round"></path>
+    <path d="M55 16.5 L55 23 L48.5 23" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="14" cy="44" r="2.6" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-part-ball" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M11 27 Q32 20 53 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q22 32 27 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q42 32 37 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+  </symbol>
+  <symbol id="ic-part-line" viewBox="0 0 64 64">
+    <polyline points="13,45 23,39 30,42 41,28 50,17" fill="none" stroke="#FFB81C" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <circle cx="13" cy="45" r="2.4" fill="#FFB81C"></circle>
+    <circle cx="30" cy="42" r="2.4" fill="#FFB81C"></circle>
+  </symbol>
+  <symbol id="ic-part-arrow" viewBox="0 0 64 64">
+    <polyline points="34,32 41,28 50,17" fill="none" stroke="#FFB81C" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"></polyline>
+    <path d="M43 16 L50 17 L49.5 24" fill="none" stroke="#FFB81C" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></path>
+  </symbol>
+</svg>
+
+<div style="background:#F6F7F9;font-family:'Inter',sans-serif;color:#1A1D23;padding:0 0 64px">
+  <div style="max-width:1000px;margin:0 auto;padding:0 24px">
+
+    <!-- HERO -->
+    <div style="background:#111C36;border-radius:24px;margin-top:40px;padding:56px 56px 52px;display:flex;align-items:center;gap:40px;flex-wrap:wrap">
+      <svg width="132" height="132" style="color:#fff;flex:none"><use href="#ic-combo"></use></svg>
+      <div style="min-width:0">
+        <div style="font-family:'Inter',sans-serif;font-weight:600;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#8FA0C4;margin-bottom:12px">VolleyVision · Brand mark</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:64px;line-height:0.95;letter-spacing:-0.01em;color:#fff">VolleyVision</div>
+        <div style="font-family:'Inter',sans-serif;font-weight:500;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#8FA0C4;margin-top:14px">See the game. Raise your game.</div>
+      </div>
+    </div>
+
+    <!-- THE IDEA -->
+    <div style="margin-top:56px">
+      <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:28px;color:#1E2D50;letter-spacing:-0.01em">The idea</div>
+      <p style="font-size:15.5px;line-height:1.6;color:#5A6270;max-width:760px;margin:10px 0 0">The final mark fuses the two directions we liked. From <b style="color:#1E2D50">Spike</b> it takes the volleyball — the curved panel seams that make it unmistakably a ball. From <b style="color:#1E2D50">Rally</b> it takes the gold trend line — data, momentum, a performance climbing upward. Together they say exactly what VolleyVision is: a serious stats tool that belongs courtside.</p>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:28px">
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:22px 26px;display:flex;flex-direction:column;align-items:center;gap:12px;width:200px">
+          <svg width="72" height="72" style="color:#1E2D50"><use href="#ic-spike-2"></use></svg>
+          <div style="text-align:center"><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:16px;color:#1E2D50">Spike</div><div style="font-size:12px;color:#9AA1AD">the volleyball</div></div>
+        </div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:28px;color:#9AA1AD">+</div>
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:22px 26px;display:flex;flex-direction:column;align-items:center;gap:12px;width:200px">
+          <svg width="72" height="72" style="color:#1E2D50"><use href="#ic-rally-2"></use></svg>
+          <div style="text-align:center"><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:16px;color:#1E2D50">Rally</div><div style="font-size:12px;color:#9AA1AD">the trend line</div></div>
+        </div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:28px;color:#9AA1AD">=</div>
+        <div style="background:#111C36;border:1px solid #111C36;border-radius:16px;padding:22px 26px;display:flex;flex-direction:column;align-items:center;gap:12px;width:200px">
+          <svg width="72" height="72" style="color:#fff"><use href="#ic-combo"></use></svg>
+          <div style="text-align:center"><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:16px;color:#fff">Combined mark</div><div style="font-size:12px;color:#8FA0C4">the final logo</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANATOMY / MEANING -->
+    <div style="margin-top:56px;background:#fff;border:1px solid #E2E5EA;border-radius:20px;padding:36px;display:grid;grid-template-columns:300px 1fr;gap:40px;align-items:center">
+      <div style="background:#F6F7F9;border:1px solid #E2E5EA;border-radius:16px;height:300px;display:grid;place-items:center">
+        <svg width="200" height="200" style="color:#1E2D50"><use href="#ic-combo"></use></svg>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:28px;color:#1E2D50;letter-spacing:-0.01em">What it means</div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="width:52px;height:52px;border-radius:12px;background:#F6F7F9;border:1px solid #E2E5EA;display:grid;place-items:center;flex:none"><svg width="34" height="34" style="color:#1E2D50"><use href="#ic-part-ball"></use></svg></div>
+          <div><div style="font-weight:600;font-size:15px;color:#1E2D50">Volleyball seams — <span style="color:#5A6270;font-weight:500">precise</span></div><div style="font-size:13.5px;line-height:1.5;color:#5A6270;margin-top:2px">The ring and three curved panel seams read instantly as a volleyball. Clean, exact, no clutter.</div></div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="width:52px;height:52px;border-radius:12px;background:#F6F7F9;border:1px solid #E2E5EA;display:grid;place-items:center;flex:none"><svg width="34" height="34"><use href="#ic-part-line"></use></svg></div>
+          <div><div style="font-weight:600;font-size:15px;color:#1E2D50">Gold trend line — <span style="color:#5A6270;font-weight:500">motivating</span></div><div style="font-size:13.5px;line-height:1.5;color:#5A6270;margin-top:2px">A bold stat line climbs across the ball — every touch tracked, performance rising. Heavier than the seams so the data always stands out.</div></div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="width:52px;height:52px;border-radius:12px;background:#F6F7F9;border:1px solid #E2E5EA;display:grid;place-items:center;flex:none"><svg width="34" height="34"><use href="#ic-part-arrow"></use></svg></div>
+          <div><div style="font-weight:600;font-size:15px;color:#1E2D50">Breakout arrow — <span style="color:#5A6270;font-weight:500">direct</span></div><div style="font-size:13.5px;line-height:1.5;color:#5A6270;margin-top:2px">The line breaks out of the ball into an upward arrow — forward motion, the elite trajectory, no ornament.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VARIANTS -->
+    <div style="margin-top:56px">
+      <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:28px;color:#1E2D50;letter-spacing:-0.01em">Variants</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:20px">
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px"><div style="height:100px;display:grid;place-items:center"><svg width="80" height="80" style="color:#1E2D50"><use href="#ic-combo"></use></svg></div><span style="font-size:12px;color:#5A6270;font-weight:500">Icon · primary</span></div>
+        <div style="background:#111C36;border:1px solid #111C36;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px"><div style="height:100px;display:grid;place-items:center"><svg width="80" height="80" style="color:#fff"><use href="#ic-combo"></use></svg></div><span style="font-size:12px;color:#8FA0C4;font-weight:500">Icon · reversed</span></div>
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px"><div style="height:100px;display:grid;place-items:center"><svg width="80" height="80" style="color:#1E2D50;--accent:currentColor"><use href="#ic-combo-m"></use></svg></div><span style="font-size:12px;color:#5A6270;font-weight:500">Single-colour</span></div>
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px"><div style="height:100px;display:flex;align-items:center;justify-content:center;gap:16px"><svg width="16" height="16" style="color:#1E2D50"><use href="#ic-combo"></use></svg><svg width="24" height="24" style="color:#1E2D50"><use href="#ic-combo"></use></svg><svg width="40" height="40" style="color:#1E2D50"><use href="#ic-combo"></use></svg></div><span style="font-size:12px;color:#5A6270;font-weight:500">16 / 24 / 40 px</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:26px 30px;display:flex;align-items:center;gap:15px"><svg width="52" height="52" style="color:#1E2D50"><use href="#ic-combo"></use></svg><span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:34px;letter-spacing:-0.01em;color:#1E2D50">VolleyVision</span></div>
+        <div style="background:#111C36;border-radius:16px;padding:26px 30px;display:flex;align-items:center;gap:15px"><svg width="52" height="52" style="color:#fff"><use href="#ic-combo"></use></svg><span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:34px;letter-spacing:-0.01em;color:#fff">VolleyVision</span></div>
+      </div>
+    </div>
+
+    <!-- PALETTE + TYPE -->
+    <div style="margin-top:56px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:26px">
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:20px;color:#1E2D50;margin-bottom:16px">Colour</div>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1"><div style="height:64px;border-radius:12px;background:#1E2D50"></div><div style="font-size:12px;font-weight:600;color:#1E2D50;margin-top:8px">Navy</div><div style="font-size:11px;color:#9AA1AD">#1E2D50</div></div>
+          <div style="flex:1"><div style="height:64px;border-radius:12px;background:#FFB81C"></div><div style="font-size:12px;font-weight:600;color:#1E2D50;margin-top:8px">Gold</div><div style="font-size:11px;color:#9AA1AD">#FFB81C</div></div>
+          <div style="flex:1"><div style="height:64px;border-radius:12px;background:#111C36"></div><div style="font-size:12px;font-weight:600;color:#1E2D50;margin-top:8px">Navy 900</div><div style="font-size:11px;color:#9AA1AD">#111C36</div></div>
+        </div>
+        <div style="font-size:12.5px;color:#5A6270;margin-top:16px;line-height:1.5">Two-colour brand. Gold is an accent (≤15% of the mark) and never used as text on white.</div>
+      </div>
+      <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:26px">
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:20px;color:#1E2D50;margin-bottom:16px">Type</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:30px;color:#1E2D50;letter-spacing:-0.01em;line-height:1.1">Barlow Semi Condensed</div>
+        <div style="font-size:12.5px;color:#9AA1AD;margin-top:2px">Wordmark & headings · 600 / 700</div>
+        <div style="font-family:'Inter',sans-serif;font-weight:500;font-size:20px;color:#1E2D50;margin-top:18px">Inter</div>
+        <div style="font-size:12.5px;color:#9AA1AD;margin-top:2px">UI, body & stats · 400 / 500 / 600</div>
+      </div>
+    </div>
+
+    <!-- IN USE -->
+    <div style="margin-top:56px">
+      <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:28px;color:#1E2D50;letter-spacing:-0.01em">In use</div>
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;margin-top:20px;align-items:start">
+        <div style="background:#fff;border:1px solid #E2E5EA;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:14px">
+          <img src="brand-assets/volleyvision-app-icon-512.png" alt="App icon" style="width:120px;height:120px;border-radius:26px;display:block"></img>
+          <span style="font-size:12px;color:#5A6270;font-weight:500">App icon / favicon</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="border:1px solid #E2E5EA;border-radius:16px;overflow:hidden"><img src="brand-assets/volleyvision-header-1200x360.png" alt="Header" style="width:100%;display:block"></img></div>
+          <div style="border:1px solid #E2E5EA;border-radius:16px;overflow:hidden"><img src="brand-assets/volleyvision-banner-1500x500.png" alt="Banner" style="width:100%;display:block"></img></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOWNLOADS -->
+    <div style="margin-top:56px;background:#111C36;border-radius:20px;padding:36px">
+      <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:24px;color:#fff;letter-spacing:-0.01em">Download the kit</div>
+      <p style="font-size:14px;line-height:1.6;color:#8FA0C4;max-width:680px;margin:10px 0 24px">A download card for the full <b style="color:#fff">brand-assets</b> folder is in the chat. SVGs are vector (scale to any size, editable); PNGs are ready to drop in as-is. Fonts are Barlow Semi Condensed + Inter (free on Google Fonts).</p>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+        <div style="background:#1A2745;border:1px solid #2A3A63;border-radius:12px;padding:16px 18px"><div style="font-weight:600;font-size:14px;color:#fff">Icon</div><div style="font-size:12px;color:#8FA0C4;margin-top:4px;line-height:1.6">icon.svg · icon-512/256.png · favicon-64/32.png · app-icon-512.png · reversed & single-colour</div></div>
+        <div style="background:#1A2745;border:1px solid #2A3A63;border-radius:12px;padding:16px 18px"><div style="font-weight:600;font-size:14px;color:#fff">Logo lockup</div><div style="font-size:12px;color:#8FA0C4;margin-top:4px;line-height:1.6">logo-horizontal.svg · logo-horizontal-reversed.svg</div></div>
+        <div style="background:#1A2745;border:1px solid #2A3A63;border-radius:12px;padding:16px 18px"><div style="font-weight:600;font-size:14px;color:#fff">Header</div><div style="font-size:12px;color:#8FA0C4;margin-top:4px;line-height:1.6">header.svg · header-1200x360.png</div></div>
+        <div style="background:#1A2745;border:1px solid #2A3A63;border-radius:12px;padding:16px 18px"><div style="font-weight:600;font-size:14px;color:#fff">Banner</div><div style="font-size:12px;color:#8FA0C4;margin-top:4px;line-height:1.6">banner.svg · banner-1500x500.png</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -8,7 +8,7 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   return (
     <div className="card p-4">
       <p className="text-xs text-navy-300">{label}</p>
-      <p className="tabular-nums text-2xl font-bold text-white mt-1">{value}</p>
+      <p className="tabular-nums text-2xl font-bold text-grey-900 mt-1">{value}</p>
       {sub && <p className="text-xs text-navy-300 mt-0.5">{sub}</p>}
     </div>
   );
@@ -19,7 +19,7 @@ function TeamCard({ team }: { team: TeamSummary }) {
     <div className="card p-4 flex flex-col gap-3">
       <div>
         <div className="flex items-center justify-between gap-2">
-          <p className="font-semibold text-white text-sm leading-tight">{team.name}</p>
+          <p className="font-semibold text-grey-900 text-sm leading-tight">{team.name}</p>
           {team.memberRole && (
             <span className="badge bg-info/30 text-info text-xs shrink-0">{team.memberRole.replace(/_/g, ' ')}</span>
           )}
@@ -28,7 +28,7 @@ function TeamCard({ team }: { team: TeamSummary }) {
       </div>
       <div className="flex gap-2 text-center">
         <div className="flex-1 bg-navy-700 rounded-lg py-1.5">
-          <div className="tabular-nums font-bold text-gold-500 text-sm">{team._count.players}</div>
+          <div className="tabular-nums font-bold text-navy-700 text-sm">{team._count.players}</div>
           <div className="text-xs text-navy-300">Players</div>
         </div>
         <div className="flex-1 bg-navy-700 rounded-lg py-1.5">
@@ -51,17 +51,17 @@ function MatchRow({ match }: { match: MatchSummaryItem }) {
   return (
     <div className="flex items-center gap-4 px-5 py-3">
       <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-medium truncate">vs {match.opponent}</p>
+        <p className="text-grey-900 text-sm font-medium truncate">vs {match.opponent}</p>
         <p className="text-navy-300 text-xs">
           {match.team.name} · {new Date(match.matchDate).toLocaleDateString()}
         </p>
       </div>
       {isCompleted ? (
-        <span className={`badge text-sm ${won ? 'bg-success/30 text-success-dark' : 'bg-error/30 text-error-dark'}`}>
+        <span className={`badge text-sm ${won ? 'bg-success/30 text-success' : 'bg-error/30 text-error'}`}>
           {match.homeSetsWon}–{match.awaySetsWon} {won ? 'W' : 'L'}
         </span>
       ) : (
-        <span className="badge bg-gold-500/30 text-gold-500 text-xs">
+        <span className="badge bg-gold-500/30 text-navy-700 text-xs">
           {match.status.replace('_', ' ')}
         </span>
       )}
@@ -79,7 +79,7 @@ export default function CoachDashboardPage() {
   const pendingInvitations = invitations?.length ?? 0;
 
   if (isLoading) return <p className="text-navy-300">Loading dashboard…</p>;
-  if (!data) return <p className="text-error-dark">Couldn't load coach dashboard.</p>;
+  if (!data) return <p className="text-error">Couldn't load coach dashboard.</p>;
 
   const { ownedTeams, memberTeams, coachingStats, recentMatches, upcomingMatches } = data;
 
@@ -88,7 +88,7 @@ export default function CoachDashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-grey-900">
             Welcome back, {user?.firstName}
           </h1>
           <p className="text-navy-300 text-sm mt-0.5">Coach dashboard</p>
@@ -127,7 +127,7 @@ export default function CoachDashboardPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-navy-300">My teams</h2>
-            <Link to="/my-teams" className="text-xs text-navy-300 hover:text-navy-100 transition-colors">View all →</Link>
+            <Link to="/teams" className="text-xs text-navy-300 hover:text-navy-100 transition-colors">View all →</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {ownedTeams.map((team) => <TeamCard key={team.id} team={team} />)}

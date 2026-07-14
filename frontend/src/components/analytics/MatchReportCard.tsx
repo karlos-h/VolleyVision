@@ -19,7 +19,7 @@ function ReportSection({ title, children }: { title: string; children: React.Rea
 function Highlight({ icon, text }: { icon: string; text: string }) {
   return (
     <div className="flex items-start gap-2 text-sm text-chalk-300">
-      <span className="shrink-0 text-spike-400">{icon}</span>
+      <span className="shrink-0 text-navy-700">{icon}</span>
       <span>{text}</span>
     </div>
   );
@@ -102,7 +102,7 @@ export default function MatchReportCard({ report }: Props) {
       <div className="bg-court-900 border-b border-court-800 px-5 py-4 flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-xs font-semibold text-spike-400">Match Report</span>
+            <span className="text-xs font-semibold text-navy-700">Match Report</span>
           </div>
           <p className="text-xs text-chalk-500">
             Generated {format(new Date(report.generatedAt), 'PPP · p')}
@@ -120,7 +120,7 @@ export default function MatchReportCard({ report }: Props) {
         {/* Result */}
         <div>
           <p className={`text-lg font-bold leading-snug ${
-            result.winner === 'home' ? 'text-spike-400' : result.winner === 'away' ? 'text-chalk-300' : 'text-chalk-100'
+            result.winner === 'home' ? 'text-navy-700' : result.winner === 'away' ? 'text-chalk-300' : 'text-chalk-100'
           }`}>
             {result.resultText}
           </p>
@@ -133,7 +133,7 @@ export default function MatchReportCard({ report }: Props) {
                     key={s.set}
                     className={`text-xs font-mono px-2 py-0.5 rounded border ${
                       homeWon
-                        ? 'text-spike-400 border-spike-500/30 bg-spike-500/10'
+                        ? 'text-navy-700 border-spike-500/30 bg-spike-500/10'
                         : 'text-chalk-400 border-court-700 bg-court-800'
                     }`}
                   >
@@ -150,7 +150,7 @@ export default function MatchReportCard({ report }: Props) {
           <ReportSection title="Top Performer">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-spike-500/20 border border-spike-500/30 flex items-center justify-center shrink-0">
-                <span className="font-mono font-bold text-spike-400 text-sm">#{topPerformer.player.jerseyNumber}</span>
+                <span className="font-mono font-bold text-navy-700 text-sm">#{topPerformer.player.jerseyNumber}</span>
               </div>
               <div>
                 <div className="font-semibold text-chalk-100">
@@ -229,7 +229,7 @@ export default function MatchReportCard({ report }: Props) {
                     <p className="text-xs text-chalk-500 mt-0.5">Kills</p>
                   </div>
                   <div className="text-center">
-                    <p className={`font-mono text-xl font-bold ${attack.hittingPct != null && attack.hittingPct >= 0.25 ? 'text-success-dark' : attack.hittingPct != null && attack.hittingPct >= 0 ? 'text-spike-400' : 'text-error-dark'}`}>
+                    <p className={`font-mono text-xl font-bold ${attack.hittingPct != null && attack.hittingPct >= 0.25 ? 'text-success' : attack.hittingPct != null && attack.hittingPct >= 0 ? 'text-navy-700' : 'text-error'}`}>
                       {attack.hittingPct != null ? `${attack.hittingPct >= 0 ? '+' : ''}${(attack.hittingPct * 100).toFixed(0)}%` : '—'}
                     </p>
                     <p className="text-xs text-chalk-500 mt-0.5">Hit %</p>

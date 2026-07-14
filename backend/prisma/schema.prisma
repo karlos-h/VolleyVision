@@ -176,14 +176,10 @@ model Team {
   division  String?
   season    String
 
-  // Stabilization Pass 2 — team visibility. Default true keeps existing rows and
-  // current behaviour (all teams public). New teams pre-fill from
-  // DEFAULT_TEAM_VISIBILITY at creation, but the coach chooses per-team.
-  isPublic  Boolean  @default(true) @map("is_public")
-
-  // Phase 5 Sprint 2 — nullable so existing teams remain intact
-  ownerId   String?  @map("owner_id")
-  owner     User?    @relation(fields: [ownerId], references: [id])
+  // Every team has an owner, set at creation. A team is visible only to its
+  // owner, its accepted members, or a global ADMIN — there is no public team.
+  ownerId   String   @map("owner_id")
+  owner     User     @relation(fields: [ownerId], references: [id])
 
   players     Player[]
   matches     Match[]

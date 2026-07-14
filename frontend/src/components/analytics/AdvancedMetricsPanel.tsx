@@ -125,10 +125,10 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
           />
           <div className="grid grid-cols-4 gap-2 pt-1 border-t border-court-800">
             {[
-              { label: 'Pass 3', count: data.sideOut.pass3, color: 'text-success-dark' },
-              { label: 'Pass 2', count: data.sideOut.pass2, color: 'text-spike-400' },
+              { label: 'Pass 3', count: data.sideOut.pass3, color: 'text-success' },
+              { label: 'Pass 2', count: data.sideOut.pass2, color: 'text-navy-700' },
               { label: 'Pass 1', count: data.sideOut.pass1, color: 'text-chalk-400' },
-              { label: 'Pass 0', count: data.sideOut.pass0, color: 'text-error-dark' },
+              { label: 'Pass 0', count: data.sideOut.pass0, color: 'text-error' },
             ].map(({ label, count, color }) => (
               <div key={label} className="text-center">
                 <p className={`font-mono text-lg font-bold ${color}`}>{count}</p>
@@ -161,10 +161,10 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
             <span className="text-xs text-chalk-500">Hitting Percentage</span>
             <span className={`font-mono text-sm font-bold ${
               data.attack.hittingPct != null && data.attack.hittingPct >= 0.25
-                ? 'text-success-dark'
+                ? 'text-success'
                 : data.attack.hittingPct != null && data.attack.hittingPct >= 0
-                ? 'text-spike-400'
-                : 'text-error-dark'
+                ? 'text-navy-700'
+                : 'text-error'
             }`}>
               {data.attack.hittingPct != null
                 ? (data.attack.hittingPct >= 0 ? '+' : '') + (data.attack.hittingPct * 100).toFixed(1) + '%'
@@ -186,7 +186,7 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
               <p className="text-xs text-chalk-500 mt-0.5">Block Assists</p>
             </div>
             <div>
-              <p className="font-mono text-2xl font-bold text-spike-400">{data.blocking.totalBlocks}</p>
+              <p className="font-mono text-2xl font-bold text-navy-700">{data.blocking.totalBlocks}</p>
               <p className="text-xs text-chalk-500 mt-0.5">Total</p>
             </div>
           </div>
@@ -218,7 +218,7 @@ export default function AdvancedMetricsPanel({ data, heatmapData }: Props) {
                       style={{ height: `${Math.max(pct, 4)}%` }}
                     />
                   </div>
-                  <div className={`text-xs font-semibold ${isTop ? 'text-spike-400' : 'text-chalk-500'}`}>
+                  <div className={`text-xs font-semibold ${isTop ? 'text-navy-700' : 'text-chalk-500'}`}>
                     Z{zone}
                   </div>
                   <div className="text-[10px] text-chalk-600 font-mono">{count}</div>

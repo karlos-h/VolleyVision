@@ -2,15 +2,15 @@ import { prisma } from './prisma';
 import { AppError } from '../middleware/errorHandler';
 
 /**
- * Team visibility model (Stabilization Pass 2)
- * ────────────────────────────────────────────
- * A team is either public (`isPublic = true`, the default) or private.
+ * Team visibility model
+ * ─────────────────────
+ * Teams are always private to the people who belong to them. A team is visible
+ * only to its owner, a user with an accepted TeamMembership on it, or a global
+ * ADMIN. Everyone else is treated as if the team does not exist (404, not 403)
+ * so a team's id is never leaked.
  *
- * - Public team  → anyone, logged in or not, may read its roster, matches,
- *   dashboards, and analytics.
- * - Private team → only the team owner, an accepted TeamMembership on that team,
- *   or a global ADMIN may read it. Everyone else is treated as if the team does
- *   not exist (404, not 403) so a private team's id is never leaked.
+ * There is no public-team concept — the previous `isPublic` flag was removed
+ * along with public browsing.
  *
  * This helper is the single source of truth for that rule. It is enforced in
  * middleware (see middleware/visibility.ts) in front of every team-scoped read
@@ -19,12 +19,10 @@ import { AppError } from '../middleware/errorHandler';
 export async function isTeamVisibleTo(teamId: string, userId: string | null): Promise<boolean> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    select: { isPublic: true, ownerId: true },
+    select: { ownerId: true },
   });
-  if (!team) return false;             // non-existent team → not visible
-  if (team.isPublic) return true;      // public → everyone
-
-  if (!userId) return false;           // private + anonymous → hidden
+  if (!team) return false;   // non-existent team → not visible
+  if (!userId) return false; // anonymous → nothing is visible
 
   if (team.ownerId === userId) return true;
 
@@ -42,15 +40,10 @@ export async function isTeamVisibleTo(teamId: string, userId: string | null): Pr
 
 /**
  * Throws AppError(404) when the caller may not see the team. Use this in
- * controllers/middleware so hidden private teams are indistinguishable from
- * teams that do not exist.
+ * controllers/middleware so hidden teams are indistinguishable from teams that
+ * do not exist.
  */
 export async function assertTeamVisible(teamId: string, userId: string | null): Promise<void> {
   const visible = await isTeamVisibleTo(teamId, userId);
   if (!visible) throw new AppError(404, 'Team not found.');
-}
-
-/** Resolved default visibility for newly created teams, from DEFAULT_TEAM_VISIBILITY. */
-export function defaultTeamIsPublic(): boolean {
-  return (process.env.DEFAULT_TEAM_VISIBILITY ?? 'public').toLowerCase() !== 'private';
 }

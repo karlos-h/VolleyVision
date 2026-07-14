@@ -3,12 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTeam, useMatches, useCreateMatch, useDeleteMatch } from '../hooks';
 import { isPendingApproval } from '../types';
+import { TrashIcon } from '../components/ui/icons';
 
 const STATUS_STYLES = {
-  SCHEDULED: 'bg-info/40 text-info',
-  IN_PROGRESS: 'bg-spike-600/30 text-spike-400',
-  COMPLETED: 'bg-success/40 text-success-dark',
-  CANCELLED: 'bg-error/40 text-error-dark',
+  SCHEDULED: 'badge-info',
+  IN_PROGRESS: 'badge-accent',
+  COMPLETED: 'badge-success',
+  CANCELLED: 'badge-error',
 };
 
 const MATCH_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
@@ -225,14 +226,16 @@ export default function MatchesPage() {
                     {match.status === 'COMPLETED' ? 'Events' : 'Track'}
                   </Link>
                   <button
-                    className="text-chalk-600 hover:text-error-dark transition-colors text-xs px-1"
+                    className="btn-icon-danger"
+                    title="Delete match"
+                    aria-label={`Delete match vs ${match.opponent}`}
                     onClick={() => {
                       if (confirm(`Delete match vs ${match.opponent}? This cannot be undone.`)) {
                         deleteMatch.mutate({ id: match.id, teamId: teamId! });
                       }
                     }}
                   >
-                    Delete
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>

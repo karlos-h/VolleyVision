@@ -36,7 +36,7 @@ export default function LeagueOverviewCards({ seasons }: Props) {
           </div>
           <div className="flex gap-3">
             <div className="flex-1 bg-court-800 rounded-xl py-2 text-center">
-              <div className="font-mono font-bold text-spike-400">{season._count.teams}</div>
+              <div className="font-mono font-bold text-navy-700">{season._count.teams}</div>
               <div className="text-xs text-chalk-400">Teams</div>
             </div>
             <div className="flex-1 bg-court-800 rounded-xl py-2 text-center">
@@ -44,7 +44,7 @@ export default function LeagueOverviewCards({ seasons }: Props) {
               <div className="text-xs text-chalk-400">Fixtures</div>
             </div>
           </div>
-          <span className="text-spike-400 text-xs font-medium self-end">View season →</span>
+          <span className="text-navy-700 text-xs font-medium self-end">View season →</span>
         </Link>
       ))}
     </div>

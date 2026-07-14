@@ -1,6 +1,6 @@
 import {
-  LineChart,
-  Line,
+  Area,
+  AreaChart,
   XAxis,
   YAxis,
   Tooltip,
@@ -16,16 +16,24 @@ interface Props {
 }
 
 export default function TeamTrendChart({ title, data, dataKey }: Props) {
+  // One gradient per chart — ids must be unique or the last one on the page wins.
+  const gradientId = `trend-fill-${dataKey}`;
+
   return (
     <div className="card p-4">
-      <h3 className="font-semibold text-chalk-100 mb-3">
-        {title}
-    </h3>
+      <h3 className="font-display font-semibold text-grey-900 mb-3">{title}</h3>
 
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
-            <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" />
+          <AreaChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_SERIES[0]} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={CHART_SERIES[0]} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 6" vertical={false} />
             <XAxis
               dataKey="opponent"
               tick={{ fill: CHART_TICK, fontSize: 11 }}
@@ -36,7 +44,7 @@ export default function TeamTrendChart({ title, data, dataKey }: Props) {
               tick={{ fill: CHART_TICK, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
-              width={30}
+              width={34}
             />
             <Tooltip
               contentStyle={{
@@ -48,13 +56,16 @@ export default function TeamTrendChart({ title, data, dataKey }: Props) {
               labelStyle={{ color: CHART_TICK }}
             />
 
-            <Line
-            type="monotone"
-            dataKey={dataKey}
-            stroke={CHART_SERIES[0]}
-            strokeWidth={3}
+            <Area
+              type="monotone"
+              dataKey={dataKey}
+              stroke={CHART_SERIES[0]}
+              strokeWidth={3}
+              fill={`url(#${gradientId})`}
+              dot={{ r: 3, fill: CHART_TOOLTIP_BG, stroke: CHART_SERIES[0], strokeWidth: 2 }}
+              activeDot={{ r: 5 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>

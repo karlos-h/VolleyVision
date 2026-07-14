@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useTeam, useUpdateTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useClaimTeam, useTransferOwnership, useTeamInvitations, useCreateInvitation, useHasPermission, useApprovalRequests, useApproveRequest, useRejectRequest } from '../hooks';
+import { useTeam, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useTransferOwnership, useTeamInvitations, useCreateInvitation, useHasPermission, useApprovalRequests, useApproveRequest, useRejectRequest } from '../hooks';
 import type { Position, TeamRole, InvitationStatus, Invitation, ApprovalRequest } from '../types';
-import { POSITION_LABELS, isPendingApproval } from '../types';
+import { POSITION_FULL_LABELS, POSITION_BADGE, isPendingApproval } from '../types';
 import { useAuth } from '../context/AuthContext';
 import TeamMembersCard from '../components/team/TeamMembersCard';
 import PermissionGuard from '../components/ui/PermissionGuard';
 import PlayerTeamLinksCard from '../components/team/PlayerTeamLinksCard';
+import { PencilIcon, TrashIcon } from '../components/ui/icons';
 
 const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'HEAD_COACH',       label: 'Head Coach' },
@@ -16,11 +17,11 @@ const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'VIEWER',           label: 'Viewer' },
 ];
 
-const STATUS_COLORS: Record<InvitationStatus, string> = {
-  PENDING:  'bg-gold-500/30 text-gold-500',
-  ACCEPTED: 'bg-success/30 text-success-dark',
-  DECLINED: 'bg-error/30 text-error-dark',
-  EXPIRED:  'bg-court-700 text-chalk-500',
+const STATUS_BADGE: Record<InvitationStatus, string> = {
+  PENDING:  'badge-accent',
+  ACCEPTED: 'badge-success',
+  DECLINED: 'badge-error',
+  EXPIRED:  'badge-neutral',
 };
 
 function TeamInvitationsCard({ teamId }: { teamId: string }) {
@@ -104,7 +105,7 @@ function TeamInvitationsCard({ teamId }: { teamId: string }) {
               </select>
             </div>
           </div>
-          {invError && <p className="text-error-dark text-xs">{invError}</p>}
+          {invError && <p className="text-error text-xs">{invError}</p>}
           <button type="submit" className="btn-secondary text-sm" disabled={createInv.isPending}>
             {createInv.isPending ? 'Sending…' : 'Send invitation'}
           </button>
@@ -134,7 +135,7 @@ function TeamInvitationsCard({ teamId }: { teamId: string }) {
                   {new Date(inv.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              <span className={`badge text-xs ${STATUS_COLORS[inv.status]}`}>
+              <span className={`badge ${STATUS_BADGE[inv.status]}`}>
                 {inv.status.charAt(0) + inv.status.slice(1).toLowerCase()}
               </span>
             </div>
@@ -153,15 +154,6 @@ const POSITIONS: Position[] = [
   'LIBERO',
   'DEFENSIVE_SPECIALIST',
 ];
-
-const POSITION_COLORS: Record<Position, string> = {
-  SETTER: 'bg-purple-800/40 text-purple-300',
-  OUTSIDE_HITTER: 'bg-info/40 text-info',
-  OPPOSITE: 'bg-cyan-800/40 text-cyan-300',
-  MIDDLE_BLOCKER: 'bg-success/40 text-success-dark',
-  LIBERO: 'bg-orange-800/40 text-orange-300',
-  DEFENSIVE_SPECIALIST: 'bg-gold-500/40 text-gold-500',
-};
 
 // ── Approval queue (Stabilization Pass 2) ────────────────────────────────────
 // Head coach / owner reviews structural changes submitted by other staff.
@@ -200,7 +192,7 @@ function ApprovalQueueCard({ teamId }: { teamId: string }) {
     <div className="card overflow-hidden">
       <div className="px-5 py-3 border-b border-court-800 flex items-center justify-between">
         <h2 className="font-semibold text-chalk-100">Pending approval</h2>
-        <span className="badge bg-gold-500/30 text-gold-500 text-xs">{requests.length}</span>
+        <span className="badge badge-accent">{requests.length}</span>
       </div>
       <div className="divide-y divide-court-800">
         {requests.map((req) => (
@@ -245,9 +237,7 @@ export default function TeamDetailPage() {
   const createPlayer = useCreatePlayer();
   const deletePlayer = useDeletePlayer();
   const updatePlayer = useUpdatePlayer(teamId!);
-  const claimTeam = useClaimTeam();
   const transferOwnership = useTransferOwnership();
-  const updateTeam = useUpdateTeam();
   const canManageTeam = useHasPermission(teamId!, 'MANAGE_TEAM');
 
   const [showTransfer, setShowTransfer] = useState(false);
@@ -329,22 +319,8 @@ export default function TeamDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-chalk-100">{team.name}</h1>
-            {team.isPublic === false && (
-              <span className="badge bg-navy-700 text-navy-100 text-xs">Private</span>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-chalk-100">{team.name}</h1>
           <p className="text-chalk-400 text-sm mt-0.5">{team.division} · Season {team.season}</p>
-          {canManageTeam && (
-            <button
-              className="text-xs text-chalk-500 hover:text-chalk-200 transition-colors mt-1"
-              disabled={updateTeam.isPending}
-              onClick={() => updateTeam.mutate({ id: teamId!, data: { isPublic: !(team.isPublic ?? true) } })}
-            >
-              {team.isPublic === false ? 'Make public' : 'Make private'}
-            </button>
-          )}
         </div>
         <div className="flex gap-2">
           <Link to={`/teams/${teamId}/dashboard`} className="btn-secondary text-sm">
@@ -377,32 +353,15 @@ export default function TeamDetailPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs text-chalk-500 font-semibold mb-1">Owner</p>
-            {team.owner ? (
+            {team.owner && (
               <p className="text-chalk-100 font-medium">
                 {team.owner.firstName} {team.owner.lastName}
                 <span className="text-chalk-500 font-normal ml-2 text-sm">{team.owner.email}</span>
               </p>
-            ) : (
-              <p className="text-chalk-500 italic text-sm">Unowned team</p>
             )}
           </div>
 
           <div className="flex gap-2 shrink-0">
-            {/* Claim — only visible when unowned and user is logged in */}
-            {!team.owner && user && (
-              <button
-                className="btn-primary text-sm"
-                disabled={claimTeam.isPending}
-                onClick={() => {
-                  if (confirm(`Claim ownership of "${team.name}"?`)) {
-                    claimTeam.mutate(team.id);
-                  }
-                }}
-              >
-                {claimTeam.isPending ? 'Claiming…' : 'Claim team'}
-              </button>
-            )}
-
             {/* Transfer — only user with TRANSFER_OWNERSHIP permission */}
             <PermissionGuard teamId={teamId!} permission="TRANSFER_OWNERSHIP">
               {team.owner && (
@@ -447,13 +406,8 @@ export default function TeamDetailPage() {
           </form>
         )}
 
-        {claimTeam.isError && (
-          <p className="mt-2 text-error-dark text-sm">
-            {(claimTeam.error as any)?.response?.data?.error ?? "Couldn't claim this team. Try again."}
-          </p>
-        )}
         {transferOwnership.isError && (
-          <p className="mt-2 text-error-dark text-sm">
+          <p className="mt-2 text-error text-sm">
             {(transferOwnership.error as any)?.response?.data?.error ?? "Couldn't transfer ownership. Try again."}
           </p>
         )}
@@ -508,7 +462,7 @@ export default function TeamDetailPage() {
                 onChange={(e) => setForm({ ...form, position: e.target.value as Position })}
               >
                 {POSITIONS.map((p) => (
-                  <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>
+                  <option key={p} value={p}>{POSITION_FULL_LABELS[p]}</option>
                 ))}
               </select>
             </div>
@@ -578,7 +532,7 @@ export default function TeamDetailPage() {
                         onChange={(e) => setEditForm({ ...editForm, position: e.target.value as Position })}
                       >
                         {POSITIONS.map((p) => (
-                          <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>
+                          <option key={p} value={p}>{POSITION_FULL_LABELS[p]}</option>
                         ))}
                       </select>
                     </div>
@@ -595,7 +549,11 @@ export default function TeamDetailPage() {
                   /* ── Normal row ── */
                   <div className="px-5 py-3">
                     <div className="flex items-center gap-4">
-                      <div className="w-9 h-9 bg-court-800 rounded-lg flex items-center justify-center font-mono font-bold text-spike-400 text-sm shrink-0">
+                      {/* Jersey-number avatar. There's no player-photo field in
+                          the data model, so this placeholder carries the whole
+                          identity of the row — it reads as an avatar, not an icon. */}
+                      <div className="w-14 h-14 shrink-0 rounded-full bg-navy-100 border-2 border-navy-500
+                                      grid place-items-center font-display font-bold text-navy-700 text-xl tabular-nums">
                         {player.jerseyNumber}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -603,25 +561,29 @@ export default function TeamDetailPage() {
                           {player.firstName} {player.lastName}
                         </p>
                       </div>
-                      <span className={`badge ${POSITION_COLORS[player.position]}`}>
-                        {POSITION_LABELS[player.position]}
+                      <span className={`badge ${POSITION_BADGE[player.position]}`}>
+                        {POSITION_FULL_LABELS[player.position]}
                       </span>
                       <PermissionGuard teamId={teamId!} permission="MANAGE_TEAM">
                         <button
-                          className="text-chalk-600 hover:text-chalk-200 transition-colors text-xs"
+                          className="btn-icon"
+                          title="Edit player"
+                          aria-label={`Edit ${player.firstName} ${player.lastName}`}
                           onClick={() => startEdit(player)}
                         >
-                          Edit
+                          <PencilIcon className="w-4 h-4" />
                         </button>
                         <button
-                          className="text-chalk-600 hover:text-error-dark transition-colors text-xs"
+                          className="btn-icon-danger"
+                          title="Remove player"
+                          aria-label={`Remove ${player.firstName} ${player.lastName}`}
                           onClick={() => {
                             if (confirm(`Remove ${player.firstName} ${player.lastName}?`)) {
                               deletePlayer.mutate({ id: player.id, teamId: teamId! });
                             }
                           }}
                         >
-                          Remove
+                          <TrashIcon className="w-4 h-4" />
                         </button>
                       </PermissionGuard>
                     </div>

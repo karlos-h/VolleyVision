@@ -28,20 +28,44 @@ export default {
           200: '#E2E5EA',
           50: '#F6F7F9',
         },
-        success: { DEFAULT: '#2E9E5B', dark: '#4CBF7F' }, // .dark = on-dark variant
-        error: { DEFAULT: '#D64545', dark: '#E86A6A' },
-        warning: { DEFAULT: '#E8890C' },
-        info: { DEFAULT: '#2B7FD4' },
+        // Semantic colours have three shades:
+        //   DEFAULT — the fill / chart / icon colour (both modes)
+        //   .dark   — brightened text variant, for use ON a dark surface
+        //   .strong — darkened text variant, for use ON a light surface
+        // The DEFAULT tones are tuned as fills and only reach ~3.4:1 (success)
+        // and ~4.1:1 (info) as text on white, so any badge/label text sitting on
+        // a light tint must use `.strong` to clear WCAG AA (4.5:1).
+        success: { DEFAULT: '#2E9E5B', dark: '#4CBF7F', strong: '#1A6B3B' },
+        error: { DEFAULT: '#D64545', dark: '#E86A6A', strong: '#A82F2F' },
+        warning: { DEFAULT: '#E8890C', strong: '#9A5B02' },
+        info: { DEFAULT: '#2B7FD4', dark: '#5FA6E8', strong: '#1B5FA8' },
 
-        // ── DEPRECATED legacy aliases → brand hexes ──
+        // ── DEPRECATED legacy aliases → light-mode brand hexes ──
         // court/spike/chalk are kept so existing classes keep working; they
-        // now point at brand colours. Do not use in new code; migrate to
-        // navy/gold/grey when touching a file. Do not delete.
-        court: { 950: '#111C36', 900: '#1A2745', 800: '#1E2D50', 700: '#2A3A63', 600: '#33477A' },
-        spike: { 400: '#FFB81C', 500: '#FFB81C', 600: '#E09E00' },
-        // 300/500/700 were never defined pre-brand (those classes silently
-        // inherited); mapped here so muted labels render muted as intended.
-        chalk: { 100: '#FFFFFF', 200: '#E4E9F4', 300: '#E4E9F4', 400: '#8FA0C4', 500: '#8FA0C4', 600: '#5A6270', 700: '#33477A' },
+        // now point at the LIGHT surface roles (light mode is the default).
+        // Do not use in new code; migrate to navy/gold/grey when touching a
+        // file. Do not delete — ~40 files still depend on them.
+        //
+        // Roles: court-* = surfaces/borders, chalk-* = text, spike-* = accent.
+        // The tracking screen (/track/:matchId) stays dark and therefore must
+        // NOT rely on these aliases — see components/tracking/*.
+        court: {
+          950: '#F6F7F9', // app canvas   (grey-50)
+          900: '#FFFFFF', // card         (white)
+          800: '#F6F7F9', // recessed fill / hover surface / chip (grey-50)
+          700: '#E2E5EA', // border       (grey-200)
+          600: '#E4E9F4', // hover accent / track fill (navy-100)
+        },
+        spike: { 400: '#FFB81C', 500: '#FFB81C', 600: '#E09E00' }, // gold — accent in both modes
+        chalk: {
+          100: '#1A1D23', // primary text   (grey-900)
+          200: '#1A1D23', // emphasis text  (grey-900)
+          300: '#5A6270', // secondary text (grey-600)
+          400: '#5A6270', // secondary text (grey-600)
+          500: '#5A6270', // secondary text (grey-600)
+          600: '#9AA1AD', // muted / placeholder (grey-400)
+          700: '#9AA1AD', // faint separators / tints (grey-400)
+        },
       },
       fontFamily: {
         // Athletic display face for headings (brand §3)

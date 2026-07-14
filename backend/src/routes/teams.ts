@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../controllers/teams';
-import { myTeams, claimTeam, transferTeam, teamOwner } from '../controllers/teamOwnership';
+import { myTeams, transferTeam, teamOwner } from '../controllers/teamOwnership';
 import { listMembers, createMember, updateMember, deleteMember } from '../controllers/teamMembership';
 import { createTeamInvitation, listTeamInvitations } from '../controllers/invitation';
 import { listTeamApprovalRequests } from '../controllers/approval';
@@ -14,8 +14,9 @@ const router = Router();
 // Named routes first (must come before /:id to avoid conflict)
 router.get('/my-teams', requireAuth, myTeams);
 
-// Standard CRUD — reads are public for public teams; private teams are gated
-// by visibility (optionalAuth populates req.user when a token is present).
+// Standard CRUD — every team-scoped read is gated by membership visibility.
+// optionalAuth is kept on the list/detail reads so an anonymous caller gets an
+// empty list / 404 rather than a hard 401.
 router.get('/', optionalAuth, getTeams);
 router.get('/:id', optionalAuth, visibleByTeamParam('id'), getTeam);
 router.post('/', requireAuth, createTeam);
@@ -35,7 +36,6 @@ router.get('/:id/my-role', requireAuth, async (req, res, next) => {
 
 // Ownership actions
 router.get('/:id/owner', optionalAuth, visibleByTeamParam('id'), teamOwner);
-router.post('/:id/claim', requireAuth, claimTeam);
 router.post('/:id/transfer', requireAuth, requireTeamPermission(Permission.TRANSFER_OWNERSHIP), transferTeam);
 
 // Membership management

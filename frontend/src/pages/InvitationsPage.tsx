@@ -9,12 +9,12 @@ const ROLE_LABELS: Record<TeamRole, string> = {
   VIEWER:          'Viewer',
 };
 
-const ROLE_COLORS: Record<TeamRole, string> = {
-  HEAD_COACH:      'bg-spike-600/20 text-spike-400',
-  ASSISTANT_COACH: 'bg-info/30 text-info',
-  STATISTICIAN:    'bg-purple-800/30 text-purple-300',
-  PLAYER:          'bg-success/30 text-success-dark',
-  VIEWER:          'bg-court-700 text-chalk-400',
+const ROLE_BADGE: Record<TeamRole, string> = {
+  HEAD_COACH:      'badge-accent',
+  ASSISTANT_COACH: 'badge-info',
+  STATISTICIAN:    'badge-brand',
+  PLAYER:          'badge-success',
+  VIEWER:          'badge-neutral',
 };
 
 function daysLeft(expiresAt: string) {
@@ -39,7 +39,7 @@ function InvitationCard({ inv }: { inv: Invitation }) {
             </span>
           </p>
         </div>
-        <span className={`badge text-xs shrink-0 mt-0.5 ${ROLE_COLORS[inv.role]}`}>
+        <span className={`badge shrink-0 mt-0.5 ${ROLE_BADGE[inv.role]}`}>
           {ROLE_LABELS[inv.role]}
         </span>
       </div>
@@ -49,12 +49,12 @@ function InvitationCard({ inv }: { inv: Invitation }) {
       </p>
 
       {accept.isError && (
-        <p className="text-error-dark text-xs">
+        <p className="text-error text-xs">
           {(accept.error as any)?.response?.data?.error ?? "Couldn't accept that invitation. Try again."}
         </p>
       )}
       {decline.isError && (
-        <p className="text-error-dark text-xs">
+        <p className="text-error text-xs">
           {(decline.error as any)?.response?.data?.error ?? "Couldn't decline that invitation. Try again."}
         </p>
       )}

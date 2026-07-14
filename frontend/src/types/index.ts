@@ -252,20 +252,15 @@ export interface Team {
   name: string;
   division?: string;
   season: string;
-  // Stabilization Pass 2 — team visibility (defaults true for existing teams)
-  isPublic?: boolean;
-  // Phase 5 Sprint 2 — optional because existing teams have no owner
-  ownerId?: string | null;
+  // Every team has an owner — a team is only ever visible to its owner, its
+  // accepted members, or a global ADMIN. There is no public-team concept.
+  ownerId: string;
   owner?: TeamOwner | null;
   createdAt: string;
   updatedAt: string;
   _count?: { players: number; matches: number };
   players?: Player[];
   matches?: Match[];
-}
-
-export interface ClientConfig {
-  defaultTeamVisibility: 'public' | 'private';
 }
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
@@ -694,6 +689,7 @@ export const EVENT_META: EventMeta[] = [
   { type: 'SETTING_ERROR', label: 'Set Error', category: 'set', outcome: 'negative' },
 ];
 
+/** Abbreviations — for genuinely tight spaces only (tracking screen, stat table columns). */
 export const POSITION_LABELS: Record<Position, string> = {
   SETTER: 'S',
   OUTSIDE_HITTER: 'OH',
@@ -701,6 +697,32 @@ export const POSITION_LABELS: Record<Position, string> = {
   MIDDLE_BLOCKER: 'MB',
   LIBERO: 'L',
   DEFENSIVE_SPECIALIST: 'DS',
+};
+
+/** Full names — preferred anywhere there's room to spell the position out. */
+export const POSITION_FULL_LABELS: Record<Position, string> = {
+  SETTER: 'Setter',
+  OUTSIDE_HITTER: 'Outside Hitter',
+  OPPOSITE: 'Opposite',
+  MIDDLE_BLOCKER: 'Middle Blocker',
+  LIBERO: 'Libero',
+  DEFENSIVE_SPECIALIST: 'Defensive Specialist',
+};
+
+/**
+ * Categorical badge styling for positions, grouped by what the position
+ * actually does on court (set / attack / defend). Deliberately does NOT reuse
+ * success/error/info — those carry positive/negative meaning elsewhere in the
+ * UI, and a position is not a judgement. The full label disambiguates within a
+ * group, so three groups is enough.
+ */
+export const POSITION_BADGE: Record<Position, string> = {
+  SETTER: 'badge-brand',
+  OUTSIDE_HITTER: 'badge-accent',
+  OPPOSITE: 'badge-accent',
+  MIDDLE_BLOCKER: 'badge-accent',
+  LIBERO: 'badge-neutral',
+  DEFENSIVE_SPECIALIST: 'badge-neutral',
 };
 
 // ─── Invitations (Phase 5 Sprint 4) ──────────────────────────────────────────

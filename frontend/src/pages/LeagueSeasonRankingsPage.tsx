@@ -20,7 +20,7 @@ export default function LeagueSeasonRankingsPage() {
       </div>
 
       {isLoading && <p className="text-chalk-400 text-sm">Loading rankings…</p>}
-      {error && <p className="text-error-dark text-sm">Failed to load rankings.</p>}
+      {error && <p className="text-error text-sm">Failed to load rankings.</p>}
 
       {data && (
         <>

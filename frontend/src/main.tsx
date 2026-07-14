@@ -12,7 +12,6 @@ import RequireAuth from './components/ui/RequireAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import RedeemInvitationPage from './pages/RedeemInvitationPage';
-import MyTeamsPage from './pages/MyTeamsPage';
 import InvitationsPage from './pages/InvitationsPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
@@ -70,9 +69,21 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/player" element={<PlayerPortalPage />} />
               <Route path="/coach" element={<CoachDashboardPage />} />
-              <Route path="/my-teams" element={<MyTeamsPage />} />
+              {/* "My Teams" merged into /teams — teams are members-only, so
+                  there is no separate "browse all teams" list any more. */}
+              <Route path="/my-teams" element={<Navigate to="/teams" replace />} />
               <Route path="/invitations" element={<InvitationsPage />} />
               <Route path="/track/:matchId" element={<TrackingPage />} />
+              {/* Team-scoped routes. Teams are private to their members, so
+                  every one of these 404s for a non-member on the backend —
+                  there is nothing here to read while logged out. */}
+              <Route path="/teams" element={<TeamsPage />} />
+              <Route path="/teams/:teamId" element={<TeamDetailPage />} />
+              <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
+              <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
+              <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
+              <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
+
               {features.leagues && (
                 <>
                   <Route path="/leagues" element={<LeagueHubPage />} />
@@ -86,14 +97,6 @@ function App() {
                 </>
               )}
             </Route>
-
-            {/* Public routes — readable without login */}
-            <Route path="/teams" element={<TeamsPage />} />
-            <Route path="/teams/:teamId" element={<TeamDetailPage />} />
-            <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
-            <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
-            <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
-            <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
           </Route>
         </Routes>
         </ViewModeProvider>

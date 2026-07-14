@@ -46,8 +46,9 @@ async function main() {
   const stranger = await upsertUser('smoke.stranger@vv.test', 'Stranger');
   const admin = await prisma.user.findUnique({ where: { email: 'karlos.hennings@gmail.com' } });
 
+  // Teams are always private to their members — there is no public-team flag.
   const team = await prisma.team.create({
-    data: { name: 'Smoke Private', season: '2026', isPublic: false, ownerId: owner.id },
+    data: { name: 'Smoke Private', season: '2026', ownerId: owner.id },
   });
   await prisma.teamMembership.create({ data: { userId: asst.id, teamId: team.id, role: 'ASSISTANT_COACH' } });
 

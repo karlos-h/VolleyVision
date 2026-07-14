@@ -26,11 +26,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ─── Config ────────────────────────────────────────────────────────────────────
-export const configApi = {
-  get: () => api.get<import('../types').ClientConfig>('/config').then((r) => r.data),
-};
-
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 export const authApi = {
   register: (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null }) =>
@@ -42,18 +37,20 @@ export const authApi = {
 };
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
+/** Ownership is assigned server-side from the authenticated caller. */
+export type CreateTeamInput = { name: string; season: string; division?: string };
+
 export const teamsApi = {
   list: () => api.get<Team[]>('/teams').then((r) => r.data),
   get: (id: string) => api.get<Team>(`/teams/${id}`).then((r) => r.data),
-  create: (data: Omit<Team, 'id' | 'createdAt' | 'updatedAt'>) =>
+  create: (data: CreateTeamInput) =>
     api.post<Team>('/teams', data).then((r) => r.data),
-  update: (id: string, data: Partial<Team>) =>
+  update: (id: string, data: Partial<CreateTeamInput>) =>
     api.patch<Team>(`/teams/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/teams/${id}`),
   // Phase 5 Sprint 2 — ownership
   myTeams: () => api.get<Team[]>('/teams/my-teams').then((r) => r.data),
   owner: (id: string) => api.get<TeamOwner | null>(`/teams/${id}/owner`).then((r) => r.data),
-  claim: (id: string) => api.post<Team>(`/teams/${id}/claim`).then((r) => r.data),
   transfer: (id: string, newOwnerId: string) =>
     api.post<Team>(`/teams/${id}/transfer`, { newOwnerId }).then((r) => r.data),
 };

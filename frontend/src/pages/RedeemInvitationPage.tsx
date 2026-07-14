@@ -69,22 +69,18 @@ export default function RedeemInvitationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-grey-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-9 h-9 bg-gold-500 rounded-xl flex items-center justify-center">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-navy-900">
-              <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 2a6 6 0 110 12A6 6 0 0110 4zm-1 3v3H6l4 4 4-4h-3V7H9z" />
-            </svg>
-          </div>
-          <span className="text-xl font-bold text-chalk-100 tracking-tight">VolleyVision</span>
+          <img src="/vv-icon.svg" alt="" className="w-9 h-9" />
+          <span className="font-display font-bold text-xl text-navy-700 tracking-tight">VolleyVision</span>
         </div>
 
         {joinedTeam ? (
           <div className="card p-6 text-center space-y-4">
             <h1 className="text-lg font-semibold text-chalk-100">You're in</h1>
             <p className="text-chalk-400 text-sm">You've joined <strong className="text-chalk-100">{joinedTeam}</strong>.</p>
-            <button className="btn-primary w-full" onClick={() => navigate('/my-teams')}>Go to my teams</button>
+            <button className="btn-primary w-full" onClick={() => navigate('/teams')}>Go to my teams</button>
           </div>
         ) : (
           <div className="card p-6">
@@ -92,7 +88,7 @@ export default function RedeemInvitationPage() {
             <p className="text-chalk-500 text-sm mb-5">Enter your join code to accept the invitation.</p>
 
             {error && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-error/30 border border-error text-error-dark text-sm">
+              <div className="mb-4 px-4 py-3 rounded-xl bg-error/30 border border-error text-error text-sm">
                 {error}
               </div>
             )}
@@ -153,7 +149,7 @@ export default function RedeemInvitationPage() {
         )}
 
         <p className="text-center text-chalk-500 text-sm mt-4">
-          <Link to="/login" className="text-gold-500 hover:text-gold-600 font-medium">Back to sign in</Link>
+          <Link to="/login" className="text-navy-700 hover:text-navy-700 font-medium">Back to sign in</Link>
         </p>
       </div>
     </div>

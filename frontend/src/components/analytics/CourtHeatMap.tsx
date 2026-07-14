@@ -132,7 +132,7 @@ export default function CourtHeatMap({ data, defaultCategory = 'attack', title }
             className={clsx(
               'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
               category === c.key
-                ? 'text-court-950 border-transparent'
+                ? 'text-navy-900 border-transparent'
                 : 'bg-court-800 text-chalk-400 border-court-700 hover:border-chalk-500'
             )}
             style={category === c.key ? { backgroundColor: c.color, borderColor: c.color } : {}}
@@ -161,7 +161,7 @@ export default function CourtHeatMap({ data, defaultCategory = 'attack', title }
             {/* Net divider */}
             <div className="absolute inset-x-0 top-1/2 h-px bg-spike-500/40 pointer-events-none" />
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none
-                            text-[9px] font-bold tracking-widest text-spike-400/50 bg-court-900 px-1.5">
+                            text-[9px] font-bold tracking-widest text-navy-700/50 bg-court-900 px-1.5">
               NET
             </div>
           </div>

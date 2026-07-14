@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTeamMembers, useAddMember, useUpdateMemberRole, useRemoveMember, useUserSearch } from '../../hooks';
 import type { TeamRole } from '../../types';
+import { PencilIcon, TrashIcon } from '../ui/icons';
 
 const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'HEAD_COACH',       label: 'Head Coach' },
@@ -10,12 +11,12 @@ const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
   { value: 'VIEWER',           label: 'Viewer' },
 ];
 
-const ROLE_COLORS: Record<TeamRole, string> = {
-  HEAD_COACH:      'bg-spike-600/20 text-spike-400',
-  ASSISTANT_COACH: 'bg-info/30 text-info',
-  STATISTICIAN:    'bg-purple-800/30 text-purple-300',
-  PLAYER:          'bg-success/30 text-success-dark',
-  VIEWER:          'bg-court-700 text-chalk-400',
+const ROLE_BADGE: Record<TeamRole, string> = {
+  HEAD_COACH:      'badge-accent',
+  ASSISTANT_COACH: 'badge-info',
+  STATISTICIAN:    'badge-brand',
+  PLAYER:          'badge-success',
+  VIEWER:          'badge-neutral',
 };
 
 import { useTeamRole } from '../../hooks';
@@ -117,7 +118,7 @@ export default function TeamMembersCard({ teamId }: Props) {
             </select>
           </div>
 
-          {addError && <p className="text-error-dark text-xs">{addError}</p>}
+          {addError && <p className="text-error text-xs">{addError}</p>}
 
           <button
             className="btn-secondary text-sm"
@@ -205,22 +206,26 @@ function MemberRow({ member, canManage, onRoleChange, onRemove }: MemberRowProps
         </div>
       ) : (
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`badge ${ROLE_COLORS[member.role]} text-xs`}>
+          <span className={`badge ${ROLE_BADGE[member.role]}`}>
             {ROLE_OPTIONS.find((r) => r.value === member.role)?.label ?? member.role}
           </span>
           {canManage && (
             <>
               <button
-                className="text-chalk-600 hover:text-chalk-200 transition-colors text-xs"
+                className="btn-icon"
+                title="Change role"
+                aria-label="Change role"
                 onClick={() => setEditing(true)}
               >
-                Edit
+                <PencilIcon className="w-4 h-4" />
               </button>
               <button
-                className="text-chalk-600 hover:text-error-dark transition-colors text-xs"
+                className="btn-icon-danger"
+                title="Remove member"
+                aria-label="Remove member"
                 onClick={onRemove}
               >
-                Remove
+                <TrashIcon className="w-4 h-4" />
               </button>
             </>
           )}

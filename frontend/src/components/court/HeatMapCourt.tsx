@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import type { HeatmapData } from '../../types';
 import { CHART_SERIES, CHART_GRID, CHART_TICK, CHART_COURT_BG, CHART_EMPTY, CHART_TOOLTIP_TEXT } from '../../lib/chartColors';
 
-// Heat intensity scales GOLD opacity on navy (brand accent), per the guidelines.
+// Heat intensity scales GOLD opacity on the light court surface (brand accent).
 const HEAT_COLOR = CHART_SERIES[0];
 
 const ZONE_RECTS: Record<number, { x: number; y: number; w: number; h: number }> = {
@@ -46,8 +46,10 @@ function ZoneCell({
 }) {
   const { x, y, w, h } = ZONE_RECTS[zone];
   const intensity = max > 0 && count > 0 ? count / max : 0;
-  // Scale opacity: min 0.08 when there are events, up to 0.85 at max
-  const fillOpacity = count > 0 ? 0.08 + intensity * 0.77 : 0;
+  // Scale gold opacity from a floor of 0.20 up to 0.90 at max. The floor is
+  // what keeps a single-event zone legible on the light court background —
+  // below ~0.15, gold on grey-50 is indistinguishable from an empty zone.
+  const fillOpacity = count > 0 ? 0.2 + intensity * 0.7 : 0;
   const isHovered = hoveredZone === zone;
 
   return (
@@ -125,7 +127,7 @@ export default function HeatMapCourt({ data, title }: Props) {
             className={clsx(
               'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
               activeType.key === type.key
-                ? 'text-court-950 border-transparent'
+                ? 'text-navy-900 border-transparent'
                 : 'bg-court-800 text-chalk-400 border-court-700 hover:border-chalk-500'
             )}
             style={
@@ -195,7 +197,7 @@ export default function HeatMapCourt({ data, title }: Props) {
           {/* Hover tooltip or hot-zone insight */}
           {hoveredZone ? (
             <div className="rounded-lg bg-court-800 border border-court-700 px-3 py-2 text-sm">
-              <span className="font-mono text-spike-400">Zone {hoveredZone}</span>
+              <span className="font-mono text-navy-700">Zone {hoveredZone}</span>
               <span className="text-chalk-400 ml-2">
                 {counts[String(hoveredZone)] ?? 0} events
                 {total > 0 && (
@@ -205,7 +207,7 @@ export default function HeatMapCourt({ data, title }: Props) {
             </div>
           ) : hotZone != null ? (
             <div className="rounded-lg bg-court-800 border border-court-700 px-3 py-2 text-sm text-chalk-400">
-              Highest activity in <span className="font-mono text-spike-400">Zone {hotZone}</span>
+              Highest activity in <span className="font-mono text-navy-700">Zone {hotZone}</span>
               {' '}({counts[String(hotZone)]} events · {Math.round((counts[String(hotZone)] / total) * 100)}%)
               — hover a zone for details
             </div>

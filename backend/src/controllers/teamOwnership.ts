@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../middleware/errorHandler';
 import {
   getOwnedTeams,
-  assignOwner,
   transferOwnership,
   getTeamOwner,
 } from '../services/teamOwnership.service';
@@ -13,17 +12,6 @@ export async function myTeams(req: Request, res: Response, next: NextFunction) {
     if (!req.user) throw new AppError(401, 'Authentication required.');
     const teams = await getOwnedTeams(req.user.userId);
     res.json(teams);
-  } catch (err) {
-    next(err);
-  }
-}
-
-/** POST /api/v1/teams/:id/claim — claim an unowned team. */
-export async function claimTeam(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.user) throw new AppError(401, 'Authentication required.');
-    const team = await assignOwner(req.params.id, req.user.userId);
-    res.json(team);
   } catch (err) {
     next(err);
   }

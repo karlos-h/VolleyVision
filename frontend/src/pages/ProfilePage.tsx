@@ -10,7 +10,7 @@ function BestStatCard({ label, entry, format }: { label: string; entry: PlayerBe
   if (!entry) return null;
   return (
     <div className="bg-court-800/60 rounded-lg p-3 text-center">
-      <div className="font-mono font-bold text-xl text-spike-400">
+      <div className="font-mono font-bold text-xl text-navy-700">
         {format ? format(entry.value) : entry.value}
       </div>
       <div className="text-xs text-chalk-400 mt-0.5">{label}</div>
@@ -85,7 +85,7 @@ export default function ProfilePage() {
   }
 
   if (isLoading) return <p className="text-chalk-400">Loading profile…</p>;
-  if (!profile) return <p className="text-error-dark">Couldn't load profile.</p>;
+  if (!profile) return <p className="text-error">Couldn't load profile.</p>;
 
   const initials = `${profile.firstName[0] ?? ''}${profile.lastName[0] ?? ''}`;
 
@@ -98,7 +98,7 @@ export default function ProfilePage() {
       </div>
 
       {saveSuccess && (
-        <div className="bg-success/30 border border-success rounded-xl px-4 py-3 text-success-dark text-sm">
+        <div className="bg-success/30 border border-success rounded-xl px-4 py-3 text-success text-sm">
           Profile updated successfully.
         </div>
       )}
@@ -113,7 +113,7 @@ export default function ProfilePage() {
               className="w-16 h-16 rounded-full object-cover ring-2 ring-court-700"
             />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-spike-600 flex items-center justify-center text-xl font-bold text-white">
+            <div className="w-16 h-16 rounded-full bg-spike-600 flex items-center justify-center text-xl font-bold text-navy-900">
               {initials}
             </div>
           )}
@@ -302,7 +302,7 @@ export default function ProfilePage() {
               />
             </div>
 
-            {saveError && <p className="text-error-dark text-sm">{saveError}</p>}
+            {saveError && <p className="text-error text-sm">{saveError}</p>}
 
             <button type="submit" className="btn-primary" disabled={updateProfile.isPending}>
               {updateProfile.isPending ? 'Saving…' : 'Save Changes'}

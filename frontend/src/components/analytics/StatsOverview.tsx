@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { Line, LineChart, ResponsiveContainer } from 'recharts';
 import type { PlayerStatLine, StatLine } from '../../types';
 import { POSITION_LABELS } from '../../types';
+import { CHART_SERIES, CHART_NEGATIVE } from '../../lib/chartColors';
 
 function percentage(value: number | null) {
   if (value === null) return '-';
@@ -22,7 +24,71 @@ function decimal(value: number | null, places = 2) {
   return value === null ? '-' : value.toFixed(places);
 }
 
-export function StatsCards({ stats }: { stats: StatLine }) {
+/**
+ * Per-match history for a stat, oldest first, keyed by the card label it backs.
+ * Optional: the coach/team/match dashboards have no per-match history to pass,
+ * and those cards simply render without a sparkline or trend badge rather than
+ * showing an invented one.
+ */
+export type StatTrends = Record<string, (number | null)[]>;
+
+const MIN_POINTS_FOR_SPARKLINE = 2;
+const MIN_POINTS_FOR_DELTA = 4; // 2 per half — anything less isn't a trend
+
+/**
+ * Relative change between the mean of the earlier half of the season and the
+ * mean of the recent half. Null whenever there isn't enough real history to
+ * compare against, or the earlier baseline is zero/negative (a % change off a
+ * zero baseline is meaningless).
+ */
+function delta(series: (number | null)[] | undefined): number | null {
+  if (!series) return null;
+  const points = series.filter((v): v is number => v !== null);
+  if (points.length < MIN_POINTS_FOR_DELTA) return null;
+
+  const split = Math.floor(points.length / 2);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const earlier = mean(points.slice(0, split));
+  const recent = mean(points.slice(split));
+
+  if (earlier <= 0) return null;
+  return (recent - earlier) / earlier;
+}
+
+function Sparkline({ series, positive }: { series: (number | null)[]; positive: boolean }) {
+  const data = series.map((value, i) => ({ i, value }));
+  return (
+    <div className="w-16 h-7 shrink-0" aria-hidden>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 3, bottom: 3, left: 0, right: 0 }}>
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={positive ? CHART_SERIES[0] : CHART_NEGATIVE}
+            strokeWidth={2.2}
+            dot={false}
+            isAnimationActive={false}
+            connectNulls
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function TrendBadge({ value }: { value: number }) {
+  const up = value >= 0;
+  return (
+    <span
+      title="Recent matches vs. earlier matches this season"
+      className={`badge ${up ? 'bg-success/15 text-success' : 'bg-error/15 text-error'}`}
+    >
+      {up ? '▲' : '▼'} {Math.abs(Math.round(value * 100))}%
+    </span>
+  );
+}
+
+export function StatsCards({ stats, trends }: { stats: StatLine; trends?: StatTrends }) {
   const cards = [
     { label: 'Kills', value: stats.kills, detail: `${stats.attackAttempts} attempts` },
     { label: 'Hitting %', value: percentage(stats.hittingPercentage), detail: `${stats.attackErrors} errors` },
@@ -34,13 +100,31 @@ export function StatsCards({ stats }: { stats: StatLine }) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-      {cards.map((card) => (
-        <div key={card.label} className="card p-4">
-          <p className="text-xs text-navy-300">{card.label}</p>
-          <p className="tabular-nums text-2xl font-bold text-white mt-1">{card.value}</p>
-          <p className="text-xs text-grey-600 mt-1">{card.detail}</p>
-        </div>
-      ))}
+      {cards.map((card) => {
+        const series = trends?.[card.label];
+        const change = delta(series);
+        const hasSparkline = (series?.filter((v) => v !== null).length ?? 0) >= MIN_POINTS_FOR_SPARKLINE;
+
+        return (
+          <div key={card.label} className="card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-grey-600">
+                {card.label}
+              </p>
+              {change !== null && <TrendBadge value={change} />}
+            </div>
+
+            <div className="flex items-end justify-between gap-2 mt-2">
+              <p className="tabular-nums text-2xl font-bold text-grey-900 leading-none">{card.value}</p>
+              {hasSparkline && series && (
+                <Sparkline series={series} positive={change === null || change >= 0} />
+              )}
+            </div>
+
+            <p className="text-xs text-grey-600 mt-2">{card.detail}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -49,7 +133,7 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
-        <thead className="bg-navy-700 text-navy-100 text-xs">
+        <thead className="bg-grey-50 text-grey-600 text-xs border-b border-grey-200">
           <tr>
             <th className="text-left px-4 py-3">Player</th>
             <th className="text-center px-3 py-3">K</th>
@@ -64,23 +148,23 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
             <th className="text-center px-3 py-3">Ast</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-navy-700">
+        <tbody className="divide-y divide-grey-200">
           {rows.map((row) => (
-            <tr key={row.player.id} className="hover:bg-navy-700/50">
+            <tr key={row.player.id} className="hover:bg-grey-50">
               <td className="px-4 py-3">
-                <span className="tabular-nums text-gold-500 mr-2">#{row.player.jerseyNumber}</span>
+                <span className="tabular-nums text-grey-600 mr-2">#{row.player.jerseyNumber}</span>
                 <Link
                   to={`/players/${row.player.id}/dashboard`}
-                  className="font-medium text-white hover:text-gold-500 transition-colors"
+                  className="font-medium text-grey-900 hover:text-navy-700 transition-colors"
                 >
                   {row.player.firstName} {row.player.lastName}
                 </Link>
-                <span className="text-xs text-grey-600 ml-2">{POSITION_LABELS[row.player.position]}</span>
+                <span className="text-xs text-grey-400 ml-2">{POSITION_LABELS[row.player.position]}</span>
               </td>
               <td className="stat-cell">{row.kills}</td>
               <td className="stat-cell">{row.attackErrors}</td>
               <td className="stat-cell">{row.attackAttempts}</td>
-              <td className="stat-cell font-semibold text-gold-500">{percentage(row.hittingPercentage)}</td>
+              <td className="stat-cell font-semibold text-navy-700">{percentage(row.hittingPercentage)}</td>
               <td className="stat-cell">{row.aces}</td>
               <td className="stat-cell">{row.serviceErrors}</td>
               <td className="stat-cell">{decimal(row.passingRating)}</td>
@@ -91,7 +175,7 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
           ))}
         </tbody>
       </table>
-      {!rows.length && <p className="text-navy-300 text-sm p-5">No player statistics yet.</p>}
+      {!rows.length && <p className="text-grey-600 text-sm p-5">No player statistics yet.</p>}
     </div>
   );
 }

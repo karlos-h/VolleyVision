@@ -19,7 +19,7 @@ export default function LeagueRankingCards({ title, entries, formatValue, emptyM
             <div key={entry.leagueTeamId} className="flex items-center gap-3 py-1.5 px-3 rounded bg-court-800/60 text-sm">
               <span className="text-chalk-600 font-mono text-xs w-4 shrink-0">{i + 1}</span>
               <span className="flex-1 text-chalk-200 truncate">{entry.teamName}</span>
-              <span className="font-mono font-semibold text-spike-400 shrink-0">{formatValue(entry.value)}</span>
+              <span className="font-mono font-semibold text-navy-700 shrink-0">{formatValue(entry.value)}</span>
               <span className="text-chalk-600 text-xs shrink-0">{entry.matchesPlayed}M</span>
             </div>
           ))}

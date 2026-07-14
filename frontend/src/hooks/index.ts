@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, configApi, approvalApi } from '../lib/api';
-import type { Team, Player, Match, TeamRole, ApprovalStatus } from '../types';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi } from '../lib/api';
+import type { CreateTeamInput } from '../lib/api';
+import type { Player, Match, TeamRole, ApprovalStatus } from '../types';
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
 export function useApprovalRequests(teamId: string, status?: ApprovalStatus, enabled = true) {
@@ -34,14 +35,12 @@ export function useRejectRequest(teamId: string) {
   });
 }
 
-// ─── Config ────────────────────────────────────────────────────────────────────
-// Client config (e.g. default team visibility) is static per deployment — cache
-// it for the session so the create-team form can prefill without a flash.
-export function useConfig() {
-  return useQuery({ queryKey: ['config'], queryFn: configApi.get, staleTime: Infinity });
-}
-
 // ─── Teams ────────────────────────────────────────────────────────────────────
+/**
+ * Every team the current user owns or belongs to. The backend scopes this to
+ * the caller's memberships — there are no public teams — so any picker built on
+ * it (see PlayerTeamLinksCard, PlayerPortalPage) is membership-scoped for free.
+ */
 export function useTeams() {
   return useQuery({ queryKey: ['teams'], queryFn: teamsApi.list });
 }
@@ -53,7 +52,7 @@ export function useTeam(id: string) {
 export function useCreateTeam() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Omit<Team, 'id' | 'createdAt' | 'updatedAt'>) => teamsApi.create(data),
+    mutationFn: (data: CreateTeamInput) => teamsApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['teams'] }),
   });
 }
@@ -69,7 +68,7 @@ export function useDeleteTeam() {
 export function useUpdateTeam() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Team> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateTeamInput> }) =>
       teamsApi.update(id, data),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['teams'] });
@@ -539,18 +538,6 @@ export function useUserSearch(q: string) {
 
 export function useMyTeams() {
   return useQuery({ queryKey: ['teams', 'my-teams'], queryFn: teamsApi.myTeams });
-}
-
-export function useClaimTeam() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (teamId: string) => teamsApi.claim(teamId),
-    onSuccess: (_data, teamId) => {
-      qc.invalidateQueries({ queryKey: ['teams'] });
-      qc.invalidateQueries({ queryKey: ['teams', teamId] });
-      qc.invalidateQueries({ queryKey: ['teams', 'my-teams'] });
-    },
-  });
 }
 
 export function useTransferOwnership() {

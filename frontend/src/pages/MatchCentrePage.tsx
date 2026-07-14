@@ -9,7 +9,7 @@ function LiveCard({ f }: { f: LiveFixture }) {
   return (
     <div className="card p-4 border-l-4 border-success space-y-2">
       <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success-dark">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
           <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
           Live · Set {f.currentSet}
         </span>
@@ -21,7 +21,7 @@ function LiveCard({ f }: { f: LiveFixture }) {
       <div className="flex items-center gap-3">
         {/* Home team */}
         <div className="flex-1 text-right">
-          <Link to={`/leagues/league-teams/${f.homeLeagueTeamId}/profile`} className="font-semibold text-chalk-100 hover:text-spike-400 text-sm">
+          <Link to={`/leagues/league-teams/${f.homeLeagueTeamId}/profile`} className="font-semibold text-chalk-100 hover:text-navy-700 text-sm">
             {f.homeTeam}
           </Link>
         </div>
@@ -35,7 +35,7 @@ function LiveCard({ f }: { f: LiveFixture }) {
 
         {/* Away team */}
         <div className="flex-1 text-left">
-          <Link to={`/leagues/league-teams/${f.awayLeagueTeamId}/profile`} className="font-semibold text-chalk-100 hover:text-spike-400 text-sm">
+          <Link to={`/leagues/league-teams/${f.awayLeagueTeamId}/profile`} className="font-semibold text-chalk-100 hover:text-navy-700 text-sm">
             {f.awayTeam}
           </Link>
         </div>
@@ -95,7 +95,7 @@ function UpcomingCard({ f }: { f: UpcomingFixtureSummary }) {
   return (
     <div className="card p-3 flex items-center gap-3 text-sm">
       <div className="flex-1 text-right">
-        <Link to={`/leagues/league-teams/${f.homeLeagueTeamId}/profile`} className="font-semibold text-chalk-200 hover:text-spike-400">
+        <Link to={`/leagues/league-teams/${f.homeLeagueTeamId}/profile`} className="font-semibold text-chalk-200 hover:text-navy-700">
           {f.homeTeam}
         </Link>
       </div>
@@ -104,7 +104,7 @@ function UpcomingCard({ f }: { f: UpcomingFixtureSummary }) {
         <div className="text-chalk-600">{timeStr}</div>
       </div>
       <div className="flex-1 text-left">
-        <Link to={`/leagues/league-teams/${f.awayLeagueTeamId}/profile`} className="font-semibold text-chalk-200 hover:text-spike-400">
+        <Link to={`/leagues/league-teams/${f.awayLeagueTeamId}/profile`} className="font-semibold text-chalk-200 hover:text-navy-700">
           {f.awayTeam}
         </Link>
       </div>
@@ -135,7 +135,7 @@ export default function MatchCentrePage() {
       </div>
 
       {isLoading && <p className="text-chalk-400 text-sm">Loading match centre…</p>}
-      {error && <p className="text-error-dark text-sm">Failed to load match centre.</p>}
+      {error && <p className="text-error text-sm">Failed to load match centre.</p>}
 
       {data && (
         <>

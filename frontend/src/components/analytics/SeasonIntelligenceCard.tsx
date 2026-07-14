@@ -12,8 +12,8 @@ const TRAJECTORY_LABEL: Record<SeasonIntelligenceReport['trajectory'], string> =
 };
 
 const TRAJECTORY_COLOR: Record<SeasonIntelligenceReport['trajectory'], string> = {
-  improving:        'text-success-dark',
-  declining:        'text-error-dark',
+  improving:        'text-success',
+  declining:        'text-error',
   mixed:            'text-warning',
   insufficient_data:'text-chalk-500',
 };
@@ -73,8 +73,8 @@ export default function SeasonIntelligenceCard({ report }: Props) {
               key={i}
               className={`rounded-lg p-3 text-sm ${
                 insight.direction === 'positive'
-                  ? 'bg-success/10 border border-success/20 text-success-dark'
-                  : 'bg-error/10 border border-error/20 text-error-dark'
+                  ? 'bg-success/10 border border-success/20 text-success'
+                  : 'bg-error/10 border border-error/20 text-error'
               }`}
             >
               {insight.message}
