@@ -1,14 +1,14 @@
 import { NavLink } from 'react-router-dom';
 
-// Shared tab group for a single team's pages, so Dashboard / Roster / Matches
+// Shared tab group for a single team's pages, so Dashboard / Matches / Roster
 // are reachable from any of the three without returning to the Teams grid.
 // `end` on the Roster link keeps it from matching the /dashboard or /matches
 // child routes.
 export default function TeamSubNav({ teamId, teamName }: { teamId: string; teamName?: string }) {
   const tabs = [
     { to: `/teams/${teamId}/dashboard`, label: 'Dashboard', end: false },
-    { to: `/teams/${teamId}`, label: 'Roster', end: true },
     { to: `/teams/${teamId}/matches`, label: 'Matches', end: false },
+    { to: `/teams/${teamId}`, label: 'Roster', end: true },
   ];
 
   return (

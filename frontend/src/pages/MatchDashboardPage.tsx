@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport, useMatchZoneDetail, useMatchReportNarrative } from '../hooks';
+import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport, useMatchZoneDetail, useMatchReportNarrative, useHasPermission } from '../hooks';
+import MatchSubNav from '../components/ui/MatchSubNav';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
@@ -23,29 +24,30 @@ export default function MatchDashboardPage() {
   const { data: reportData } = useMatchReport(matchId!);
   const { data: zoneDetail } = useMatchZoneDetail(matchId!);
   const { data: narrativeData, isLoading: narrativeLoading, isError: narrativeError } = useMatchReportNarrative(matchId!);
+  // teamId is only known once the match loads; the hook stays unconditional and
+  // re-runs when it resolves. Track is offered only to those who can track a
+  // live match (players never can — Iteration 3 Task 6).
+  const canTrack = useHasPermission(data?.match.teamId ?? '', 'TRACK_MATCH');
 
-  if (isLoading) return <p className="text-navy-300">Loading analytics...</p>;
+  if (isLoading) return <p className="text-grey-600">Loading analytics...</p>;
   if (isError || !data) return <p className="text-error">Couldn't load match analytics.</p>;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <Link to={`/teams/${data.match.teamId}/matches`} className="text-sm text-navy-300 hover:text-navy-700">
-            Back to matches
-          </Link>
-          <h1 className="text-2xl font-bold text-grey-900 mt-2">
-            {data.match.teamName} vs {data.match.opponent}
-          </h1>
-          <p className="text-sm text-navy-300 mt-1">
-            {format(new Date(data.match.matchDate), 'PPP')}
-            {data.match.competition && ` | ${data.match.competition}`}
-          </p>
-        </div>
-        <Link to={`/track/${data.match.id}`} className="btn-primary text-sm">
-          {data.match.status === 'COMPLETED' ? 'View Events' : 'Open Tracking'}
+      <div>
+        <Link to={`/teams/${data.match.teamId}/matches`} className="text-sm text-grey-600 hover:text-navy-700">
+          Back to matches
         </Link>
+        <h1 className="text-2xl font-bold text-grey-900 mt-2">
+          {data.match.teamName} vs {data.match.opponent}
+        </h1>
+        <p className="text-sm text-grey-600 mt-1">
+          {format(new Date(data.match.matchDate), 'PPP')}
+          {data.match.competition && ` | ${data.match.competition}`}
+        </p>
       </div>
+
+      <MatchSubNav matchId={data.match.id} trackable={canTrack && data.match.status === 'IN_PROGRESS'} />
 
       {/* Phase 4 — Final Score Summary */}
       <div className="card p-4 space-y-3">

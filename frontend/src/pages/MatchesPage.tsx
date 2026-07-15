@@ -169,7 +169,17 @@ export default function MatchesPage() {
       ) : (
         <div className="space-y-3">
           {matches?.map((match) => (
-            <div key={match.id} className="card p-4 flex items-center gap-4">
+            // The whole card opens the match's Stats page; the action buttons
+            // below stop propagation so they keep working independently.
+            <div
+              key={match.id}
+              role="link"
+              tabIndex={0}
+              aria-label={`View stats for match vs ${match.opponent}`}
+              onClick={() => navigate(`/matches/${match.id}/dashboard`)}
+              onKeyDown={(e) => { if (e.target === e.currentTarget && e.key === 'Enter') navigate(`/matches/${match.id}/dashboard`); }}
+              className="card p-4 flex items-center gap-4 cursor-pointer transition-all hover:border-navy-500 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-grey-900">vs {match.opponent}</span>
@@ -182,7 +192,7 @@ export default function MatchesPage() {
                 </p>
               </div>
 
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0" onClick={(e) => e.stopPropagation()}>
                 <div className="text-xs text-grey-500 tabular-nums">{match._count?.events ?? 0} events</div>
                 <div className="flex gap-2 mt-1 justify-end">
                   <Link to={`/matches/${match.id}/dashboard`} className="btn-secondary text-sm py-1.5 px-3">Stats</Link>

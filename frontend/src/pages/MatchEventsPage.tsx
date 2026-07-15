@@ -1,7 +1,8 @@
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents } from '../hooks';
+import { useMatch, useEvents, useHasPermission } from '../hooks';
 import { EVENT_META, type Event } from '../types';
+import MatchSubNav from '../components/ui/MatchSubNav';
 
 // Light-mode, read-only changelog of a match's recorded events (Task 6).
 // Available for a match in any status — unlike Track, which is live-only.
@@ -24,6 +25,7 @@ export default function MatchEventsPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const { data: match, isLoading: matchLoading } = useMatch(matchId!);
   const { data: events, isLoading: eventsLoading } = useEvents(matchId!);
+  const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
 
   if (matchLoading) return <p className="text-grey-600">Loading…</p>;
   if (!match) return <p className="text-error">Match not found.</p>;
@@ -45,16 +47,13 @@ export default function MatchEventsPage() {
           <span>/</span>
           <span className="text-grey-900">Events</span>
         </div>
-        <div className="flex items-start justify-between gap-4 mt-2">
-          <div>
-            <h1 className="text-2xl font-bold text-grey-900">vs {match.opponent}</h1>
-            <p className="text-grey-600 text-sm mt-0.5">
-              {format(new Date(match.matchDate), 'PPP')} · {match.status.replace('_', ' ')}
-            </p>
-          </div>
-          <Link to={`/matches/${match.id}/dashboard`} className="btn-secondary text-sm shrink-0">Stats</Link>
-        </div>
+        <h1 className="text-2xl font-bold text-grey-900 mt-2">vs {match.opponent}</h1>
+        <p className="text-grey-600 text-sm mt-0.5">
+          {format(new Date(match.matchDate), 'PPP')} · {match.status.replace('_', ' ')}
+        </p>
       </div>
+
+      <MatchSubNav matchId={match.id} trackable={canTrack && match.status === 'IN_PROGRESS'} />
 
       {/* Changelog */}
       {eventsLoading ? (

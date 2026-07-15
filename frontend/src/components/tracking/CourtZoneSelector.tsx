@@ -19,25 +19,25 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-xs font-semibold text-navy-300">
-          Court Zone <span className="normal-case font-normal text-navy-300/70">(optional)</span>
+        <span className="text-xs font-semibold text-grey-600">
+          Court Zone <span className="normal-case font-normal text-grey-400">(optional)</span>
         </span>
         {value !== null && (
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="text-xs text-navy-300 hover:text-white transition-colors"
+            className="text-xs text-grey-600 hover:text-navy-700 transition-colors"
           >
             Clear
           </button>
         )}
       </div>
 
-      <div className="relative border border-navy-600 rounded-xl overflow-hidden bg-navy-800 select-none">
-        {/* NET divider */}
-        <div className="absolute inset-x-0 top-1/2 h-px bg-gold-500/50 z-10 pointer-events-none" />
+      <div className="relative border border-grey-200 rounded-xl overflow-hidden bg-grey-50 select-none">
+        {/* NET divider — a gold line spanning the court centre */}
+        <div className="absolute inset-x-0 top-1/2 h-px bg-gold-500/60 z-10 pointer-events-none" />
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20
-                        text-[9px] font-bold tracking-widest text-gold-500/60 bg-navy-800 px-1.5 pointer-events-none">
+                        text-[9px] font-bold tracking-widest text-navy-700 bg-grey-50 px-1.5 pointer-events-none">
           NET
         </div>
 
@@ -49,11 +49,11 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
                 type="button"
                 onClick={() => onChange(value === zone ? null : zone)}
                 className={clsx(
-                  'h-12 flex items-center justify-center border border-navy-600/40',
+                  'h-12 flex items-center justify-center border border-grey-200',
                   'text-lg font-mono font-bold transition-all active:scale-95',
                   value === zone
                     ? 'bg-gold-500 text-navy-900 shadow-inner'
-                    : 'bg-navy-700 text-navy-100 hover:bg-navy-500 hover:text-white'
+                    : 'bg-white text-grey-900 hover:bg-grey-200'
                 )}
               >
                 {zone}
@@ -63,7 +63,7 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
         ))}
       </div>
 
-      <p className="text-[10px] text-navy-300/70 px-0.5">
+      <p className="text-[10px] text-grey-400 px-0.5">
         {value !== null
           ? `Zone ${value} selected — tap again to deselect`
           : 'Tap a zone to record attack/serve location'}

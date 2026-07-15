@@ -125,16 +125,16 @@ export default function TrackingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <p className="text-navy-300">Loading match…</p>
+      <div className="min-h-screen bg-grey-50 flex items-center justify-center">
+        <p className="text-grey-600">Loading match…</p>
       </div>
     );
   }
 
   if (!match) {
     return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <p className="text-navy-300">Match not found. <Link to="/teams" className="text-gold-500">Go back</Link></p>
+      <div className="min-h-screen bg-grey-50 flex items-center justify-center">
+        <p className="text-grey-600">Match not found. <Link to="/teams" className="text-navy-700 font-medium">Go back</Link></p>
       </div>
     );
   }
@@ -150,19 +150,19 @@ export default function TrackingPage() {
   const players = match.team?.players ?? [];
 
   return (
-    <div className="min-h-screen bg-navy-900 flex flex-col select-none">
+    <div className="min-h-screen bg-grey-50 flex flex-col select-none">
       {/* ── Top bar ── */}
-      <header className="bg-navy-800 border-b border-navy-700 px-4 py-3">
+      <header className="bg-white border-b border-grey-200 px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link to={`/teams/${match.teamId}/matches`} className="text-navy-300 hover:text-navy-100 shrink-0">
+            <Link to={`/teams/${match.teamId}/matches`} className="text-grey-600 hover:text-navy-700 shrink-0">
               ← Back
             </Link>
             <div className="min-w-0">
-              <div className="font-bold text-white leading-tight truncate">
-                {match.team?.name} <span className="text-navy-300 font-normal">vs</span> {match.opponent}
+              <div className="font-bold text-grey-900 leading-tight truncate">
+                {match.team?.name} <span className="text-grey-600 font-normal">vs</span> {match.opponent}
               </div>
-              <div className="text-xs text-navy-300">
+              <div className="text-xs text-grey-600">
                 {match.competition && `${match.competition} · `}
                 {format(new Date(match.matchDate), 'PPP')}
                 {match.venue && ` · ${match.venue}`}
@@ -178,10 +178,10 @@ export default function TrackingPage() {
                   key={s}
                   onClick={() => setCurrentSet(s)}
                   className={clsx(
-                    'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors',
+                    'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
                     currentSet === s
-                      ? 'bg-gold-500 text-navy-900'
-                      : 'bg-navy-700 text-navy-300 hover:bg-navy-600'
+                      ? 'bg-gold-500 border-gold-500 text-navy-900'
+                      : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200'
                   )}
                 >
                   {s}
@@ -195,8 +195,8 @@ export default function TrackingPage() {
               className={clsx(
                 'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
                 match.status === 'IN_PROGRESS'
-                  ? 'bg-gold-500/20 text-gold-500 border border-gold-500/30'
-                  : 'bg-navy-700 text-navy-300 border border-navy-600'
+                  ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
+                  : 'bg-grey-50 text-grey-600 border border-grey-200'
               )}
             >
               {match.status === 'IN_PROGRESS' ? '● LIVE' : match.status}
@@ -206,7 +206,7 @@ export default function TrackingPage() {
             <button
               onClick={handleUndo}
               disabled={undoEvent.isPending || !events?.length}
-              className="bg-navy-700 hover:bg-navy-600 disabled:opacity-40 text-navy-100 text-xs font-medium px-3 py-1.5 rounded-lg border border-navy-600 transition-colors"
+              className="bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-xs font-medium px-3 py-1.5 rounded-lg border border-grey-200 transition-colors"
             >
               ↩ Undo
             </button>
@@ -215,31 +215,31 @@ export default function TrackingPage() {
       </header>
 
       {/* ── Live Scoreboard ── */}
-      <div className="bg-navy-800 border-b border-navy-700 px-4 py-3">
+      <div className="bg-white border-b border-grey-200 px-4 py-3">
         <div className="max-w-5xl mx-auto space-y-2">
           {/* A completed match redirects to the Events changelog (Task 6), so the
               tracker only ever renders a live, in-progress match here. */}
           <div className="flex items-center justify-between gap-4">
             {/* Home team */}
             <div className="flex-1 text-right">
-              <div className="text-sm font-semibold text-navy-100 truncate">{match.team?.name ?? 'Home'}</div>
-              <div className="tabular-nums text-4xl font-bold text-white leading-none mt-1">{match.homeScore ?? 0}</div>
+              <div className="text-sm font-semibold text-grey-900 truncate">{match.team?.name ?? 'Home'}</div>
+              <div className="tabular-nums text-4xl font-bold text-grey-900 leading-none mt-1">{match.homeScore ?? 0}</div>
             </div>
 
             {/* Centre — sets won + controls */}
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div className="flex items-center gap-3">
-                <span className="tabular-nums text-xl font-bold text-gold-500">{match.homeSetsWon ?? 0}</span>
-                <span className="text-navy-300 text-xs font-semibold">Sets</span>
-                <span className="tabular-nums text-xl font-bold text-navy-300">{match.awaySetsWon ?? 0}</span>
+                <span className="tabular-nums text-xl font-bold text-navy-700">{match.homeSetsWon ?? 0}</span>
+                <span className="text-grey-600 text-xs font-semibold">Sets</span>
+                <span className="tabular-nums text-xl font-bold text-grey-600">{match.awaySetsWon ?? 0}</span>
               </div>
-              <div className="text-xs text-navy-300">Set {currentSet}</div>
+              <div className="text-xs text-grey-600">Set {currentSet}</div>
 
               {/* Per-set score history */}
               {Array.isArray(match.setScores) && (match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
                 <div className="flex gap-1 mt-0.5">
                   {(match.setScores as {set:number;home:number;away:number}[]).map((s) => (
-                    <span key={s.set} className="text-[10px] tabular-nums text-navy-300 bg-navy-700 px-1.5 py-0.5 rounded border border-navy-600">
+                    <span key={s.set} className="text-[10px] tabular-nums text-grey-600 bg-grey-50 px-1.5 py-0.5 rounded border border-grey-200">
                       {s.home}–{s.away}
                     </span>
                   ))}
@@ -248,35 +248,35 @@ export default function TrackingPage() {
               <div className="flex gap-1 mt-1">
                 <button
                   onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
+                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
                   title="Home −1"
                 >
                   −
                 </button>
                 <button
                   onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
+                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
                   title="Home +1"
                 >
                   +
                 </button>
                 <button
                   onClick={() => resetSetScore.mutate()}
-                  className="px-2 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-[10px] font-medium border border-navy-600"
+                  className="px-2 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-[10px] font-medium border border-grey-200"
                   title="Reset set score"
                 >
                   RST
                 </button>
                 <button
                   onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
+                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
                   title="Away −1"
                 >
                   −
                 </button>
                 <button
                   onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
+                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
                   title="Away +1"
                 >
                   +
@@ -286,8 +286,8 @@ export default function TrackingPage() {
 
             {/* Away team */}
             <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-navy-100 truncate">{match.opponent}</div>
-              <div className="tabular-nums text-4xl font-bold text-navy-300 leading-none mt-1">{match.awayScore ?? 0}</div>
+              <div className="text-sm font-semibold text-grey-900 truncate">{match.opponent}</div>
+              <div className="tabular-nums text-4xl font-bold text-grey-600 leading-none mt-1">{match.awayScore ?? 0}</div>
             </div>
           </div>
         </div>
@@ -309,13 +309,13 @@ export default function TrackingPage() {
 
         {/* ── Recording mode toggle ── */}
         <div className="flex items-center gap-3 card p-3">
-          <span className="text-xs text-navy-300 font-medium shrink-0">Recording for:</span>
-          <div className="flex rounded-lg overflow-hidden border border-navy-600 text-xs font-semibold">
+          <span className="text-xs text-grey-600 font-medium shrink-0">Recording for:</span>
+          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
             <button
               onClick={() => setIsOpponentMode(false)}
               className={clsx(
                 'px-4 py-2 transition-colors',
-                !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'
+                !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
               )}
             >
               Us
@@ -324,7 +324,7 @@ export default function TrackingPage() {
               onClick={() => setIsOpponentMode(true)}
               className={clsx(
                 'px-4 py-2 transition-colors',
-                isOpponentMode ? 'bg-error text-white' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'
+                isOpponentMode ? 'bg-error text-white' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
               )}
             >
               Opponent
@@ -345,7 +345,7 @@ export default function TrackingPage() {
 
         {/* ── Player roster (hidden in opponent mode) ── */}
         {!isOpponentMode && <div className="card p-3">
-          <div className="text-xs text-navy-300 font-medium mb-2 px-1">
+          <div className="text-xs text-grey-600 font-medium mb-2 px-1">
             Select Player — Set {currentSet}
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
@@ -357,7 +357,7 @@ export default function TrackingPage() {
                   'flex flex-col items-center justify-center rounded-xl py-2 px-1 transition-all border',
                   selectedPlayer?.id === player.id
                     ? 'bg-gold-500 border-gold-500 text-navy-900'
-                    : 'bg-navy-700 border-navy-600 text-navy-100 hover:border-navy-300'
+                    : 'bg-grey-50 border-grey-200 text-grey-900 hover:border-navy-500'
                 )}
               >
                 <span className="tabular-nums font-bold text-base leading-tight">
@@ -369,7 +369,7 @@ export default function TrackingPage() {
                 <span
                   className={clsx(
                     'text-[10px] font-semibold mt-0.5',
-                    selectedPlayer?.id === player.id ? 'text-navy-900/70' : 'text-navy-300'
+                    selectedPlayer?.id === player.id ? 'text-navy-900/70' : 'text-grey-600'
                   )}
                 >
                   {POSITION_LABELS[player.position]}
@@ -382,37 +382,37 @@ export default function TrackingPage() {
         {/* ── Selected player banner (own events only) ── */}
         {!isOpponentMode && <div
           className={clsx(
-            'rounded-2xl px-5 py-3 flex items-center justify-between transition-colors',
-            selectedPlayer ? 'bg-navy-700 border border-navy-500' : 'bg-navy-800 border border-navy-700'
+            'rounded-2xl px-5 py-3 flex items-center justify-between transition-colors border',
+            selectedPlayer ? 'bg-navy-100 border-navy-500' : 'bg-white border-grey-200'
           )}
         >
           {selectedPlayer ? (
             <>
               <div>
-                <span className="text-gold-500 tabular-nums font-bold text-lg">
+                <span className="text-navy-700 tabular-nums font-bold text-lg">
                   #{selectedPlayer.jerseyNumber}
                 </span>
-                <span className="text-white font-semibold ml-2">
+                <span className="text-grey-900 font-semibold ml-2">
                   {selectedPlayer.firstName} {selectedPlayer.lastName}
                 </span>
-                <span className="text-navy-300 text-sm ml-2">
+                <span className="text-grey-600 text-sm ml-2">
                   {POSITION_LABELS[selectedPlayer.position]}
                 </span>
               </div>
-              <div className="text-xs text-navy-300">
+              <div className="text-xs text-grey-600">
                 Tap an event button to record
               </div>
             </>
           ) : (
-            <span className="text-navy-300 text-sm">← Select a player above</span>
+            <span className="text-grey-600 text-sm">← Select a player above</span>
           )}
         </div>}
 
         {/* ── Opponent mode banner ── */}
         {isOpponentMode && (
-          <div className="rounded-2xl px-5 py-3 flex items-center justify-between bg-error/30 border border-error/40">
-            <span className="text-error-dark font-semibold text-sm">Recording opponent actions</span>
-            <span className="text-xs text-navy-300">Tap an event to record for opponent</span>
+          <div className="rounded-2xl px-5 py-3 flex items-center justify-between bg-error/15 border border-error/30">
+            <span className="text-error-strong font-semibold text-sm">Recording opponent actions</span>
+            <span className="text-xs text-grey-600">Tap an event to record for opponent</span>
           </div>
         )}
 
@@ -420,7 +420,7 @@ export default function TrackingPage() {
         <div className="space-y-3">
           {CATEGORIES.map((cat) => (
             <div key={cat.label}>
-              <div className="text-xs font-semibold text-navy-300 mb-2 px-1">
+              <div className="text-xs font-semibold text-grey-600 mb-2 px-1">
                 {cat.label}
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cat.events.length}, 1fr)` }}>
@@ -451,7 +451,7 @@ export default function TrackingPage() {
         {/* ── Court zone + Rotation selectors ── */}
         <div className="grid md:grid-cols-2 gap-3">
           <div className="card p-3">
-            <label className="flex items-center gap-2 text-xs text-navy-300 mb-3 cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-xs text-grey-600 mb-3 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={keepZone}
@@ -464,7 +464,7 @@ export default function TrackingPage() {
           </div>
 
           <div className="card p-3">
-            <div className="text-xs text-navy-300 mb-3">Rotation (optional)</div>
+            <div className="text-xs text-grey-600 mb-3">Rotation (optional)</div>
             <div className="grid grid-cols-3 gap-2">
               {[1, 2, 3, 4, 5, 6].map((r) => (
                 <button
@@ -474,7 +474,7 @@ export default function TrackingPage() {
                     'py-3 rounded-xl text-sm font-bold tabular-nums transition-all border',
                     selectedRotation === r
                       ? 'bg-gold-500 border-gold-500 text-navy-900'
-                      : 'bg-navy-700 border-navy-600 text-navy-100 hover:border-navy-300'
+                      : 'bg-grey-50 border-grey-200 text-grey-900 hover:border-navy-500'
                   )}
                 >
                   R{r}
@@ -482,7 +482,7 @@ export default function TrackingPage() {
               ))}
             </div>
             {selectedRotation && (
-              <p className="text-xs text-gold-500 mt-2 text-center">
+              <p className="text-xs text-navy-700 mt-2 text-center">
                 Rotation {selectedRotation} selected — tap again to deselect
               </p>
             )}
@@ -492,10 +492,10 @@ export default function TrackingPage() {
         {/* ── Recent events feed ── */}
         {recentEvents.length > 0 && (
           <div className="card overflow-hidden mt-2">
-            <div className="px-4 py-2 border-b border-navy-700 text-xs text-navy-300 font-medium">
+            <div className="px-4 py-2 border-b border-grey-200 text-xs text-grey-600 font-medium">
               Recent Events
             </div>
-            <div className="divide-y divide-navy-700">
+            <div className="divide-y divide-grey-200">
               {recentEvents.map((event) => {
                 const meta = getMeta(event.eventType);
                 return (
@@ -507,22 +507,22 @@ export default function TrackingPage() {
                           ? 'bg-success'
                           : meta.outcome === 'negative'
                           ? 'bg-error'
-                          : 'bg-navy-300'
+                          : 'bg-grey-400'
                       )}
                     />
-                    <span className="tabular-nums text-xs text-navy-300 shrink-0">
+                    <span className="tabular-nums text-xs text-grey-600 shrink-0">
                       S{event.setNumber}
                     </span>
-                    <span className="text-sm font-medium text-navy-100 flex-1">
+                    <span className="text-sm font-medium text-grey-900 flex-1">
                       {meta.label}
                     </span>
                     {event.player && (
-                      <span className="text-xs text-navy-300 tabular-nums">
+                      <span className="text-xs text-grey-600 tabular-nums">
                         #{event.player.jerseyNumber} {event.player.lastName}
                       </span>
                     )}
                     {event.courtZone != null && (
-                      <span className="badge bg-navy-700 text-gold-500 border border-navy-600">
+                      <span className="badge bg-grey-50 text-navy-700 border border-grey-200">
                         Z{event.courtZone}
                       </span>
                     )}
