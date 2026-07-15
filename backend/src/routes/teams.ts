@@ -5,9 +5,9 @@ import { listMembers, createMember, updateMember, deleteMember } from '../contro
 import { createTeamInvitation, listTeamInvitations } from '../controllers/invitation';
 import { listTeamApprovalRequests } from '../controllers/approval';
 import { requireAuth, optionalAuth } from '../middleware/auth';
-import { requireTeamPermission } from '../middleware/permissions';
+import { requireTeamPermission, requireTeamAccess } from '../middleware/permissions';
 import { visibleByTeamParam } from '../middleware/visibility';
-import { Permission, getUserTeamRole, getPermissionsForRole } from '../services/permission.service';
+import { Permission, getUserTeamRole, getEffectivePermissions } from '../services/permission.service';
 
 const router = Router();
 
@@ -23,11 +23,14 @@ router.post('/', requireAuth, createTeam);
 router.patch('/:id', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), updateTeam);
 router.delete('/:id', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), deleteTeam);
 
-// My role on this team — used by the frontend PermissionGuard
+// My role on this team — used by the frontend PermissionGuard.
+// `permissions` folds per-member access tiers over the role map, so the UI
+// gates match backend enforcement (e.g. a Statistician granted invitation
+// access sees the Invite control).
 router.get('/:id/my-role', requireAuth, async (req, res, next) => {
   try {
     const { role, isOwner } = await getUserTeamRole(req.user!.userId, req.params.id);
-    const permissions = role ? getPermissionsForRole(role) : [];
+    const permissions = await getEffectivePermissions(req.user!.userId, req.params.id);
     res.json({ role, isOwner, permissions });
   } catch (err) {
     next(err);
@@ -44,9 +47,10 @@ router.post('/:id/members',   requireAuth, requireTeamPermission(Permission.MANA
 router.patch('/:id/members/:memberId', requireAuth, requireTeamPermission(Permission.MANAGE_MEMBERS), updateMember);
 router.delete('/:id/members/:memberId', requireAuth, requireTeamPermission(Permission.MANAGE_MEMBERS), deleteMember);
 
-// Invitation management
+// Invitation management. Sending is tiered (Iteration 3) — gated on the member's
+// invitation access tier, not the static INVITE_USERS role permission.
 router.get('/:id/invitations',  requireAuth, listTeamInvitations);
-router.post('/:id/invitations', requireAuth, requireTeamPermission(Permission.INVITE_USERS), createTeamInvitation);
+router.post('/:id/invitations', requireAuth, requireTeamAccess('invitation', 'id'), createTeamInvitation);
 
 // Approval queue — list is head-coach/owner only (MANAGE_TEAM = head coach)
 router.get('/:id/approval-requests', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), listTeamApprovalRequests);

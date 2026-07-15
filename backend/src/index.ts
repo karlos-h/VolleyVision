@@ -19,6 +19,7 @@ import auditRoutes from './routes/audit';
 import videoRoutes from './routes/videos';
 import leagueRoutes from './routes/league';
 import approvalRoutes from './routes/approvals';
+import trainingSessionRoutes from './routes/trainingSessions';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1', videoRoutes);
 app.use('/api/v1/leagues', leagueRoutes);
 app.use('/api/v1/approval-requests', approvalRoutes);
+app.use('/api/v1/training-sessions', trainingSessionRoutes);
 
 // Health check — useful for deployment monitoring and CI pipelines
 app.get('/health', (_req, res) => {

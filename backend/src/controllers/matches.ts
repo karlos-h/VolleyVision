@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { ApprovalAction } from '@prisma/client';
+import { AccessTier, ApprovalAction } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion } from '../lib/scoring';
 import { logAudit } from '../lib/audit';
-import { isHeadCoachOrOwner } from '../services/permission.service';
+import { getAccessTier } from '../services/permission.service';
 import { createApprovalRequest } from '../services/approval.service';
 import { applyCreateMatch, applyUpdateMatch, applyDeleteMatch } from '../services/teamActions.service';
 
@@ -60,8 +60,9 @@ export async function createMatch(req: Request, res: Response, next: NextFunctio
     }
     const userId = req.user!.userId;
 
-    // Head coach / owner applies immediately; others queue for approval.
-    if (await isHeadCoachOrOwner(userId, teamId)) {
+    // Match-management access tier decides immediate vs queued (VIEW_ONLY/non-member
+    // already 403'd upstream). Live tracking is a separate, untiered permission.
+    if ((await getAccessTier(userId, teamId, 'match')) === AccessTier.FULL_ACCESS) {
       const match = await applyCreateMatch({ teamId, matchDate, opponent, competition, venue });
       logAudit(userId, 'CREATE_MATCH', 'match', match.id);
       return res.status(201).json(match);
@@ -84,7 +85,7 @@ export async function updateMatch(req: Request, res: Response, next: NextFunctio
     if (!existing) throw new AppError(404, 'Match not found.');
     const userId = req.user!.userId;
 
-    if (await isHeadCoachOrOwner(userId, existing.teamId)) {
+    if ((await getAccessTier(userId, existing.teamId, 'match')) === AccessTier.FULL_ACCESS) {
       const match = await applyUpdateMatch(req.params.id, { matchDate, opponent, competition, venue, status, setScores });
       logAudit(userId, 'UPDATE_MATCH', 'match', match.id);
       return res.json(match);
@@ -107,7 +108,7 @@ export async function deleteMatch(req: Request, res: Response, next: NextFunctio
     if (!existing) throw new AppError(404, 'Match not found.');
     const userId = req.user!.userId;
 
-    if (await isHeadCoachOrOwner(userId, existing.teamId)) {
+    if ((await getAccessTier(userId, existing.teamId, 'match')) === AccessTier.FULL_ACCESS) {
       await applyDeleteMatch(req.params.id);
       logAudit(userId, 'DELETE_MATCH', 'match', req.params.id);
       return res.status(204).send();

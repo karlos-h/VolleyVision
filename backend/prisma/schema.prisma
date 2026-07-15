@@ -86,10 +86,27 @@ enum UserRole {
 // Phase 5 Sprint 3 — Team Membership
 enum TeamRole {
   HEAD_COACH
+  // Iteration 3 — head-coach-equivalent authority, minus TRANSFER_OWNERSHIP
+  // (ownership transfer stays owner-only). Also an approval authority.
+  MANAGER
   ASSISTANT_COACH
   STATISTICIAN
   PLAYER
   VIEWER
+}
+
+// Iteration 3 — per-member access tier for the three tiered mutation
+// categories (roster / invitations / match management). Overrides the static
+// role-permission check for those categories only:
+//   VIEW_ONLY         → cannot perform the action at all (403), even if the role would allow it
+//   APPROVAL_REQUIRED → action is queued as a pending ApprovalRequest
+//   FULL_ACCESS       → action applies immediately
+// Live match tracking (TRACK_MATCH) is intentionally NOT tiered — it stays a
+// real-time, role-based yes/no.
+enum AccessTier {
+  VIEW_ONLY
+  APPROVAL_REQUIRED
+  FULL_ACCESS
 }
 
 // Phase 5 Sprint 4 — Team Invitations
@@ -134,8 +151,15 @@ model User {
 
   profileImage String?  @map("profile_image")
 
+  // Iteration 3 — the athlete's own stated position preference, independent of
+  // the roster position a coach assigns them (Player.position) on any team.
+  preferredPosition Position? @map("preferred_position")
+
   // Phase 5 Sprint 2 — Team Ownership
   teams        Team[]
+
+  // Iteration 3 — Training sessions this user created (staff only).
+  createdTrainingSessions TrainingSession[]
 
   // Phase 5 Sprint 3 — Team Memberships
   memberships  TeamMembership[]
@@ -181,8 +205,17 @@ model Team {
   ownerId   String   @map("owner_id")
   owner     User     @relation(fields: [ownerId], references: [id])
 
+  // Iteration 3 — the team's current league season (nullable). Set from the
+  // team create/edit form; new matches default their competition from it. Kept
+  // in sync with a LeagueTeam join row so League Hub sees the same association.
+  leagueSeasonId String?       @map("league_season_id")
+  leagueSeason   LeagueSeason? @relation("TeamCurrentSeason", fields: [leagueSeasonId], references: [id], onDelete: SetNull)
+
   players     Player[]
   matches     Match[]
+
+  // Iteration 3 — Training sessions
+  trainingSessions TrainingSession[]
 
   // Phase 5 Sprint 3 — Team Memberships
   memberships TeamMembership[]
@@ -212,6 +245,13 @@ model TeamMembership {
   userId   String   @map("user_id")
   teamId   String   @map("team_id")
   role     TeamRole
+
+  // Iteration 3 — per-member access tiers. Seeded from the role at creation
+  // (see defaultAccessTiers), then independently overridable by a coach.
+  // These supersede the role-permission check for their category.
+  rosterAccess     AccessTier @default(APPROVAL_REQUIRED) @map("roster_access")
+  invitationAccess AccessTier @default(APPROVAL_REQUIRED) @map("invitation_access")
+  matchAccess      AccessTier @default(APPROVAL_REQUIRED) @map("match_access")
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -446,8 +486,16 @@ model Event {
   rotationNumber Int?      @map("rotation_number")        // 1–6 volleyball rotations (Phase 4)
   notes          String?                                   // optional coach annotation
 
-  match       Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  matchId     String    @map("match_id")
+  // Iteration 3 — an Event belongs to EITHER a match OR a training session.
+  // matchId is now nullable; training events set trainingSessionId instead.
+  // Every existing stats query filters by a match context (or spreads
+  // ownEventsOnly, which now excludes training), so training events never leak
+  // into match/career analytics.
+  match       Match?    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId     String?   @map("match_id")
+
+  trainingSession   TrainingSession? @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  trainingSessionId String?          @map("training_session_id")
 
   // playerId is optional as of Phase 6 Sprint 3 to support opponent event recording.
   // Existing rows all have a playerId; new opponent events (isOpponentEvent=true) omit it.
@@ -472,9 +520,46 @@ model Event {
   @@index([playerId, eventType])
   @@index([matchId, courtZone])
   @@index([matchId, rotationNumber])
+  @@index([trainingSessionId])
   @@index([recordedAt])
 
   @@map("events")
+}
+
+// ─── Iteration 3 — Training sessions (foundation only) ─────────────────────────
+//
+// FOUNDATION ONLY (2026-07). Schema + minimal staff-only CRUD (create/list per
+// team). NOT YET BUILT — the next pass should add: a recording UI (reusing the
+// Event model with trainingSessionId set), a training-progress view for players,
+// and the data behind Task 4's "Training load" KPI card and "Plan session" CTA
+// on the coach dashboard (both omitted/stubbed until real sessions exist).
+//
+// ISOLATION: training Events (matchId = null, trainingSessionId set) must never
+// appear in match/career/team analytics. This is enforced by `ownEventsOnly`
+// (lib/eventFilters.ts) which excludes trainingSessionId != null, plus the fact
+// that every match-scoped query constrains matchId. Do not add a stats query
+// that reads Events by player without spreading ownEventsOnly.
+model TrainingSession {
+  id              String   @id @default(cuid())
+
+  teamId          String   @map("team_id")
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  sessionDate     DateTime @map("session_date")
+  durationMinutes Int?     @map("duration_minutes")
+  location        String?
+  notes           String?
+
+  createdByUserId String   @map("created_by_user_id")
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+
+  events          Event[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([teamId])
+  @@map("training_sessions")
 }
 
 // ─── Phase 7 Sprint 1 — League Intelligence ───────────────────────────────────
@@ -509,6 +594,11 @@ model LeagueSeason {
 
   teams     LeagueTeam[]
   fixtures  LeagueMatch[]
+
+  // Iteration 3 — teams that point at this season as their current league
+  // (Team.leagueSeasonId). Distinct from `teams` (the LeagueTeam join used by
+  // fixtures/standings); this is the lightweight "current league" pointer.
+  currentTeams Team[]     @relation("TeamCurrentSeason")
 
   createdAt DateTime      @default(now())
 

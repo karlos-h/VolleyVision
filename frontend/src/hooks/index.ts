@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi } from '../lib/api';
 import type { CreateTeamInput } from '../lib/api';
-import type { Player, Match, TeamRole, ApprovalStatus } from '../types';
+import type { Player, Match, TeamRole, TeamMember, ApprovalStatus } from '../types';
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
 export function useApprovalRequests(teamId: string, status?: ApprovalStatus, enabled = true) {
@@ -499,6 +499,21 @@ export function useAddMember(teamId: string) {
     mutationFn: (data: { userId: string; role: TeamRole }) =>
       membershipsApi.add(teamId, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+  });
+}
+
+export function useUpdateMemberAccess(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, tiers }: {
+      memberId: string;
+      tiers: Partial<Pick<TeamMember, 'rosterAccess' | 'invitationAccess' | 'matchAccess'>>;
+    }) => membershipsApi.updateAccess(teamId, memberId, tiers),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', teamId] });
+      // A tier change alters the member's effective permissions.
+      qc.invalidateQueries({ queryKey: ['permissions', 'team', teamId] });
+    },
   });
 }
 

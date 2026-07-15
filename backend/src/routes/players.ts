@@ -13,7 +13,7 @@ import {
 } from '../controllers/playerTeamLinks';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { visibleByTeamParam, visibleByPlayerParam } from '../middleware/visibility';
-import { hasTeamPermission, Permission } from '../services/permission.service';
+import { hasTeamPermission, canActInCategory, Permission } from '../services/permission.service';
 import { prisma } from '../lib/prisma';
 
 // Guard for link mutations: requester must have MANAGE_TEAM on the team being linked/unlinked.
@@ -27,10 +27,11 @@ async function requireManageLinkedTeam(req: Request, res: Response, next: NextFu
   next();
 }
 
-// Roster access (Stabilization Pass 2): requester must hold MANAGE_ROSTER on the
-// team. Create → teamId from body; update/delete → resolved from the player.
-// Whether the change applies immediately or queues for approval is decided in
-// the controller (head coach/owner vs. everyone else).
+// Roster access (Iteration 3): gated on the member's roster access tier, not the
+// static role permission — a VIEW_ONLY member is blocked here even if their role
+// would otherwise allow it, and a member granted access can proceed regardless of
+// role. Create → teamId from body; update/delete → resolved from the player.
+// The controller then decides immediate vs queued from FULL_ACCESS vs APPROVAL_REQUIRED.
 async function requireRosterAccess(req: Request, res: Response, next: NextFunction) {
   if (!req.user) { res.status(401).json({ error: 'Authentication required.' }); return; }
   let teamId: string | undefined = req.body?.teamId;
@@ -40,8 +41,10 @@ async function requireRosterAccess(req: Request, res: Response, next: NextFuncti
     teamId = player.teamId;
   }
   if (!teamId) { res.status(400).json({ error: 'teamId is required.' }); return; }
-  const allowed = await hasTeamPermission(req.user.userId, teamId, Permission.MANAGE_ROSTER);
-  if (!allowed) { res.status(403).json({ error: 'You do not have permission to manage this roster.' }); return; }
+  if (!(await canActInCategory(req.user.userId, teamId, 'roster'))) {
+    res.status(403).json({ error: 'You do not have permission to manage this roster.' });
+    return;
+  }
   next();
 }
 

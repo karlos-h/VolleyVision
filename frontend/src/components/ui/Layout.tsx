@@ -6,7 +6,7 @@ import { useMyInvitations } from '../../hooks';
 import { features } from '../../config/features';
 import {
   GridIcon, TeamIcon, SparkIcon, MailIcon, UserIcon,
-  SlidersIcon, BellIcon, ChevronIcon, MenuIcon, CloseIcon, LogoutIcon,
+  BellIcon, ChevronIcon, MenuIcon, LogoutIcon,
 } from './icons';
 
 type NavItem = {
@@ -25,31 +25,12 @@ const NAV_AUTH: NavItem[] = [
   { to: '/profile', label: 'Profile', icon: UserIcon },
 ];
 
-// Longest-prefix match wins, so /teams/:id/matches still resolves to "Teams".
-const PAGE_TITLES: [prefix: string, title: string][] = [
-  ['/dashboard', 'Dashboard'],
-  ['/coach', 'Dashboard'],
-  ['/player', 'Dashboard'],
-  ['/teams', 'Teams'],
-  ['/leagues', 'League Hub'],
-  ['/invitations', 'Invitations'],
-  ['/profile', 'Profile'],
-  ['/matches', 'Match'],
-  ['/players', 'Player analytics'],
-];
-
-function pageTitle(pathname: string) {
-  const hit = PAGE_TITLES.filter(([prefix]) => pathname.startsWith(prefix))
-    .sort((a, b) => b[0].length - a[0].length)[0];
-  return hit?.[1] ?? 'VolleyVision';
-}
-
-function BrandMark({ className = 'w-[30px] h-[30px]' }: { className?: string }) {
+function BrandMark({ className = 'w-7 h-7' }: { className?: string }) {
   return <img src="/vv-icon.svg" alt="" className={className} />;
 }
 
-function Initials({ user, size }: { user: { firstName: string; lastName: string }; size: 'sm' | 'md' }) {
-  const dims = size === 'sm' ? 'w-9 h-9 text-xs' : 'w-10 h-10 text-sm';
+function Initials({ user, size = 'md' }: { user: { firstName: string; lastName: string }; size?: 'sm' | 'md' }) {
+  const dims = size === 'sm' ? 'w-[30px] h-[30px] text-[12px]' : 'w-9 h-9 text-sm';
   return (
     <span
       className={`${dims} shrink-0 rounded-full bg-navy-500 border-2 border-gold-500
@@ -60,13 +41,21 @@ function Initials({ user, size }: { user: { firstName: string; lastName: string 
   );
 }
 
+/** Nav pill: active = navy-100 tint + navy text, per the mockup. */
+function navPillClass(isActive: boolean) {
+  return [
+    'flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13.5px] transition-colors',
+    isActive ? 'bg-navy-100 text-navy-700 font-semibold' : 'text-grey-600 font-medium hover:text-navy-700 hover:bg-grey-50',
+  ].join(' ');
+}
+
 function ViewModeToggle() {
   const { viewMode, setViewMode, isDual } = useViewMode();
   if (!isDual) return null;
 
   const base = 'px-3 py-1 text-xs font-semibold rounded-md transition-colors';
   return (
-    <div className="hidden sm:flex items-center gap-0.5 p-0.5 rounded-lg bg-grey-50 border border-grey-200">
+    <div className="flex items-center gap-0.5 p-[3px] rounded-lg bg-grey-50 border border-grey-200">
       <button
         type="button"
         onClick={() => setViewMode('coach')}
@@ -85,128 +74,114 @@ function ViewModeToggle() {
   );
 }
 
-/** Bottom-of-sidebar identity chip. Expands to reveal Sign out. */
-function UserChip({
-  user,
-  viewMode,
-  onSignOut,
-}: {
-  user: { firstName: string; lastName: string };
-  viewMode: string;
-  onSignOut: () => void;
+/** A dropdown that closes when its full-screen backdrop is clicked. */
+function Dropdown({ open, onClose, children, className = '' }: {
+  open: boolean; onClose: () => void; children: React.ReactNode; className?: string;
 }) {
-  const [open, setOpen] = useState(false);
-
+  if (!open) return null;
   return (
-    <div className="rounded-2xl bg-grey-50 border border-grey-200 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-grey-200/50 transition-colors"
-      >
-        <Initials user={user} size="sm" />
-        <span className="min-w-0 leading-tight">
-          <span className="block text-[13px] font-semibold text-grey-900 truncate">
-            {user.firstName} {user.lastName}
-          </span>
-          <span className="block text-[11px] text-grey-600 capitalize">{viewMode} view</span>
-        </span>
-        <ChevronIcon
-          className={`w-4 h-4 ml-auto shrink-0 text-grey-400 transition-transform ${open ? 'rotate-90' : ''}`}
-        />
-      </button>
-
-      {open && (
-        <div className="border-t border-grey-200 p-1.5">
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium
-                       text-grey-600 hover:text-error hover:bg-white transition-colors"
-          >
-            <LogoutIcon className="w-4 h-4" />
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
+    <>
+      <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={onClose} />
+      <div className={`absolute z-50 mt-2 rounded-xl bg-white border border-grey-200 shadow-lg overflow-hidden ${className}`}>
+        {children}
+      </div>
+    </>
   );
 }
 
-function Sidebar({
-  pendingCount,
-  onSignOut,
-  onNavigate,
-  user,
-  viewMode,
-}: {
-  pendingCount: number;
-  onSignOut: () => void;
-  onNavigate: () => void;
-  user: { firstName: string; lastName: string };
-  viewMode: string;
-}) {
-  return (
-    <aside className="w-[246px] shrink-0 h-full bg-white border-r border-grey-200 flex flex-col gap-6 p-[18px] pt-6">
-      <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-3 px-1.5">
-        <BrandMark />
-        <span className="font-display font-bold text-[19px] tracking-tight text-navy-700">
-          VolleyVision
-        </span>
-      </Link>
+/** Overflow menu for the nav items below the pill breakpoint. */
+function NavOverflow({ pendingCount }: { pendingCount: number }) {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  useEffect(() => setOpen(false), [location.pathname]);
 
-      <nav className="flex flex-col gap-1">
-        <p className="px-2 mb-1.5 text-[10px] font-semibold tracking-[0.14em] text-grey-400">MENU</p>
+  return (
+    <div className="relative lg:hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Menu"
+        aria-expanded={open}
+        className="w-10 h-10 rounded-xl bg-white border border-grey-200 grid place-items-center text-grey-600 hover:text-navy-700 transition-colors"
+      >
+        <MenuIcon className="w-5 h-5" />
+      </button>
+      <Dropdown open={open} onClose={() => setOpen(false)} className="left-0 w-52 py-1.5">
         {NAV_AUTH.map(({ to, label, icon: Icon, badge }) => (
           <NavLink
             key={to}
             to={to}
-            onClick={onNavigate}
-            className={({ isActive }) => (isActive ? 'nav-link-active' : 'nav-link')}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? 'text-navy-700 bg-navy-100' : 'text-grey-700 hover:bg-grey-50'
+              }`}
           >
-            <Icon className="w-[19px] h-[19px] shrink-0" />
+            <Icon className="w-[18px] h-[18px] shrink-0" />
             {label}
             {badge && pendingCount > 0 && (
               <span className="ml-auto badge bg-gold-500 text-navy-900">{pendingCount}</span>
             )}
           </NavLink>
         ))}
-      </nav>
-
-      <div className="mt-auto flex flex-col gap-3">
-        {/* No /settings route exists yet — Settings points at Profile, which is
-            where the only user-editable settings currently live. */}
-        <NavLink to="/profile" onClick={onNavigate} className="nav-link">
-          <SlidersIcon className="w-[19px] h-[19px] shrink-0" />
-          Settings
-        </NavLink>
-        <UserChip user={user} viewMode={viewMode} onSignOut={onSignOut} />
-      </div>
-    </aside>
+      </Dropdown>
+    </div>
   );
 }
 
-/** Logged-out chrome: no sidebar, just a light header. */
+/** Avatar chip that opens a Profile / Sign out dropdown. */
+function AvatarMenu({ user, onSignOut }: {
+  user: { firstName: string; lastName: string }; onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Account menu"
+        aria-expanded={open}
+        className="flex items-center gap-2.5 pl-[5px] pr-2.5 py-[5px] rounded-xl bg-grey-50 border border-grey-200 hover:bg-grey-200/60 transition-colors"
+      >
+        <Initials user={user} size="sm" />
+        <span className="hidden sm:block text-[13px] font-semibold text-grey-900 max-w-[120px] truncate">
+          {user.firstName} {user.lastName}
+        </span>
+        <ChevronIcon className={`hidden sm:block w-4 h-4 text-grey-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      <Dropdown open={open} onClose={() => setOpen(false)} className="right-0 w-44 py-1.5">
+        <Link to="/profile" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-grey-700 hover:bg-grey-50 transition-colors">
+          <UserIcon className="w-4 h-4" /> Profile
+        </Link>
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-grey-700 hover:text-error hover:bg-grey-50 transition-colors"
+        >
+          <LogoutIcon className="w-4 h-4" /> Sign out
+        </button>
+      </Dropdown>
+    </div>
+  );
+}
+
+/** Logged-out chrome: same top-nav visual language, no app nav. */
 function PublicShell() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 bg-white border-b border-grey-200">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[60px] flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
-            <BrandMark className="w-7 h-7" />
-            <span className="font-display font-bold text-lg tracking-tight text-navy-700">
-              VolleyVision
-            </span>
+            <BrandMark />
+            <span className="font-display font-bold text-lg tracking-tight text-navy-700">VolleyVision</span>
           </Link>
           <div className="flex items-center gap-2">
-            <NavLink to="/teams" className="nav-link">Teams</NavLink>
-            <NavLink to="/login" className="nav-link">Sign in</NavLink>
+            <NavLink to="/teams" className={({ isActive }) => navPillClass(isActive)}>Teams</NavLink>
+            <NavLink to="/login" className={({ isActive }) => navPillClass(isActive)}>Sign in</NavLink>
             <NavLink to="/register" className="btn-primary text-sm px-4 py-2">Register</NavLink>
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
         <Outlet />
       </main>
     </div>
@@ -217,17 +192,11 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { viewMode } = useViewMode();
   const { data: invitations } = useMyInvitations();
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isTracking = location.pathname.startsWith('/track/');
 
-  // Close the mobile drawer whenever the route changes.
-  useEffect(() => setDrawerOpen(false), [location.pathname]);
-
-  // The tracking screen is chrome-free and tablet-optimised — it must not be
-  // wrapped by the shell.
+  // The tracking screen is chrome-free and tablet-optimised — never wrapped.
   if (isTracking) return <Outlet />;
   if (!user) return <PublicShell />;
 
@@ -238,86 +207,56 @@ export default function Layout() {
     navigate('/login', { replace: true });
   }
 
-  const sidebarProps = {
-    pendingCount,
-    onSignOut: handleSignOut,
-    user,
-    viewMode,
-  };
-
   return (
-    <div className="min-h-screen flex">
-      {/* Sidebar — persistent from lg up */}
-      <div className="hidden lg:flex sticky top-0 h-screen">
-        <Sidebar {...sidebarProps} onNavigate={() => {}} />
-      </div>
-
-      {/* Sidebar — drawer below lg */}
-      {drawerOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div
-            className="absolute inset-0 bg-navy-900/40"
-            onClick={() => setDrawerOpen(false)}
-            aria-hidden
-          />
-          <div className="relative h-full">
-            <Sidebar {...sidebarProps} onNavigate={() => setDrawerOpen(false)} />
-          </div>
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Close menu"
-            className="relative m-4 w-10 h-10 rounded-xl bg-white border border-grey-200
-                       grid place-items-center text-grey-600"
-          >
-            <CloseIcon className="w-5 h-5" />
-          </button>
-        </div>
-      )}
-
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* Topbar */}
-        <header className="flex items-center justify-between gap-4 px-5 sm:px-7 py-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open menu"
-              className="lg:hidden w-10 h-10 shrink-0 rounded-xl bg-white border border-grey-200
-                         grid place-items-center text-grey-600 hover:text-navy-700 transition-colors"
-            >
-              <MenuIcon className="w-5 h-5" />
-            </button>
-            <h1 className="font-display font-bold text-[25px] tracking-tight text-grey-900 truncate">
-              {pageTitle(location.pathname)}
-            </h1>
+    <div className="min-h-screen flex flex-col bg-grey-50">
+      {/* Top nav — single row, sticky */}
+      <header className="sticky top-0 z-30 bg-white border-b border-grey-200">
+        <div className="h-[60px] px-4 sm:px-6 flex items-center justify-between gap-4">
+          {/* Left: brand + nav */}
+          <div className="flex items-center gap-5 min-w-0">
+            <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0">
+              <BrandMark />
+              <span className="font-display font-bold text-lg tracking-tight text-navy-700 hidden sm:block">
+                VolleyVision
+              </span>
+            </Link>
+            <nav className="hidden lg:flex items-center gap-0.5">
+              {NAV_AUTH.map(({ to, label, icon: Icon, badge }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => navPillClass(isActive)}>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {label}
+                  {badge && pendingCount > 0 && (
+                    <span className="badge bg-gold-500 text-navy-900 ml-0.5">{pendingCount}</span>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
           </div>
 
+          {/* Right: view toggle + bell + avatar; overflow menu on small screens */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <ViewModeToggle />
+            <div className="hidden sm:block"><ViewModeToggle /></div>
 
             <Link
               to="/invitations"
               aria-label={pendingCount > 0 ? `Invitations (${pendingCount} pending)` : 'Invitations'}
-              className="relative w-10 h-10 rounded-xl bg-white border border-grey-200
-                         grid place-items-center text-grey-600 hover:text-navy-700 transition-colors"
+              className="relative w-10 h-10 rounded-xl bg-white border border-grey-200 grid place-items-center text-grey-600 hover:text-navy-700 transition-colors"
             >
-              <BellIcon className="w-[19px] h-[19px]" />
+              <BellIcon className="w-[18px] h-[18px]" />
               {pendingCount > 0 && (
                 <span className="absolute top-2 right-2.5 w-[7px] h-[7px] rounded-full bg-gold-500 border-[1.5px] border-white" />
               )}
             </Link>
 
-            <Link to="/profile" aria-label="Profile">
-              <Initials user={user} size="md" />
-            </Link>
+            <AvatarMenu user={user} onSignOut={handleSignOut} />
+            <NavOverflow pendingCount={pendingCount} />
           </div>
-        </header>
+        </div>
+      </header>
 
-        <main className="flex-1 px-5 sm:px-7 pb-8">
-          <Outlet />
-        </main>
-      </div>
+      <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 py-6">
+        <Outlet />
+      </main>
     </div>
   );
 }

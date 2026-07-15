@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
-import { usePlayerDashboard, useLinkPlayer, useUnlinkPlayer, useTeams, useTeam } from '../hooks';
+import { usePlayerDashboard } from '../hooks';
 import { useAuth } from '../context/AuthContext';
 import { StatsCards, type StatTrends } from '../components/analytics/StatsOverview';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
@@ -12,7 +12,6 @@ import type {
   PlayerRecord, MatchSummaryItem, DevelopmentPoint, TeamStatsBreakdown,
   UpcomingMatchItem, CareerStats,
 } from '../types';
-import UpcomingGamesCard from '../components/ui/UpcomingGamesCard';
 
 /** Volleyball convention: 0.410 -> .410, 1.000 -> 1.000, -0.125 -> -.125 */
 function percentage(value: number | null | undefined) {
@@ -285,116 +284,11 @@ function TeamStatsSection({ entry }: { entry: TeamStatsBreakdown }) {
   );
 }
 
-function LinkedPlayerCard({ player, onUnlink }: { player: PlayerRecord; onUnlink: () => void }) {
-  return (
-    <div className="card p-4 flex items-center gap-4">
-      <div className="w-10 h-10 bg-grey-50 border border-grey-200 rounded-lg flex items-center justify-center
-                      font-semibold tabular-nums text-navy-700 shrink-0">
-        {player.jerseyNumber}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-grey-900 text-sm">
-          {player.firstName} {player.lastName}
-        </p>
-        <p className="text-grey-600 text-xs">{player.team.name} · {player.position.replace(/_/g, ' ')}</p>
-      </div>
-      <div className="flex gap-2 shrink-0">
-        <Link to={`/players/${player.id}/dashboard`} className="btn-secondary text-xs px-3 py-1.5">
-          Analytics
-        </Link>
-        <button
-          className="text-grey-400 hover:text-error text-xs transition-colors"
-          onClick={onUnlink}
-        >
-          Unlink
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function LinkPlayerPanel() {
-  const { data: teams } = useTeams();
-  const linkPlayer = useLinkPlayer();
-  const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [selectedPlayerId, setSelectedPlayerId] = useState('');
-  const [error, setError] = useState('');
-
-  const { data: selectedTeam } = useTeam(selectedTeamId);
-
-  async function handleLink() {
-    setError('');
-    if (!selectedPlayerId) { setError('Select a player first.'); return; }
-    try {
-      await linkPlayer.mutateAsync(selectedPlayerId);
-      setSelectedTeamId('');
-      setSelectedPlayerId('');
-    } catch (err: any) {
-      setError(err?.response?.data?.error ?? "Couldn't link that player. Try again.");
-    }
-  }
-
-  return (
-    <div className="card p-5 space-y-4 border-dashed">
-      <div>
-        <p className="font-semibold text-grey-900 text-sm">Link a Player Record</p>
-        <p className="text-grey-600 text-xs mt-0.5">
-          Connect your account to a player roster entry to unlock career statistics and development tracking.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-grey-600 mb-1">Select Team</label>
-          <select
-            className="input text-sm"
-            value={selectedTeamId}
-            onChange={(e) => { setSelectedTeamId(e.target.value); setSelectedPlayerId(''); }}
-          >
-            <option value="">Choose a team…</option>
-            {teams?.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs text-grey-600 mb-1">Select Player</label>
-          <select
-            className="input text-sm"
-            value={selectedPlayerId}
-            onChange={(e) => setSelectedPlayerId(e.target.value)}
-            disabled={!selectedTeamId}
-          >
-            <option value="">Choose a player…</option>
-            {selectedTeam?.players?.map((p) => (
-              <option key={p.id} value={p.id}>
-                #{p.jerseyNumber} {p.firstName} {p.lastName}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {error && <p className="text-error text-xs">{error}</p>}
-
-      <button
-        className="btn-primary text-sm"
-        onClick={handleLink}
-        disabled={linkPlayer.isPending || !selectedPlayerId}
-      >
-        {linkPlayer.isPending ? 'Linking…' : 'Link Player Record'}
-      </button>
-    </div>
-  );
-}
-
 // ─────────────────────────────── Page ───────────────────────────────
 
 export default function PlayerPortalPage() {
   const { user } = useAuth();
   const { data, isLoading } = usePlayerDashboard();
-  const unlinkPlayer = useUnlinkPlayer();
 
   const { players, careerStats, recentMatches, developmentMetrics, upcomingMatches, statsByTeam } =
     data ?? ({} as Partial<NonNullable<typeof data>>);
@@ -533,44 +427,7 @@ export default function PlayerPortalPage() {
         )
       )}
 
-      {/* Linked player records */}
-      <section className="space-y-3 pt-3">
-        <h2 className="text-sm font-semibold text-grey-600">My Player Records</h2>
-        {(players ?? []).length === 0 ? (
-          <LinkPlayerPanel />
-        ) : (
-          <>
-            <div className="space-y-2">
-              {players?.map((player: PlayerRecord) => (
-                <LinkedPlayerCard
-                  key={player.id}
-                  player={player}
-                  onUnlink={() => {
-                    if (confirm(`Unlink ${player.firstName} ${player.lastName} from your account?`)) {
-                      unlinkPlayer.mutate(player.id);
-                    }
-                  }}
-                />
-              ))}
-            </div>
-            <LinkPlayerPanel />
-          </>
-        )}
-      </section>
-
-      {/* Per-team breakdown */}
-      {hasStats && (statsByTeam ?? []).length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-grey-600">Stats by team</h2>
-          <div className="space-y-2">
-            {statsByTeam?.map((entry: TeamStatsBreakdown) => (
-              <TeamStatsSection key={entry.playerId} entry={entry} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Development trends */}
+      {/* Development trends — account/record management now lives on Profile (Task 8). */}
       {trendData.length >= 2 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-grey-600">Development Trends</h2>
@@ -583,10 +440,15 @@ export default function PlayerPortalPage() {
         </section>
       )}
 
-      {/* Upcoming games */}
-      {(upcomingMatches ?? []).length > 0 && (
-        <section>
-          <UpcomingGamesCard matches={upcomingMatches!} />
+      {/* Stats by team — last section */}
+      {hasStats && (statsByTeam ?? []).length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-grey-600">Stats by team</h2>
+          <div className="space-y-2">
+            {statsByTeam?.map((entry: TeamStatsBreakdown) => (
+              <TeamStatsSection key={entry.playerId} entry={entry} />
+            ))}
+          </div>
         </section>
       )}
     </div>

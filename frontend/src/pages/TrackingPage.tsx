@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore } from '../hooks';
 import type { EventType, Player } from '../types';
@@ -139,6 +139,13 @@ export default function TrackingPage() {
     );
   }
 
+  // Live tracking is only for in-progress matches (Iteration 3 Task 6). A
+  // scheduled/completed/cancelled match can't be live-edited — send the viewer
+  // to the read-only Events changelog instead.
+  if (match.status !== 'IN_PROGRESS') {
+    return <Navigate to={`/matches/${matchId}/events`} replace />;
+  }
+
   const recentEvents = [...(events ?? [])].reverse().slice(0, 6);
   const players = match.team?.players ?? [];
 
@@ -210,15 +217,8 @@ export default function TrackingPage() {
       {/* ── Live Scoreboard ── */}
       <div className="bg-navy-800 border-b border-navy-700 px-4 py-3">
         <div className="max-w-5xl mx-auto space-y-2">
-          {/* Match winner banner */}
-          {match.status === 'COMPLETED' && (
-            <div className="text-center py-1 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-500 text-sm font-semibold">
-              {(match.homeSetsWon ?? 0) >= 3
-                ? `${match.team?.name ?? 'Home'} wins the match!`
-                : `${match.opponent} wins the match!`}
-            </div>
-          )}
-
+          {/* A completed match redirects to the Events changelog (Task 6), so the
+              tracker only ever renders a live, in-progress match here. */}
           <div className="flex items-center justify-between gap-4">
             {/* Home team */}
             <div className="flex-1 text-right">

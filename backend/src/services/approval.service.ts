@@ -1,7 +1,7 @@
 import { ApprovalAction, ApprovalStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { isHeadCoachOrOwner } from './permission.service';
+import { isApprovalAuthority } from './permission.service';
 import { onApprovalRequestCreated, onApprovalResolved } from './approvalNotifications';
 import {
   applyCreatePlayer, applyUpdatePlayer, applyDeletePlayer,
@@ -68,8 +68,8 @@ async function loadResolvable(requestId: string, resolverId: string) {
   if (request.status !== ApprovalStatus.PENDING) {
     throw new AppError(409, `Request is already ${request.status.toLowerCase()}.`);
   }
-  const allowed = await isHeadCoachOrOwner(resolverId, request.teamId);
-  if (!allowed) throw new AppError(403, 'Only the head coach or owner can resolve approval requests.');
+  const allowed = await isApprovalAuthority(resolverId, request.teamId);
+  if (!allowed) throw new AppError(403, 'Only an owner, head coach, or manager can resolve approval requests.');
   return request;
 }
 

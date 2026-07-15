@@ -3,27 +3,71 @@ import { Link } from 'react-router-dom';
 import {
   useMyTeams, useMyMemberships, useMyInvitations,
   useCreateTeam, useUpdateTeam, useDeleteTeam,
+  useLeagues, useCreateLeague,
 } from '../hooks';
 import { useAuth } from '../context/AuthContext';
-import PermissionGuard from '../components/ui/PermissionGuard';
 import { PencilIcon, TrashIcon } from '../components/ui/icons';
+import { ROLE_LABELS, ROLE_BADGE } from '../lib/teamRoles';
 import type { TeamRole } from '../types';
 
-const ROLE_LABELS: Record<TeamRole, string> = {
-  HEAD_COACH:      'Head Coach',
-  ASSISTANT_COACH: 'Assistant Coach',
-  STATISTICIAN:    'Statistician',
-  PLAYER:          'Player',
-  VIEWER:          'Viewer',
-};
+// ── League picker with inline "add new league" (Task 2) ───────────────────────
+function LeagueField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data: leagues } = useLeagues();
+  const createLeague = useCreateLeague();
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [division, setDivision] = useState('');
+  const [error, setError] = useState('');
 
-const ROLE_BADGE: Record<TeamRole, string> = {
-  HEAD_COACH:      'badge-accent',
-  ASSISTANT_COACH: 'badge-info',
-  STATISTICIAN:    'badge-brand',
-  PLAYER:          'badge-success',
-  VIEWER:          'badge-neutral',
-};
+  async function handleAdd() {
+    setError('');
+    if (!name.trim()) { setError('League name is required.'); return; }
+    try {
+      const league = await createLeague.mutateAsync({ name: name.trim(), division: division.trim() || undefined });
+      // The backend auto-creates a default season; select it.
+      const seasonId = league.seasons?.[0]?.id;
+      if (seasonId) onChange(seasonId);
+      setAdding(false);
+      setName('');
+      setDivision('');
+    } catch (err: any) {
+      setError(err?.response?.data?.error ?? "Couldn't create that league.");
+    }
+  }
+
+  return (
+    <div>
+      <label className="block text-xs text-grey-600 mb-1">League</label>
+      {adding ? (
+        <div className="space-y-2 rounded-xl border border-grey-200 bg-grey-50 p-3">
+          <input className="input text-sm" placeholder="League name *" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="input text-sm" placeholder="Division (optional)" value={division} onChange={(e) => setDivision(e.target.value)} />
+          {error && <p className="text-error text-xs">{error}</p>}
+          <div className="flex gap-2">
+            <button type="button" className="btn-primary text-xs" onClick={handleAdd} disabled={createLeague.isPending}>
+              {createLeague.isPending ? 'Creating…' : 'Create league'}
+            </button>
+            <button type="button" className="btn-secondary text-xs" onClick={() => { setAdding(false); setError(''); }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <select className="input text-sm" value={value} onChange={(e) => onChange(e.target.value)}>
+            <option value="">No league</option>
+            {leagues?.map((l) =>
+              l.seasons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {l.name}{l.division ? ` · ${l.division}` : ''}{s.name && s.name !== 'Current season' ? ` — ${s.name}` : ''}
+                </option>
+              )),
+            )}
+          </select>
+          <button type="button" className="btn-secondary text-sm shrink-0" onClick={() => setAdding(true)}>+ New</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface TeamCardProps {
   id: string;
@@ -33,75 +77,55 @@ interface TeamCardProps {
   players?: number;
   matches?: number;
   badge?: { label: string; className: string };
-  mode: 'coach' | 'player';
+  canManage: boolean;
   onEdit: () => void;
   onDelete: () => void;
-  isEditing: boolean;
-  editSlot?: React.ReactNode;
 }
 
-function TeamCard({
-  id, name, division, season, players, matches, badge, mode,
-  onEdit, onDelete, isEditing, editSlot,
-}: TeamCardProps) {
-  if (isEditing) return <div className="card p-5">{editSlot}</div>;
-
+// Card links straight to the team dashboard (Task 7). Edit/Delete for managers
+// sit outside the link so there's no nested-interactive markup.
+function TeamCard({ id, name, division, season, players, matches, badge, canManage, onEdit, onDelete }: TeamCardProps) {
   return (
-    <div className="card p-5 flex flex-col gap-4">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="font-bold text-grey-900 text-lg leading-tight min-w-0 truncate">{name}</h2>
-          {badge && (
-            <span className={`badge ${badge.className} shrink-0 mt-0.5`}>{badge.label}</span>
-          )}
+    <div className="card p-5 flex flex-col gap-4 hover:border-navy-500 transition-colors">
+      <Link to={`/teams/${id}/dashboard`} className="flex flex-col gap-4">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-grey-900 text-lg leading-tight min-w-0 truncate">{name}</h3>
+            {badge && <span className={`badge ${badge.className} shrink-0 mt-0.5`}>{badge.label}</span>}
+          </div>
+          <p className="text-grey-600 text-xs mt-0.5">{division || '—'}</p>
+          <p className="text-grey-400 text-xs">Season {season}</p>
         </div>
-        <p className="text-grey-600 text-xs mt-0.5">{division || '—'}</p>
-        <p className="text-grey-400 text-xs">Season {season}</p>
-      </div>
-
-      <div className="flex gap-3 text-center">
-        <div className="flex-1 bg-grey-50 border border-grey-200 rounded-xl py-2">
-          <div className="font-bold tabular-nums text-navy-700">{players ?? 0}</div>
-          <div className="text-xs text-grey-600">Players</div>
+        <div className="flex gap-3 text-center">
+          <div className="flex-1 bg-grey-50 border border-grey-200 rounded-xl py-2">
+            <div className="font-bold tabular-nums text-navy-700">{players ?? 0}</div>
+            <div className="text-xs text-grey-600">Players</div>
+          </div>
+          <div className="flex-1 bg-grey-50 border border-grey-200 rounded-xl py-2">
+            <div className="font-bold tabular-nums text-grey-900">{matches ?? 0}</div>
+            <div className="text-xs text-grey-600">Matches</div>
+          </div>
         </div>
-        <div className="flex-1 bg-grey-50 border border-grey-200 rounded-xl py-2">
-          <div className="font-bold tabular-nums text-grey-900">{matches ?? 0}</div>
-          <div className="text-xs text-grey-600">Matches</div>
+      </Link>
+      {canManage && (
+        <div className="flex justify-end gap-1.5 border-t border-grey-200 pt-3">
+          <button className="btn-icon" onClick={onEdit} aria-label={`Edit ${name}`} title="Edit team">
+            <PencilIcon className="w-4 h-4" />
+          </button>
+          <button className="btn-icon-danger" onClick={onDelete} aria-label={`Delete ${name}`} title="Delete team">
+            <TrashIcon className="w-4 h-4" />
+          </button>
         </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {mode === 'player' ? (
-          <>
-            <Link to="/dashboard" className="btn-secondary flex-1 text-center text-sm py-2">My portal</Link>
-            <Link to={`/teams/${id}/matches`} className="btn-secondary flex-1 text-center text-sm py-2">Matches</Link>
-          </>
-        ) : (
-          <>
-            <Link to={`/teams/${id}`} className="btn-secondary flex-1 text-center text-sm py-2">Roster</Link>
-            <Link to={`/teams/${id}/matches`} className="btn-secondary flex-1 text-center text-sm py-2">Matches</Link>
-            <PermissionGuard teamId={id} permission="MANAGE_TEAM">
-              <button className="btn-icon" onClick={onEdit} aria-label={`Edit ${name}`} title="Edit team">
-                <PencilIcon className="w-4 h-4" />
-              </button>
-              <button className="btn-icon-danger" onClick={onDelete} aria-label={`Delete ${name}`} title="Delete team">
-                <TrashIcon className="w-4 h-4" />
-              </button>
-            </PermissionGuard>
-          </>
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
-const COACH_ROLES: TeamRole[] = ['HEAD_COACH', 'ASSISTANT_COACH', 'STATISTICIAN'];
+const COACH_ROLES: TeamRole[] = ['HEAD_COACH', 'MANAGER', 'ASSISTANT_COACH', 'STATISTICIAN'];
 
-/**
- * The single Teams page. Teams are private to their members, so "browse all
- * teams" no longer exists — this shows exactly the teams you own or belong to,
- * grouped by what you do on them, with create/edit/delete for teams you manage.
- */
+type TeamForm = { name: string; division: string; season: string; leagueSeasonId: string };
+const emptyForm: TeamForm = { name: '', division: '', season: '', leagueSeasonId: '' };
+
 export default function TeamsPage() {
   const { user } = useAuth();
   const { data: ownedTeams, isLoading: loadingOwned } = useMyTeams();
@@ -115,10 +139,10 @@ export default function TeamsPage() {
   const pendingCount = invitations?.length ?? 0;
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', division: '', season: '' });
+  const [form, setForm] = useState<TeamForm>(emptyForm);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', division: '', season: '' });
+  const [editForm, setEditForm] = useState<TeamForm>(emptyForm);
 
   const ownedIds = new Set(ownedTeams?.map((t) => t.id) ?? []);
   const coachMemberships =
@@ -131,19 +155,28 @@ export default function TeamsPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.season) return;
-    await createTeam.mutateAsync(form);
-    setForm({ name: '', division: '', season: '' });
+    await createTeam.mutateAsync({
+      name: form.name, division: form.division, season: form.season,
+      leagueSeasonId: form.leagueSeasonId || null,
+    });
+    setForm(emptyForm);
     setShowForm(false);
   }
 
-  function startEdit(team: { id: string; name: string; division?: string; season: string }) {
+  function startEdit(team: { id: string; name: string; division?: string; season: string; leagueSeasonId?: string | null }) {
     setEditingId(team.id);
-    setEditForm({ name: team.name, division: team.division ?? '', season: team.season });
+    setEditForm({ name: team.name, division: team.division ?? '', season: team.season, leagueSeasonId: team.leagueSeasonId ?? '' });
   }
 
   async function handleUpdate(e: React.FormEvent, id: string) {
     e.preventDefault();
-    await updateTeam.mutateAsync({ id, data: editForm });
+    await updateTeam.mutateAsync({
+      id,
+      data: {
+        name: editForm.name, division: editForm.division, season: editForm.season,
+        leagueSeasonId: editForm.leagueSeasonId || null,
+      },
+    });
     setEditingId(null);
   }
 
@@ -151,52 +184,42 @@ export default function TeamsPage() {
     if (confirm(`Delete "${name}"? This cannot be undone.`)) deleteTeam.mutate(id);
   }
 
-  const editSlot = (id: string) => (
-    <form onSubmit={(e) => handleUpdate(e, id)} className="space-y-3">
-      <div>
-        <label className="block text-xs text-grey-600 mb-1">Team Name *</label>
-        <input
-          className="input"
-          value={editForm.name}
-          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-xs text-grey-600 mb-1">Division</label>
-        <input
-          className="input"
-          value={editForm.division}
-          onChange={(e) => setEditForm({ ...editForm, division: e.target.value })}
-        />
-      </div>
-      <div>
-        <label className="block text-xs text-grey-600 mb-1">Season *</label>
-        <input
-          className="input"
-          value={editForm.season}
-          onChange={(e) => setEditForm({ ...editForm, season: e.target.value })}
-          required
-        />
-      </div>
-      <div className="flex gap-2">
-        <button type="submit" className="btn-secondary text-sm" disabled={updateTeam.isPending}>
-          {updateTeam.isPending ? 'Saving…' : 'Save'}
-        </button>
-        <button type="button" className="btn-secondary text-sm" onClick={() => setEditingId(null)}>
-          Cancel
-        </button>
-      </div>
-    </form>
+  const editCard = (id: string) => (
+    <div className="card p-5" key={`edit-${id}`}>
+      <form onSubmit={(e) => handleUpdate(e, id)} className="space-y-3">
+        <div>
+          <label className="block text-xs text-grey-600 mb-1">Team Name *</label>
+          <input className="input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+        </div>
+        <div>
+          <label className="block text-xs text-grey-600 mb-1">Division</label>
+          <input className="input" value={editForm.division} onChange={(e) => setEditForm({ ...editForm, division: e.target.value })} />
+        </div>
+        <div>
+          <label className="block text-xs text-grey-600 mb-1">Season *</label>
+          <input className="input" value={editForm.season} onChange={(e) => setEditForm({ ...editForm, season: e.target.value })} required />
+        </div>
+        <LeagueField value={editForm.leagueSeasonId} onChange={(v) => setEditForm({ ...editForm, leagueSeasonId: v })} />
+        <div className="flex gap-2">
+          <button type="submit" className="btn-primary text-sm" disabled={updateTeam.isPending}>
+            {updateTeam.isPending ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" className="btn-secondary text-sm" onClick={() => setEditingId(null)}>Cancel</button>
+        </div>
+      </form>
+    </div>
   );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <p className="text-grey-600 text-sm">
-          Teams you own or belong to, {user?.firstName} {user?.lastName}
-        </p>
+        <div>
+          <h1 className="font-display font-bold text-2xl text-grey-900">Teams</h1>
+          <p className="text-grey-600 text-sm mt-0.5">
+            Teams you own or belong to, {user?.firstName} {user?.lastName}
+          </p>
+        </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link to="/invitations" className="btn-secondary text-sm flex items-center gap-2">
             Invitations
@@ -216,37 +239,21 @@ export default function TeamsPage() {
       {showForm && (
         <div className="card p-5">
           <h2 className="font-display font-semibold text-grey-900 mb-4">New Team</h2>
-          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-grey-600 mb-1">Team Name *</label>
-              <input
-                className="input"
-                placeholder="e.g. Canterbury Falcons"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
+              <input className="input" placeholder="e.g. Canterbury Falcons" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
             <div>
               <label className="block text-xs text-grey-600 mb-1">Division</label>
-              <input
-                className="input"
-                placeholder="e.g. National League Div 1"
-                value={form.division}
-                onChange={(e) => setForm({ ...form, division: e.target.value })}
-              />
+              <input className="input" placeholder="e.g. National League Div 1" value={form.division} onChange={(e) => setForm({ ...form, division: e.target.value })} />
             </div>
             <div>
               <label className="block text-xs text-grey-600 mb-1">Season *</label>
-              <input
-                className="input"
-                placeholder="e.g. 2025/26"
-                value={form.season}
-                onChange={(e) => setForm({ ...form, season: e.target.value })}
-                required
-              />
+              <input className="input" placeholder="e.g. 2025/26" value={form.season} onChange={(e) => setForm({ ...form, season: e.target.value })} required />
             </div>
-            <div className="sm:col-span-3">
+            <LeagueField value={form.leagueSeasonId} onChange={(v) => setForm({ ...form, leagueSeasonId: v })} />
+            <div className="sm:col-span-2">
               <button type="submit" className="btn-primary" disabled={createTeam.isPending}>
                 {createTeam.isPending ? 'Creating…' : 'Create team'}
               </button>
@@ -267,9 +274,7 @@ export default function TeamsPage() {
           </div>
           <div>
             <p className="text-grey-900 font-medium">You're not part of any team yet</p>
-            <p className="text-grey-600 text-sm mt-1">
-              Create one, or ask a coach to send you an invitation.
-            </p>
+            <p className="text-grey-600 text-sm mt-1">Create one, or ask a coach to send you an invitation.</p>
           </div>
           <button className="btn-primary" onClick={() => setShowForm(true)}>Create a team</button>
         </div>
@@ -280,40 +285,40 @@ export default function TeamsPage() {
             <section className="space-y-4">
               <h2 className="text-sm font-semibold text-grey-600">Teams I Coach</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ownedTeams?.map((team) => (
-                  <TeamCard
-                    key={team.id}
-                    id={team.id}
-                    name={team.name}
-                    division={team.division}
-                    season={team.season}
-                    players={team._count?.players}
-                    matches={team._count?.matches}
-                    badge={{ label: 'Owner', className: 'badge-accent' }}
-                    mode="coach"
-                    isEditing={editingId === team.id}
-                    editSlot={editSlot(team.id)}
-                    onEdit={() => startEdit(team)}
-                    onDelete={() => confirmDelete(team.id, team.name)}
-                  />
-                ))}
-                {coachMemberships.map((m) => (
-                  <TeamCard
-                    key={m.id}
-                    id={m.team.id}
-                    name={m.team.name}
-                    division={m.team.division}
-                    season={m.team.season}
-                    players={m.team._count?.players}
-                    matches={m.team._count?.matches}
-                    badge={{ label: ROLE_LABELS[m.role], className: ROLE_BADGE[m.role] }}
-                    mode="coach"
-                    isEditing={editingId === m.team.id}
-                    editSlot={editSlot(m.team.id)}
-                    onEdit={() => startEdit(m.team)}
-                    onDelete={() => confirmDelete(m.team.id, m.team.name)}
-                  />
-                ))}
+                {ownedTeams?.map((team) =>
+                  editingId === team.id ? editCard(team.id) : (
+                    <TeamCard
+                      key={team.id}
+                      id={team.id}
+                      name={team.name}
+                      division={team.division}
+                      season={team.season}
+                      players={team._count?.players}
+                      matches={team._count?.matches}
+                      badge={{ label: 'Owner', className: 'badge-accent' }}
+                      canManage
+                      onEdit={() => startEdit(team)}
+                      onDelete={() => confirmDelete(team.id, team.name)}
+                    />
+                  ),
+                )}
+                {coachMemberships.map((m) =>
+                  editingId === m.team.id ? editCard(m.team.id) : (
+                    <TeamCard
+                      key={m.id}
+                      id={m.team.id}
+                      name={m.team.name}
+                      division={m.team.division}
+                      season={m.team.season}
+                      players={m.team._count?.players}
+                      matches={m.team._count?.matches}
+                      badge={{ label: ROLE_LABELS[m.role], className: ROLE_BADGE[m.role] }}
+                      canManage={m.role === 'HEAD_COACH' || m.role === 'MANAGER'}
+                      onEdit={() => startEdit(m.team)}
+                      onDelete={() => confirmDelete(m.team.id, m.team.name)}
+                    />
+                  ),
+                )}
               </div>
             </section>
           )}
@@ -333,8 +338,7 @@ export default function TeamsPage() {
                     players={m.team._count?.players}
                     matches={m.team._count?.matches}
                     badge={{ label: ROLE_LABELS[m.role], className: ROLE_BADGE[m.role] }}
-                    mode="player"
-                    isEditing={false}
+                    canManage={false}
                     onEdit={() => {}}
                     onDelete={() => {}}
                   />

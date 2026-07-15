@@ -38,7 +38,13 @@ export const authApi = {
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
 /** Ownership is assigned server-side from the authenticated caller. */
-export type CreateTeamInput = { name: string; season: string; division?: string };
+export type CreateTeamInput = {
+  name: string;
+  season: string;
+  division?: string;
+  /** The team's current league season (Iteration 3). `null` clears it. */
+  leagueSeasonId?: string | null;
+};
 
 export const teamsApi = {
   list: () => api.get<Team[]>('/teams').then((r) => r.data),
@@ -233,6 +239,12 @@ export const membershipsApi = {
     api.post<TeamMember>(`/teams/${teamId}/members`, data).then((r) => r.data),
   updateRole: (teamId: string, memberId: string, role: TeamRole) =>
     api.patch<TeamMember>(`/teams/${teamId}/members/${memberId}`, { role }).then((r) => r.data),
+  // Iteration 3 — patch one or more access tiers, leaving role untouched.
+  updateAccess: (
+    teamId: string,
+    memberId: string,
+    tiers: Partial<Pick<TeamMember, 'rosterAccess' | 'invitationAccess' | 'matchAccess'>>,
+  ) => api.patch<TeamMember>(`/teams/${teamId}/members/${memberId}`, tiers).then((r) => r.data),
   remove: (teamId: string, memberId: string) =>
     api.delete(`/teams/${teamId}/members/${memberId}`),
   myTeams: () => api.get<UserTeamMembership[]>('/users/me/teams').then((r) => r.data),

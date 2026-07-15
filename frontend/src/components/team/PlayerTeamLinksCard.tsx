@@ -59,11 +59,12 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
         {playerName}'s teams
       </p>
 
-      {/* Home team badge */}
+      {/* Additional-team links only — the home team is obvious from the roster
+          this player is listed under, so its badge is redundant (Task 10). */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="badge badge-accent rounded-full">
-          {data?.homeTeam.name} (home)
-        </span>
+        {data && data.linkedTeams.length === 0 && (
+          <span className="text-xs text-grey-400">Not linked to any additional teams.</span>
+        )}
         {data?.linkedTeams.map((l) => (
           <span
             key={l.linkId}

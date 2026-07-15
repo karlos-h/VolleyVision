@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, optionalAuth } from '../middleware/auth';
-import { requireAdmin } from '../middleware/permissions';
+import { requireAdmin, requireLeagueCreator } from '../middleware/permissions';
 import {
   createLeague,
   listLeagues,
@@ -26,7 +26,8 @@ const router = Router();
 // ─── Leagues ─────────────────────────────────────────────────────────────────
 
 router.get('/', requireAuth, listLeagues);
-router.post('/', requireAuth, requireAdmin, createLeague);
+// INTERIM (2026-07): coaches can create leagues alongside admins — see requireLeagueCreator.
+router.post('/', requireAuth, requireLeagueCreator, createLeague);
 router.get('/my', requireAuth, listMyLeagues);
 router.get('/:leagueId', requireAuth, getLeague);
 

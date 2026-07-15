@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ApprovalAction, TeamRole } from '@prisma/client';
+import { AccessTier, ApprovalAction, TeamRole } from '@prisma/client';
 import { logAudit } from '../lib/audit';
 import {
   acceptInvitation,
@@ -8,7 +8,7 @@ import {
   getTeamInvitations,
   getUserInvitations,
 } from '../services/invitation.service';
-import { isHeadCoachOrOwner } from '../services/permission.service';
+import { getAccessTier } from '../services/permission.service';
 import { createApprovalRequest } from '../services/approval.service';
 import { applyCreateInvitation } from '../services/teamActions.service';
 
@@ -21,8 +21,9 @@ export async function createTeamInvitation(req: Request, res: Response, next: Ne
     }
     const userId = req.user!.userId;
 
-    // Head coach / owner sends immediately; others queue for approval.
-    if (await isHeadCoachOrOwner(userId, teamId)) {
+    // Invitation access tier decides immediate vs queued (VIEW_ONLY/non-member
+    // already 403'd by the route guard).
+    if ((await getAccessTier(userId, teamId, 'invitation')) === AccessTier.FULL_ACCESS) {
       const inv = await applyCreateInvitation({ teamId, invitedById: userId, email, role });
       logAudit(userId, 'CREATE_INVITATION', 'invitation', inv.id, { teamId, email, role });
       return res.status(201).json(inv);

@@ -1,3 +1,4 @@
+import { Position } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const profileSelect = {
@@ -14,8 +15,14 @@ const profileSelect = {
   country: true,
   heightCm: true,
   weightKg: true,
+  // Iteration 3 — the athlete's own stated position preference.
+  preferredPosition: true,
   createdAt: true,
 } as const;
+
+const VALID_POSITIONS = new Set<string>([
+  'SETTER', 'OUTSIDE_HITTER', 'OPPOSITE', 'MIDDLE_BLOCKER', 'LIBERO', 'DEFENSIVE_SPECIALIST',
+]);
 
 export async function getProfile(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: profileSelect });
@@ -36,9 +43,10 @@ export async function updateProfile(
     profileImage?: string;
     heightCm?: number | null;
     weightKg?: number | null;
+    preferredPosition?: string | null;
   },
 ) {
-  const { dateOfBirth, heightCm, weightKg, ...rest } = data;
+  const { dateOfBirth, heightCm, weightKg, preferredPosition, ...rest } = data;
 
   // Physical-profile validation: plausible adult athlete ranges.
   if (heightCm != null && (!Number.isInteger(heightCm) || heightCm < 100 || heightCm > 250)) {
@@ -46,6 +54,9 @@ export async function updateProfile(
   }
   if (weightKg != null && (!Number.isInteger(weightKg) || weightKg < 30 || weightKg > 200)) {
     throw Object.assign(new Error('Weight must be between 30 and 200 kg'), { statusCode: 400 });
+  }
+  if (preferredPosition != null && preferredPosition !== '' && !VALID_POSITIONS.has(preferredPosition)) {
+    throw Object.assign(new Error('Invalid preferred position.'), { statusCode: 400 });
   }
 
   return prisma.user.update({
@@ -57,6 +68,9 @@ export async function updateProfile(
         : {}),
       ...(heightCm !== undefined ? { heightCm } : {}),
       ...(weightKg !== undefined ? { weightKg } : {}),
+      ...(preferredPosition !== undefined
+        ? { preferredPosition: preferredPosition ? (preferredPosition as Position) : null }
+        : {}),
     },
     select: profileSelect,
   });

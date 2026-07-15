@@ -103,7 +103,8 @@ export async function deleteLastEvent(req: Request, res: Response, next: NextFun
     });
     if (!latest) throw new AppError(404, 'No events to undo.');
     await prisma.event.delete({ where: { id: latest.id } });
-    await recalculateMatchState(latest.matchId);
+    // matchId is guaranteed here (queried by matchId); guard for the nullable type.
+    if (latest.matchId) await recalculateMatchState(latest.matchId);
     res.json({ deleted: latest.id });
   } catch (err) {
     next(err);
@@ -116,7 +117,8 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
     const event = await prisma.event.findUnique({ where: { id: req.params.id } });
     if (!event) throw new AppError(404, 'Event not found.');
     await prisma.event.delete({ where: { id: event.id } });
-    await recalculateMatchState(event.matchId);
+    // Only match events affect match state; training events (matchId null) don't.
+    if (event.matchId) await recalculateMatchState(event.matchId);
     res.status(204).send();
   } catch (err) {
     next(err);

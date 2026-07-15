@@ -5,12 +5,19 @@
 
 export type UserRole = 'ADMIN' | 'COACH' | 'PLAYER' | 'VIEWER';
 
-export type TeamRole = 'HEAD_COACH' | 'ASSISTANT_COACH' | 'STATISTICIAN' | 'PLAYER' | 'VIEWER';
+export type TeamRole = 'HEAD_COACH' | 'MANAGER' | 'ASSISTANT_COACH' | 'STATISTICIAN' | 'PLAYER' | 'VIEWER';
+
+// Iteration 3 — per-member access tier for the three tiered mutation categories.
+export type AccessTier = 'VIEW_ONLY' | 'APPROVAL_REQUIRED' | 'FULL_ACCESS';
+export type AccessCategory = 'rosterAccess' | 'invitationAccess' | 'matchAccess';
 
 export interface TeamMember {
   id: string; // membership id
   role: TeamRole;
   joinedAt: string;
+  rosterAccess: AccessTier;
+  invitationAccess: AccessTier;
+  matchAccess: AccessTier;
   user: {
     id: string;
     firstName: string;
@@ -31,6 +38,7 @@ export interface UserTeamMembership {
     division?: string;
     season: string;
     ownerId?: string | null;
+    leagueSeasonId?: string | null;
     _count?: { players: number; matches: number };
   };
 }
@@ -59,6 +67,7 @@ export interface UserProfile {
   country: string | null;
   heightCm: number | null;
   weightKg: number | null;
+  preferredPosition: Position | null;
   createdAt: string;
 }
 
@@ -256,11 +265,27 @@ export interface Team {
   // accepted members, or a global ADMIN. There is no public-team concept.
   ownerId: string;
   owner?: TeamOwner | null;
+  // Iteration 3 — the team's current league season (nullable). New matches
+  // default their competition from it.
+  leagueSeasonId?: string | null;
+  leagueSeason?: TeamLeagueSeason | null;
   createdAt: string;
   updatedAt: string;
   _count?: { players: number; matches: number };
   players?: Player[];
   matches?: Match[];
+}
+
+export interface TeamLeagueSeason {
+  id: string;
+  name: string;
+  league: { id: string; name: string; division: string | null };
+}
+
+/** Display label for a team's current league, e.g. "Coastal League · Div 1". */
+export function leagueLabel(ls: TeamLeagueSeason | null | undefined): string | null {
+  if (!ls) return null;
+  return ls.league.division ? `${ls.league.name} · ${ls.league.division}` : ls.league.name;
 }
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
@@ -479,9 +504,11 @@ export interface Event {
   rallyNumber?: number;
   courtZone?: number | null;
   notes?: string;
-  matchId: string;
-  playerId: string;
-  player?: Pick<Player, 'firstName' | 'lastName' | 'jerseyNumber'>;
+  matchId: string | null;
+  playerId: string | null;
+  player?: Pick<Player, 'firstName' | 'lastName' | 'jerseyNumber'> | null;
+  isOpponentEvent?: boolean;
+  opponentJerseyNumber?: number | null;
   recordedAt: string;
 }
 

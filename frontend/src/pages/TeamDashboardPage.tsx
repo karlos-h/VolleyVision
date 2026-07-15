@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import StatLeaderboardChart from '../components/charts/StatLeaderboardChart';
 import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced, useTeamZoneDetail, useTeamRecommendations, useSeasonIntelligence, useTeamTrainingRecommendations, useAskAssistant } from '../hooks';
@@ -14,6 +14,7 @@ import CoachingRecommendationsPanel from '../components/analytics/CoachingRecomm
 import SeasonIntelligenceCard from '../components/analytics/SeasonIntelligenceCard';
 import TrainingRecommendationsPanel from '../components/analytics/TrainingRecommendationsPanel';
 import AssistantPanel from '../components/analytics/AssistantPanel';
+import TeamSubNav from '../components/ui/TeamSubNav';
 import { features } from '../config/features';
 
 export default function TeamDashboardPage() {
@@ -40,12 +41,10 @@ export default function TeamDashboardPage() {
 
   return (
     <div className="space-y-6">
+      <TeamSubNav teamId={data.team.id} teamName={data.team.name} />
       <div>
-        <Link to={`/teams/${data.team.id}`} className="text-sm text-navy-300 hover:text-navy-700">
-          Back to roster
-        </Link>
-        <h1 className="text-2xl font-bold text-grey-900 mt-2">{data.team.name} Dashboard</h1>
-        <p className="text-sm text-navy-300 mt-1">
+        <h1 className="text-2xl font-bold text-grey-900">{data.team.name} Dashboard</h1>
+        <p className="text-sm text-grey-600 mt-1">
           {data.team.division && `${data.team.division} | `}Season {data.team.season}
         </p>
       </div>

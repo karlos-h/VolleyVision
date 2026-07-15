@@ -1,24 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
-import { TeamRole } from '@prisma/client';
+import { AccessTier, TeamRole } from '@prisma/client';
 import { AppError } from '../middleware/errorHandler';
+import { prisma } from '../lib/prisma';
 import {
   getTeamMembers,
   getUserTeams,
   addMember,
   updateMemberRole,
+  updateMemberAccess,
   removeMember,
   searchUsers,
 } from '../services/teamMembership.service';
 
 const VALID_ROLES = new Set<string>([
-  'HEAD_COACH', 'ASSISTANT_COACH', 'STATISTICIAN', 'PLAYER', 'VIEWER',
+  'HEAD_COACH', 'MANAGER', 'ASSISTANT_COACH', 'STATISTICIAN', 'PLAYER', 'VIEWER',
 ]);
+
+const VALID_TIERS = new Set<string>(['VIEW_ONLY', 'APPROVAL_REQUIRED', 'FULL_ACCESS']);
 
 function parseRole(value: unknown): TeamRole {
   if (typeof value !== 'string' || !VALID_ROLES.has(value)) {
     throw new AppError(400, `role must be one of: ${[...VALID_ROLES].join(', ')}.`);
   }
   return value as TeamRole;
+}
+
+function parseTier(value: unknown): AccessTier {
+  if (typeof value !== 'string' || !VALID_TIERS.has(value)) {
+    throw new AppError(400, `access tier must be one of: ${[...VALID_TIERS].join(', ')}.`);
+  }
+  return value as AccessTier;
 }
 
 /** GET /api/v1/teams/:id/members */
@@ -39,11 +50,42 @@ export async function createMember(req: Request, res: Response, next: NextFuncti
   } catch (err) { next(err); }
 }
 
-/** PATCH /api/v1/teams/:id/members/:memberId */
+/**
+ * PATCH /api/v1/teams/:id/members/:memberId
+ * Accepts `role` and/or any of `rosterAccess` / `invitationAccess` / `matchAccess`.
+ * Route guard already requires MANAGE_MEMBERS; here we additionally forbid editing
+ * your own access tiers so a coach can't lock themselves out of their own team.
+ */
 export async function updateMember(req: Request, res: Response, next: NextFunction) {
   try {
-    const { role } = req.body;
-    const member = await updateMemberRole(req.params.memberId, parseRole(role));
+    const { role, rosterAccess, invitationAccess, matchAccess } = req.body;
+    const hasTierChange = rosterAccess !== undefined || invitationAccess !== undefined || matchAccess !== undefined;
+
+    if (hasTierChange) {
+      const membership = await prisma.teamMembership.findUnique({
+        where: { id: req.params.memberId },
+        select: { userId: true },
+      });
+      if (!membership) throw new AppError(404, 'Membership not found.');
+      if (membership.userId === req.user!.userId) {
+        throw new AppError(403, 'You cannot change your own access tiers.');
+      }
+    }
+
+    // Role change re-seeds tiers to defaults; apply explicit tier overrides after.
+    let member = role !== undefined
+      ? await updateMemberRole(req.params.memberId, parseRole(role))
+      : null;
+
+    if (hasTierChange) {
+      member = await updateMemberAccess(req.params.memberId, {
+        ...(rosterAccess !== undefined ? { rosterAccess: parseTier(rosterAccess) } : {}),
+        ...(invitationAccess !== undefined ? { invitationAccess: parseTier(invitationAccess) } : {}),
+        ...(matchAccess !== undefined ? { matchAccess: parseTier(matchAccess) } : {}),
+      });
+    }
+
+    if (!member) throw new AppError(400, 'Nothing to update — provide a role or access tier.');
     res.json(member);
   } catch (err) { next(err); }
 }
