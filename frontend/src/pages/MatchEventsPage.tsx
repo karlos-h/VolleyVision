@@ -1,8 +1,8 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMatch, useEvents, useHasPermission } from '../hooks';
 import { EVENT_META, type Event } from '../types';
-import MatchSubNav from '../components/ui/MatchSubNav';
+import MatchPageHeader from '../components/ui/MatchPageHeader';
 
 // Light-mode, read-only changelog of a match's recorded events (Task 6).
 // Available for a match in any status — unlike Track, which is live-only.
@@ -40,20 +40,17 @@ export default function MatchEventsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 text-sm text-grey-600">
-          <Link to={`/teams/${match.teamId}/matches`} className="hover:text-navy-700">Matches</Link>
-          <span>/</span>
-          <span className="text-grey-900">Events</span>
-        </div>
-        <h1 className="text-2xl font-bold text-grey-900 mt-2">vs {match.opponent}</h1>
-        <p className="text-grey-600 text-sm mt-0.5">
-          {format(new Date(match.matchDate), 'PPP')} · {match.status.replace('_', ' ')}
-        </p>
-      </div>
-
-      <MatchSubNav matchId={match.id} trackable={canTrack && match.status === 'IN_PROGRESS'} />
+      <MatchPageHeader
+        matchId={match.id}
+        teamId={match.teamId}
+        teamName={match.team?.name}
+        opponent={match.opponent}
+        matchDate={match.matchDate}
+        competition={match.competition}
+        venue={match.venue}
+        status={match.status}
+        canTrack={canTrack}
+      />
 
       {/* Changelog */}
       {eventsLoading ? (

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore } from '../hooks';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useHasPermission } from '../hooks';
 import type { EventType, Player } from '../types';
 import { EVENT_META, POSITION_LABELS } from '../types';
 import clsx from 'clsx';
 import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
+import MatchPageHeader from '../components/ui/MatchPageHeader';
 
 // Event buttons grouped by category for the tablet layout
 const CATEGORIES = [
@@ -52,6 +53,9 @@ export default function TrackingPage() {
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
+  // Track is offered only to those who can track a live match (players never
+  // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
+  const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
 
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
@@ -123,19 +127,11 @@ export default function TrackingPage() {
     await updateMatch.mutateAsync({ id: matchId!, data: { status: next } });
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-grey-50 flex items-center justify-center">
-        <p className="text-grey-600">Loading match…</p>
-      </div>
-    );
-  }
+  if (isLoading) return <p className="text-grey-600">Loading match…</p>;
 
   if (!match) {
     return (
-      <div className="min-h-screen bg-grey-50 flex items-center justify-center">
-        <p className="text-grey-600">Match not found. <Link to="/teams" className="text-navy-700 font-medium">Go back</Link></p>
-      </div>
+      <p className="text-grey-600">Match not found. <Link to="/teams" className="text-navy-700 font-medium">Go back</Link></p>
     );
   }
 
@@ -150,46 +146,45 @@ export default function TrackingPage() {
   const players = match.team?.players ?? [];
 
   return (
-    <div className="min-h-screen bg-grey-50 flex flex-col select-none">
-      {/* ── Top bar ── */}
-      <header className="bg-white border-b border-grey-200 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link to={`/teams/${match.teamId}/matches`} className="text-grey-600 hover:text-navy-700 shrink-0">
-              ← Back
-            </Link>
-            <div className="min-w-0">
-              <div className="font-bold text-grey-900 leading-tight truncate">
-                {match.team?.name} <span className="text-grey-600 font-normal">vs</span> {match.opponent}
-              </div>
-              <div className="text-xs text-grey-600">
-                {match.competition && `${match.competition} · `}
-                {format(new Date(match.matchDate), 'PPP')}
-                {match.venue && ` · ${match.venue}`}
-              </div>
-            </div>
+    <div className="space-y-6 select-none">
+      <MatchPageHeader
+        matchId={match.id}
+        teamId={match.teamId}
+        teamName={match.team?.name}
+        opponent={match.opponent}
+        matchDate={match.matchDate}
+        competition={match.competition}
+        venue={match.venue}
+        status={match.status}
+        canTrack={canTrack}
+      />
+
+      {/* ── Live Scoreboard + controls ── */}
+      <div className="card p-4 space-y-3">
+        {/* Control row: set selector + finish-match quick action + undo. The
+            match title/date/status now live in the shared MatchPageHeader. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Set selector */}
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <button
+                key={s}
+                onClick={() => setCurrentSet(s)}
+                className={clsx(
+                  'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
+                  currentSet === s
+                    ? 'bg-gold-500 border-gold-500 text-navy-900'
+                    : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                {s}
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Set selector */}
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setCurrentSet(s)}
-                  className={clsx(
-                    'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
-                    currentSet === s
-                      ? 'bg-gold-500 border-gold-500 text-navy-900'
-                      : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200'
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            {/* Match status */}
+          <div className="flex items-center gap-2">
+            {/* Finish match — a natural real-time action while tracking
+                (IN_PROGRESS → COMPLETED). Completing redirects to Events. */}
             <button
               onClick={handleStatusToggle}
               className={clsx(
@@ -212,13 +207,9 @@ export default function TrackingPage() {
             </button>
           </div>
         </div>
-      </header>
 
-      {/* ── Live Scoreboard ── */}
-      <div className="bg-white border-b border-grey-200 px-4 py-3">
-        <div className="max-w-5xl mx-auto space-y-2">
-          {/* A completed match redirects to the Events changelog (Task 6), so the
-              tracker only ever renders a live, in-progress match here. */}
+        {/* A completed match redirects to the Events changelog (Task 6), so the
+            tracker only ever renders a live, in-progress match here. */}
           <div className="flex items-center justify-between gap-4">
             {/* Home team */}
             <div className="flex-1 text-right">
@@ -290,11 +281,10 @@ export default function TrackingPage() {
               <div className="tabular-nums text-4xl font-bold text-grey-600 leading-none mt-1">{match.awayScore ?? 0}</div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* ── Main ── */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-4 flex flex-col gap-4 pb-6">
+      <div className="space-y-4">
         {/* Flash feedback overlay */}
         {flash && (
           <div

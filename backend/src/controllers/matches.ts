@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AccessTier, ApprovalAction } from '@prisma/client';
+import { AccessTier, ApprovalAction, MatchStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion } from '../lib/scoring';
@@ -81,6 +81,9 @@ export async function createMatch(req: Request, res: Response, next: NextFunctio
 export async function updateMatch(req: Request, res: Response, next: NextFunction) {
   try {
     const { matchDate, opponent, competition, venue, status, setScores } = req.body;
+    if (status && !Object.values(MatchStatus).includes(status)) {
+      throw new AppError(400, 'Invalid match status.');
+    }
     const existing = await prisma.match.findUnique({ where: { id: req.params.id }, select: { teamId: true } });
     if (!existing) throw new AppError(404, 'Match not found.');
     const userId = req.user!.userId;

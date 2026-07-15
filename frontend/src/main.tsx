@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 
@@ -35,6 +35,13 @@ import ResultsPage from './pages/ResultsPage';
 import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 import LeagueSeasonRankingsPage from './pages/LeagueSeasonRankingsPage';
 import MatchCentrePage from './pages/MatchCentrePage';
+
+// Backward-compat redirect: live tracking moved under the shared match shell at
+// /matches/:matchId/track. Old bookmarks to /track/:matchId land here.
+function LegacyTrackRedirect() {
+  const { matchId } = useParams<{ matchId: string }>();
+  return <Navigate to={`/matches/${matchId}/track`} replace />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,7 +81,7 @@ function App() {
                   there is no separate "browse all teams" list any more. */}
               <Route path="/my-teams" element={<Navigate to="/teams" replace />} />
               <Route path="/invitations" element={<InvitationsPage />} />
-              <Route path="/track/:matchId" element={<TrackingPage />} />
+              <Route path="/track/:matchId" element={<LegacyTrackRedirect />} />
               {/* Team-scoped routes. Teams are private to their members, so
                   every one of these 404s for a non-member on the backend —
                   there is nothing here to read while logged out. */}
@@ -84,6 +91,7 @@ function App() {
               <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
               <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
               <Route path="/matches/:matchId/events" element={<MatchEventsPage />} />
+              <Route path="/matches/:matchId/track" element={<TrackingPage />} />
               <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
 
               {features.leagues && (

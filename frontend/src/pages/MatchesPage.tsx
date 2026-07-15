@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTeam, useMatches, useCreateMatch, useUpdateMatch, useDeleteMatch, useHasPermission } from '../hooks';
-import { isPendingApproval, leagueLabel } from '../types';
+import { isPendingApproval, leagueLabel, type Match, type MatchStatus } from '../types';
 import TeamSubNav from '../components/ui/TeamSubNav';
-import { TrashIcon } from '../components/ui/icons';
+import { PencilIcon, TrashIcon } from '../components/ui/icons';
 
 const STATUS_STYLES = {
   SCHEDULED: 'badge-info',
@@ -43,6 +43,13 @@ export default function MatchesPage() {
   const [pendingNotice, setPendingNotice] = useState('');
   const [form, setForm] = useState({ matchDate: '', opponent: '', competition: '', venue: '' });
 
+  // Inline edit (Fix 4/5) — mirrors the create form but pre-filled, with an
+  // explicit status control. `editingId` marks which card is expanded.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ matchDate: string; opponent: string; competition: string; venue: string; status: MatchStatus }>(
+    { matchDate: '', opponent: '', competition: '', venue: '', status: 'SCHEDULED' }
+  );
+
   // Competition defaults to the team's current league (Task 2), still editable.
   function openForm() {
     setForm((f) => ({ ...f, competition: f.competition || leagueLabel(team?.leagueSeason) || '' }));
@@ -62,7 +69,32 @@ export default function MatchesPage() {
     // Created immediately — start it (SCHEDULED → IN_PROGRESS) so tracking, which
     // is restricted to in-progress matches, can open.
     await updateMatch.mutateAsync({ id: result.id, data: { status: 'IN_PROGRESS' } });
-    navigate(`/track/${result.id}`);
+    navigate(`/matches/${result.id}/track`);
+  }
+
+  // Pre-fill the inline edit form from the match's current values. The stored
+  // ISO date is converted to the `datetime-local` input's expected shape.
+  function openEdit(match: Match) {
+    setEditingId(match.id);
+    setEditForm({
+      matchDate: format(new Date(match.matchDate), "yyyy-MM-dd'T'HH:mm"),
+      opponent: match.opponent,
+      competition: match.competition ?? '',
+      venue: match.venue ?? '',
+      status: match.status,
+    });
+  }
+
+  async function handleEditSubmit(e: React.FormEvent, id: string) {
+    e.preventDefault();
+    const opponent = editForm.opponent;
+    const result = await updateMatch.mutateAsync({ id, data: editForm });
+    if (isPendingApproval(result)) {
+      setEditingId(null);
+      setPendingNotice(`Changes to match vs ${opponent} submitted for the head coach's approval.`);
+      return;
+    }
+    setEditingId(null);
   }
 
   // Begin a scheduled match, then open the live tracker.
@@ -72,7 +104,7 @@ export default function MatchesPage() {
       setPendingNotice('Starting this match was submitted for the head coach approval.');
       return;
     }
-    navigate(`/track/${id}`);
+    navigate(`/matches/${id}/track`);
   }
 
   return (
@@ -169,10 +201,10 @@ export default function MatchesPage() {
       ) : (
         <div className="space-y-3">
           {matches?.map((match) => (
-            // The whole card opens the match's Stats page; the action buttons
-            // below stop propagation so they keep working independently.
+            <div key={match.id} className="space-y-3">
+            {/* The whole card opens the match's Stats page; the action buttons
+                below stop propagation so they keep working independently. */}
             <div
-              key={match.id}
               role="link"
               tabIndex={0}
               aria-label={`View stats for match vs ${match.opponent}`}
@@ -195,12 +227,12 @@ export default function MatchesPage() {
               <div className="text-right shrink-0" onClick={(e) => e.stopPropagation()}>
                 <div className="text-xs text-grey-500 tabular-nums">{match._count?.events ?? 0} events</div>
                 <div className="flex gap-2 mt-1 justify-end">
-                  <Link to={`/matches/${match.id}/dashboard`} className="btn-secondary text-sm py-1.5 px-3">Stats</Link>
+                  <Link to={`/matches/${match.id}/dashboard`} className="btn-secondary text-sm py-1.5 px-3">Match Stats</Link>
                   <Link to={`/matches/${match.id}/events`} className="btn-secondary text-sm py-1.5 px-3">Events</Link>
 
                   {/* Live tracking: coaches/staff only, and only for a live or startable match. */}
                   {canTrack && match.status === 'IN_PROGRESS' && (
-                    <Link to={`/track/${match.id}`} className="btn-primary text-sm py-1.5 px-3">Track</Link>
+                    <Link to={`/matches/${match.id}/track`} className="btn-primary text-sm py-1.5 px-3">Track</Link>
                   )}
                   {canTrack && match.status === 'SCHEDULED' && (
                     <button
@@ -209,6 +241,17 @@ export default function MatchesPage() {
                       onClick={() => startAndTrack(match.id)}
                     >
                       Start
+                    </button>
+                  )}
+
+                  {canManageMatches && (
+                    <button
+                      className="btn-icon"
+                      title="Edit match"
+                      aria-label={`Edit match vs ${match.opponent}`}
+                      onClick={() => (editingId === match.id ? setEditingId(null) : openEdit(match))}
+                    >
+                      <PencilIcon className="w-4 h-4" />
                     </button>
                   )}
 
@@ -228,6 +271,45 @@ export default function MatchesPage() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Inline edit form (Fix 4/5) — same fields/layout as New Match,
+                pre-filled, plus an explicit Status control. */}
+            {editingId === match.id && (
+              <div className="card p-5">
+                <h2 className="font-display font-semibold text-grey-900 mb-4">Edit Match</h2>
+                <form onSubmit={(e) => handleEditSubmit(e, match.id)} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-grey-600 mb-1">Date & Time *</label>
+                    <input type="datetime-local" className="input" value={editForm.matchDate} onChange={(e) => setEditForm({ ...editForm, matchDate: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-grey-600 mb-1">Opponent *</label>
+                    <input className="input" value={editForm.opponent} onChange={(e) => setEditForm({ ...editForm, opponent: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-grey-600 mb-1">Competition</label>
+                    <input className="input" value={editForm.competition} onChange={(e) => setEditForm({ ...editForm, competition: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-grey-600 mb-1">Venue</label>
+                    <input className="input" value={editForm.venue} onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-grey-600 mb-1">Status</label>
+                    <select className="input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as MatchStatus })}>
+                      {MATCH_STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2 flex gap-2">
+                    <button type="submit" className="btn-primary" disabled={updateMatch.isPending}>
+                      {updateMatch.isPending ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
+                  </div>
+                </form>
+              </div>
+            )}
             </div>
           ))}
         </div>

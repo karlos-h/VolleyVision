@@ -1,7 +1,6 @@
-import { Link, useParams } from 'react-router-dom';
-import { format } from 'date-fns';
+import { useParams } from 'react-router-dom';
 import { useMatchAnalytics, useMatchHeatmap, useMatchMomentum, useMatchRotations, useMatchAdvanced, useMatchReport, useMatchZoneDetail, useMatchReportNarrative, useHasPermission } from '../hooks';
-import MatchSubNav from '../components/ui/MatchSubNav';
+import MatchPageHeader from '../components/ui/MatchPageHeader';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import CourtVisualization from '../components/court/CourtVisualization';
 import HeatMapCourt from '../components/court/HeatMapCourt';
@@ -34,20 +33,17 @@ export default function MatchDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link to={`/teams/${data.match.teamId}/matches`} className="text-sm text-grey-600 hover:text-navy-700">
-          Back to matches
-        </Link>
-        <h1 className="text-2xl font-bold text-grey-900 mt-2">
-          {data.match.teamName} vs {data.match.opponent}
-        </h1>
-        <p className="text-sm text-grey-600 mt-1">
-          {format(new Date(data.match.matchDate), 'PPP')}
-          {data.match.competition && ` | ${data.match.competition}`}
-        </p>
-      </div>
-
-      <MatchSubNav matchId={data.match.id} trackable={canTrack && data.match.status === 'IN_PROGRESS'} />
+      <MatchPageHeader
+        matchId={data.match.id}
+        teamId={data.match.teamId}
+        teamName={data.match.teamName}
+        opponent={data.match.opponent}
+        matchDate={data.match.matchDate}
+        competition={data.match.competition}
+        venue={data.match.venue}
+        status={data.match.status}
+        canTrack={canTrack}
+      />
 
       {/* Phase 4 — Final Score Summary */}
       <div className="card p-4 space-y-3">

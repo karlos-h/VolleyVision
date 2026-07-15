@@ -1,17 +1,18 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
-// Match-level tab group (Stats | Events), one level down from TeamSubNav and
-// styled identically to it. Live tracking is a distinct action, not a tab — the
-// parent decides whether to offer it (in-progress + the caller can track) via
-// `trackable`.
+// Match-level tab group (Match Stats | Events | Track), one level down from
+// TeamSubNav and styled identically to it. The Track tab only appears when the
+// caller can track a live, in-progress match (via `trackable`) — players never
+// can (Iteration 3 Task 6).
 export default function MatchSubNav({ matchId, trackable = false }: { matchId: string; trackable?: boolean }) {
   const tabs = [
-    { to: `/matches/${matchId}/dashboard`, label: 'Stats' },
+    { to: `/matches/${matchId}/dashboard`, label: 'Match Stats' },
     { to: `/matches/${matchId}/events`, label: 'Events' },
+    ...(trackable ? [{ to: `/matches/${matchId}/track`, label: 'Track' }] : []),
   ];
 
   return (
-    <div className="flex items-end justify-between gap-3 border-b border-grey-200 pb-px overflow-x-auto">
+    <div className="flex items-end border-b border-grey-200 pb-px overflow-x-auto">
       <div className="flex items-center gap-1">
         {tabs.map((t) => (
           <NavLink
@@ -28,11 +29,6 @@ export default function MatchSubNav({ matchId, trackable = false }: { matchId: s
           </NavLink>
         ))}
       </div>
-      {trackable && (
-        <Link to={`/track/${matchId}`} className="btn-primary text-sm py-1.5 px-3 mb-1.5 shrink-0">
-          Track live
-        </Link>
-      )}
     </div>
   );
 }

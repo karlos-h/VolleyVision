@@ -197,6 +197,8 @@ export function useUpdateMatch() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['match', vars.id] });
       qc.invalidateQueries({ queryKey: ['analytics', 'match', vars.id] });
+      // Refresh any team's match-list cards so status/detail edits show at once.
+      qc.invalidateQueries({ queryKey: ['matches'] });
     },
   });
 }

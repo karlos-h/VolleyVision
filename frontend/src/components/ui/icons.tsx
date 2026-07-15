@@ -99,6 +99,14 @@ export function ChevronIcon({ className }: IconProps) {
   );
 }
 
+export function ArrowLeftIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M19 12H5m0 0 6-6m-6 6 6 6" />
+    </svg>
+  );
+}
+
 export function MenuIcon({ className }: IconProps) {
   return (
     <svg {...base(className)}>
