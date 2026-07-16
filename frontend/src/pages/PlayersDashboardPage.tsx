@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { Link, NavLink, useParams, useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport, useMatchAnalytics } from '../hooks';
 import { StatsCards } from '../components/analytics/StatsOverview';
-import { POSITION_LABELS } from '../types';
+import { POSITION_FULL_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
 import HeatMapCourt from '../components/court/HeatMapCourt';
 import PlayerDevelopmentCard from '../components/analytics/PlayerDevelopmentCard';
@@ -20,6 +22,14 @@ export default function PlayerDashboardPage() {
   const { data: heatmapData } = usePlayerHeatmap(playerId!);
   const { data: developmentData } = usePlayerDevelopmentReport(playerId!);
   const { data: matchData } = useMatchAnalytics(matchId ?? '');
+
+  // Only when arriving in match context — restores the previous title on unmount.
+  useEffect(() => {
+    if (!matchId || !matchData) return;
+    const previous = document.title;
+    document.title = `Game Day Stats – vs ${matchData.match.opponent} | VolleyVision`;
+    return () => { document.title = previous; };
+  }, [matchId, matchData]);
 
   if (isLoading) return <p className="text-navy-300">Loading analytics…</p>;
   if (isError || !data) return <p className="text-error">Couldn't load player analytics.</p>;
@@ -44,11 +54,22 @@ export default function PlayerDashboardPage() {
           </Link>
         )}
 
+        {matchId && matchData && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-grey-500">Game Day Stats</p>
+            <p className="text-sm text-grey-600 mt-0.5">
+              vs {matchData.match.opponent} · {format(new Date(matchData.match.matchDate), 'PPP')}
+              {matchData.match.venue && ` · ${matchData.match.venue}`}
+              {matchData.match.competition && ` · ${matchData.match.competition}`}
+            </p>
+          </div>
+        )}
+
         <h1 className="text-2xl font-bold text-grey-900 mt-2">
           #{data.player.jerseyNumber} {data.player.firstName} {data.player.lastName}
         </h1>
         <p className="text-sm text-navy-300 mt-1">
-          {POSITION_LABELS[data.player.position]}
+          {POSITION_FULL_LABELS[data.player.position]}
         </p>
       </div>
 

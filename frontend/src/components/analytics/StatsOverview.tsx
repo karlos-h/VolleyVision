@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 import type { PlayerStatLine, StatLine } from '../../types';
-import { POSITION_LABELS } from '../../types';
+import { POSITION_FULL_LABELS } from '../../types';
 import { CHART_SERIES, CHART_NEGATIVE } from '../../lib/chartColors';
 
 function percentage(value: number | null) {
@@ -130,6 +130,12 @@ export function StatsCards({ stats, trends }: { stats: StatLine; trends?: StatTr
 }
 
 export function PlayerStatsTable({ rows, matchId }: { rows: PlayerStatLine[]; matchId?: string }) {
+  const navigate = useNavigate();
+
+  function goToPlayer(playerId: string) {
+    navigate(matchId ? `/players/${playerId}/dashboard?matchId=${matchId}` : `/players/${playerId}/dashboard`);
+  }
+
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
@@ -150,16 +156,28 @@ export function PlayerStatsTable({ rows, matchId }: { rows: PlayerStatLine[]; ma
         </thead>
         <tbody className="divide-y divide-grey-200">
           {rows.map((row) => (
-            <tr key={row.player.id} className="hover:bg-grey-50">
-              <td className="px-4 py-3">
-                <span className="tabular-nums text-grey-600 mr-2">#{row.player.jerseyNumber}</span>
-                <Link
-                  to={matchId ? `/players/${row.player.id}/dashboard?matchId=${matchId}` : `/players/${row.player.id}/dashboard`}
-                  className="font-medium text-grey-900 hover:text-navy-700 transition-colors"
-                >
-                  {row.player.firstName} {row.player.lastName}
-                </Link>
-                <span className="text-xs text-grey-400 ml-2">{POSITION_LABELS[row.player.position]}</span>
+            <tr
+              key={row.player.id}
+              tabIndex={0}
+              onClick={() => goToPlayer(row.player.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter') goToPlayer(row.player.id); }}
+              className="hover:bg-grey-50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            >
+              <td className="px-4 py-4">
+                <div className="flex items-center gap-3">
+                  {/* Placeholder avatar — jersey number in a circle. Structured
+                      so a real photoUrl can drop an <img> in here later without
+                      restructuring the row (Player has no photo field yet). */}
+                  <div className="w-12 h-12 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center shrink-0">
+                    <span className="tabular-nums font-bold text-base">{row.player.jerseyNumber}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-medium text-grey-900">
+                      {row.player.firstName} {row.player.lastName}
+                    </span>
+                    <span className="text-xs text-grey-400 ml-2">{POSITION_FULL_LABELS[row.player.position]}</span>
+                  </div>
+                </div>
               </td>
               <td className="stat-cell">{row.kills}</td>
               <td className="stat-cell">{row.attackErrors}</td>
