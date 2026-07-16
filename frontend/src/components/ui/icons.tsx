@@ -142,6 +142,24 @@ export function TrashIcon({ className }: IconProps) {
   );
 }
 
+export function SearchIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M20 20l-4.5-4.5" />
+    </svg>
+  );
+}
+
+export function SortIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M7 4v16M7 20l-3.5-3.5M7 20l3.5-3.5" />
+      <path d="M17 20V4M17 4l-3.5 3.5M17 4l3.5 3.5" />
+    </svg>
+  );
+}
+
 export function LogoutIcon({ className }: IconProps) {
   return (
     <svg {...base(className)}>
