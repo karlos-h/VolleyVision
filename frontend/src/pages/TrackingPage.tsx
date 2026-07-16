@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useHasPermission } from '../hooks';
 import type { EventType, Player } from '../types';
-import { EVENT_META, POSITION_LABELS } from '../types';
+import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
 import clsx from 'clsx';
 import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
 import MatchPageHeader from '../components/ui/MatchPageHeader';
@@ -127,6 +127,15 @@ export default function TrackingPage() {
     await updateMatch.mutateAsync({ id: matchId!, data: { status: next } });
   }
 
+  // Destructive — zeroes the current set's score and clears its manual
+  // adjustment history, so confirm before doing it (consistent with the
+  // Delete confirm in MatchesPage.tsx).
+  function handleResetSetScore() {
+    if (confirm(`Reset the score for Set ${currentSet} to 0–0? This cannot be undone.`)) {
+      resetSetScore.mutate();
+    }
+  }
+
   if (isLoading) return <p className="text-grey-600">Loading match…</p>;
 
   if (!match) {
@@ -215,9 +224,27 @@ export default function TrackingPage() {
             <div className="flex-1 text-right">
               <div className="text-sm font-semibold text-grey-900 truncate">{match.team?.name ?? 'Home'}</div>
               <div className="tabular-nums text-4xl font-bold text-grey-900 leading-none mt-1">{match.homeScore ?? 0}</div>
+              {/* Stacked on narrow viewports so the enlarged buttons don't force
+                  the name/score blocks to wrap; side-by-side from sm up. */}
+              <div className="flex flex-col sm:flex-row items-end sm:items-stretch gap-2 mt-2 justify-end">
+                <button
+                  onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
+                  title="Home −1"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
+                  title="Home +1"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* Centre — sets won + controls */}
+            {/* Centre — sets won + reset (not tied to one side, so it stays centred) */}
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div className="flex items-center gap-3">
                 <span className="tabular-nums text-xl font-bold text-navy-700">{match.homeSetsWon ?? 0}</span>
@@ -236,49 +263,35 @@ export default function TrackingPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-1 mt-1">
-                <button
-                  onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
-                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
-                  title="Home −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
-                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
-                  title="Home +1"
-                >
-                  +
-                </button>
-                <button
-                  onClick={() => resetSetScore.mutate()}
-                  className="px-2 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-[10px] font-medium border border-grey-200"
-                  title="Reset set score"
-                >
-                  RST
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
-                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
-                  title="Away −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
-                  className="w-6 h-6 rounded bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-bold border border-grey-200"
-                  title="Away +1"
-                >
-                  +
-                </button>
-              </div>
+              <button
+                onClick={handleResetSetScore}
+                className="mt-1 px-3 h-7 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-medium border border-grey-200 transition-colors"
+                title="Reset set score"
+              >
+                Reset Set
+              </button>
             </div>
 
             {/* Away team */}
             <div className="flex-1 text-left">
               <div className="text-sm font-semibold text-grey-900 truncate">{match.opponent}</div>
               <div className="tabular-nums text-4xl font-bold text-grey-600 leading-none mt-1">{match.awayScore ?? 0}</div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-stretch gap-2 mt-2 justify-start">
+                <button
+                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
+                  title="Away −1"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
+                  title="Away +1"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
       </div>
@@ -386,7 +399,7 @@ export default function TrackingPage() {
                   {selectedPlayer.firstName} {selectedPlayer.lastName}
                 </span>
                 <span className="text-grey-600 text-sm ml-2">
-                  {POSITION_LABELS[selectedPlayer.position]}
+                  {POSITION_FULL_LABELS[selectedPlayer.position]}
                 </span>
               </div>
               <div className="text-xs text-grey-600">
