@@ -237,6 +237,10 @@ export function useRecordEvent(matchId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['events', matchId] });
       qc.invalidateQueries({ queryKey: ['analytics', 'match', matchId] });
+      // Scoring events increment homeScore/awayScore server-side; without this,
+      // the live scoreboard (which reads useMatch) shows a stale score until
+      // something else happens to trigger a refetch.
+      qc.invalidateQueries({ queryKey: ['match', matchId] });
     },
   });
 }
@@ -248,6 +252,7 @@ export function useUndoEvent(matchId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['events', matchId] });
       qc.invalidateQueries({ queryKey: ['analytics', 'match', matchId] });
+      qc.invalidateQueries({ queryKey: ['match', matchId] });
     },
   });
 }

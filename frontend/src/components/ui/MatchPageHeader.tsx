@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import MatchSubNav from './MatchSubNav';
-import { ArrowLeftIcon } from './icons';
-import type { MatchStatus } from '../../types';
+import { ArrowLeftIcon, ChevronIcon } from './icons';
+import { isPendingApproval, type MatchStatus } from '../../types';
+import { useHasPermission, useUpdateMatch } from '../../hooks';
 
 // Shared header for all three match sub-pages (Match Stats | Events | Track).
 // Consolidates the back button, title/meta block, and MatchSubNav so every
@@ -14,6 +16,8 @@ const STATUS_STYLES: Record<MatchStatus, string> = {
   COMPLETED: 'badge-success',
   CANCELLED: 'badge-error',
 };
+
+const MATCH_STATUSES: MatchStatus[] = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
 interface MatchPageHeaderProps {
   matchId: string;
@@ -40,6 +44,20 @@ export default function MatchPageHeader({
   status,
   canTrack,
 }: MatchPageHeaderProps) {
+  const canManageMatches = useHasPermission(teamId, 'CREATE_MATCH');
+  const updateMatch = useUpdateMatch();
+  const [pendingNotice, setPendingNotice] = useState('');
+
+  async function handleStatusChange(next: MatchStatus) {
+    const result = await updateMatch.mutateAsync({ id: matchId, data: { status: next } });
+    if (isPendingApproval(result)) {
+      // Applied optimistically by the <select>'s own value binding — since we
+      // read `status` from props (server state), a no-op mutation naturally
+      // leaves the select showing the prior value once queries settle.
+      setPendingNotice(`Status change submitted for the head coach's approval.`);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -61,8 +79,31 @@ export default function MatchPageHeader({
               {competition && ` · ${competition}`}
             </p>
           </div>
-          <span className={`badge ${STATUS_STYLES[status]} shrink-0`}>{status.replace('_', ' ')}</span>
+          {canManageMatches ? (
+            <div className="relative shrink-0">
+              <select
+                value={status}
+                disabled={updateMatch.isPending}
+                onChange={(e) => handleStatusChange(e.target.value as MatchStatus)}
+                aria-label="Match status"
+                className={`badge ${STATUS_STYLES[status]} appearance-none pr-6 pl-2 cursor-pointer disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500`}
+              >
+                {MATCH_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                ))}
+              </select>
+              <ChevronIcon className="w-3 h-3 rotate-90 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          ) : (
+            <span className={`badge ${STATUS_STYLES[status]} shrink-0`}>{status.replace('_', ' ')}</span>
+          )}
         </div>
+        {pendingNotice && (
+          <div className="mt-3 card p-3 border border-gold-500/40 bg-gold-500/10 text-sm text-grey-900 flex items-center justify-between gap-3">
+            <span>{pendingNotice}</span>
+            <button className="text-grey-500 hover:text-grey-900 text-xs" onClick={() => setPendingNotice('')}>Dismiss</button>
+          </div>
+        )}
       </div>
 
       <MatchSubNav matchId={matchId} trackable={canTrack && status === 'IN_PROGRESS'} />

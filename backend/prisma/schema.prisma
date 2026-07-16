@@ -508,7 +508,7 @@ model Event {
 
   videoTimestamps VideoTimestamp[]
 
-  recordedAt  DateTime  @default(now()) @map("recorded_at")
+  recordedAt  DateTime  @default(now()) @db.Timestamptz(3) @map("recorded_at")
 
   // Indexes support the most common Phase 2 query patterns:
   //   - "all events for player X in match Y"
