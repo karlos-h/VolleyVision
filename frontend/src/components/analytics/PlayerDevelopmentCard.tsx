@@ -12,8 +12,8 @@ const TREND_LABEL: Record<PlayerDevelopmentReport['trend'], string> = {
 };
 
 const TREND_COLOR: Record<PlayerDevelopmentReport['trend'], string> = {
-  improving:         'text-success-dark',
-  declining:         'text-error-dark',
+  improving:         'text-success',
+  declining:         'text-error',
   stable:            'text-chalk-400',
   insufficient_data: 'text-chalk-500',
 };
@@ -42,11 +42,11 @@ export default function PlayerDevelopmentCard({ report }: Props) {
         <div className="grid sm:grid-cols-2 gap-3">
           {report.mostImproved && (
             <div className="rounded-lg p-3 bg-success/10 border border-success/20">
-              <p className="text-[10px] font-semibold text-success-dark mb-1">
+              <p className="text-[10px] font-semibold text-success mb-1">
                 Most Improved
               </p>
-              <p className="text-sm font-semibold text-success-dark">{report.mostImproved.category}</p>
-              <p className="text-xs text-success-dark mt-0.5 font-mono">{report.mostImproved.change}</p>
+              <p className="text-sm font-semibold text-success">{report.mostImproved.category}</p>
+              <p className="text-xs text-success mt-0.5 font-mono">{report.mostImproved.change}</p>
             </div>
           )}
           {report.needsAttention && (
@@ -72,8 +72,8 @@ export default function PlayerDevelopmentCard({ report }: Props) {
           ) : (
             <ul className="space-y-1">
               {report.strengths.map((s) => (
-                <li key={s} className="flex items-center gap-2 text-sm text-success-dark">
-                  <span className="text-success-dark text-xs">✓</span>
+                <li key={s} className="flex items-center gap-2 text-sm text-success">
+                  <span className="text-success text-xs">✓</span>
                   {s}
                 </li>
               ))}
@@ -90,8 +90,8 @@ export default function PlayerDevelopmentCard({ report }: Props) {
           ) : (
             <ul className="space-y-1">
               {report.weaknesses.map((w) => (
-                <li key={w} className="flex items-center gap-2 text-sm text-error-dark">
-                  <span className="text-error-dark text-xs">✗</span>
+                <li key={w} className="flex items-center gap-2 text-sm text-error">
+                  <span className="text-error text-xs">✗</span>
                   {w}
                 </li>
               ))}

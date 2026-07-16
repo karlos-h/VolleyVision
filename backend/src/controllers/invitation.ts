@@ -1,13 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
-import { TeamRole } from '@prisma/client';
+import { AccessTier, ApprovalAction, TeamRole } from '@prisma/client';
 import { logAudit } from '../lib/audit';
 import {
-  createInvitation,
   acceptInvitation,
   declineInvitation,
+  redeemInvitationByCode,
   getTeamInvitations,
   getUserInvitations,
 } from '../services/invitation.service';
+import { getAccessTier } from '../services/permission.service';
+import { createApprovalRequest } from '../services/approval.service';
+import { applyCreateInvitation } from '../services/teamActions.service';
 
 export async function createTeamInvitation(req: Request, res: Response, next: NextFunction) {
   try {
@@ -16,9 +19,21 @@ export async function createTeamInvitation(req: Request, res: Response, next: Ne
     if (!email || !role) {
       return res.status(400).json({ error: 'email and role are required' });
     }
-    const inv = await createInvitation(teamId, req.user!.userId, email, role);
-    logAudit(req.user!.userId, 'CREATE_INVITATION', 'invitation', inv.id, { teamId, email, role });
-    res.status(201).json(inv);
+    const userId = req.user!.userId;
+
+    // Invitation access tier decides immediate vs queued (VIEW_ONLY/non-member
+    // already 403'd by the route guard).
+    if ((await getAccessTier(userId, teamId, 'invitation')) === AccessTier.FULL_ACCESS) {
+      const inv = await applyCreateInvitation({ teamId, invitedById: userId, email, role });
+      logAudit(userId, 'CREATE_INVITATION', 'invitation', inv.id, { teamId, email, role });
+      return res.status(201).json(inv);
+    }
+
+    const request = await createApprovalRequest({
+      teamId, requestedById: userId, action: ApprovalAction.INVITATION_CREATE,
+      payload: { teamId, invitedById: userId, email, role },
+    });
+    res.status(202).json({ status: 'pending_approval', requestId: request.id });
   } catch (err: any) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     next(err);
@@ -38,6 +53,19 @@ export async function acceptInvitationHandler(req: Request, res: Response, next:
   try {
     const result = await acceptInvitation(req.params.token, req.user!.userId);
     logAudit(req.user!.userId, 'ACCEPT_INVITATION', 'invitation', result.id);
+    res.json(result);
+  } catch (err: any) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    next(err);
+  }
+}
+
+export async function redeemInvitationHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { code } = req.body as { code?: string };
+    if (!code || !code.trim()) return res.status(400).json({ error: 'A join code is required.' });
+    const result = await redeemInvitationByCode(code, req.user!.userId);
+    logAudit(req.user!.userId, 'REDEEM_INVITATION', 'invitation', result.id);
     res.json(result);
   } catch (err: any) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });

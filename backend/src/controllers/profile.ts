@@ -13,11 +13,12 @@ export async function getProfileHandler(req: Request, res: Response, next: NextF
 
 export async function updateProfileHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    const { firstName, lastName, bio, phoneNumber, dateOfBirth, city, country, profileImage, heightCm, weightKg } = req.body;
+    const { firstName, lastName, bio, phoneNumber, dateOfBirth, city, country, profileImage, heightCm, weightKg, preferredPosition } = req.body;
     const updated = await updateProfile(req.user!.userId, {
       firstName, lastName, bio, phoneNumber, dateOfBirth, city, country, profileImage,
       heightCm: heightCm !== undefined ? (heightCm === null ? null : Number(heightCm)) : undefined,
       weightKg: weightKg !== undefined ? (weightKg === null ? null : Number(weightKg)) : undefined,
+      preferredPosition,
     });
     res.json(updated);
   } catch (err: any) {

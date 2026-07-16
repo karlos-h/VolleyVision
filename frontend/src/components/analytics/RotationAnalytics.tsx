@@ -23,9 +23,9 @@ function RotationTooltip({ active, payload }: any) {
     <div className="bg-court-900 border border-court-700 rounded-lg px-3 py-2 text-xs shadow-xl">
       <div className="font-semibold text-chalk-100 mb-1">Rotation {d.rotation}</div>
       <div className="space-y-0.5 text-chalk-300">
-        <div>Points won: <span className="text-success-dark font-mono">{d.won}</span></div>
-        <div>Points lost: <span className="text-error-dark font-mono">{d.lost}</span></div>
-        <div>Net: <span className={`font-mono font-bold ${d.net >= 0 ? 'text-spike-400' : 'text-error-dark'}`}>{d.net > 0 ? '+' : ''}{d.net}</span></div>
+        <div>Points won: <span className="text-success font-mono">{d.won}</span></div>
+        <div>Points lost: <span className="text-error font-mono">{d.lost}</span></div>
+        <div>Net: <span className={`font-mono font-bold ${d.net >= 0 ? 'text-navy-700' : 'text-error'}`}>{d.net > 0 ? '+' : ''}{d.net}</span></div>
         {d.efficiency != null && (
           <div>Efficiency: <span className="font-mono text-chalk-100">{d.efficiency}%</span></div>
         )}
@@ -55,21 +55,21 @@ export default function RotationAnalytics({ data }: Props) {
         {insights.best && (
           <div className="card p-3 border-success/20 bg-success/5">
             <p className="text-xs text-chalk-500 mb-1">Best rotation</p>
-            <p className="font-mono text-2xl font-bold text-success-dark">R{insights.best.rotation}</p>
+            <p className="font-mono text-2xl font-bold text-success">R{insights.best.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">Net +{insights.best.net}</p>
           </div>
         )}
         {insights.worst && (
           <div className="card p-3 border-error/20 bg-error/5">
             <p className="text-xs text-chalk-500 mb-1">Worst rotation</p>
-            <p className="font-mono text-2xl font-bold text-error-dark">R{insights.worst.rotation}</p>
+            <p className="font-mono text-2xl font-bold text-error">R{insights.worst.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">Net {insights.worst.net}</p>
           </div>
         )}
         {insights.highestSideOut && (
           <div className="card p-3">
             <p className="text-xs text-chalk-500 mb-1">Best side-out</p>
-            <p className="font-mono text-2xl font-bold text-spike-400">R{insights.highestSideOut.rotation}</p>
+            <p className="font-mono text-2xl font-bold text-navy-700">R{insights.highestSideOut.rotation}</p>
             <p className="text-xs text-chalk-500 mt-0.5">{insights.highestSideOut.efficiency}%</p>
           </div>
         )}
@@ -131,9 +131,9 @@ export default function RotationAnalytics({ data }: Props) {
             {rotations.map((r) => (
               <tr key={r.rotation} className={r.total === 0 ? 'opacity-30' : ''}>
                 <td className="px-4 py-2.5 font-semibold text-chalk-200">Rotation {r.rotation}</td>
-                <td className="px-4 py-2.5 text-right font-mono text-success-dark">{r.won}</td>
-                <td className="px-4 py-2.5 text-right font-mono text-error-dark">{r.lost}</td>
-                <td className={`px-4 py-2.5 text-right font-mono font-bold ${r.net > 0 ? 'text-spike-400' : r.net < 0 ? 'text-error-dark' : 'text-chalk-500'}`}>
+                <td className="px-4 py-2.5 text-right font-mono text-success">{r.won}</td>
+                <td className="px-4 py-2.5 text-right font-mono text-error">{r.lost}</td>
+                <td className={`px-4 py-2.5 text-right font-mono font-bold ${r.net > 0 ? 'text-navy-700' : r.net < 0 ? 'text-error' : 'text-chalk-500'}`}>
                   {r.net > 0 ? '+' : ''}{r.net}
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono text-chalk-300">

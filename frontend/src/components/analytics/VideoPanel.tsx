@@ -66,12 +66,12 @@ function TimestampList({ video, videoRef }: { video: Video; videoRef: React.RefO
                 if (videoRef.current) videoRef.current.currentTime = ts.timestampSeconds;
               }}
             >
-              <span className="font-mono text-xs text-spike-400 shrink-0 w-10">
+              <span className="font-mono text-xs text-navy-700 shrink-0 w-10">
                 {formatTime(ts.timestampSeconds)}
               </span>
               <span className="text-sm text-chalk-200 flex-1">{ts.label}</span>
               <button
-                className="text-chalk-600 hover:text-error-dark text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-chalk-600 hover:text-error text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteTs.mutate(ts.id);
@@ -128,7 +128,7 @@ export default function VideoPanel({ matchId }: Props) {
           />
         </label>
         <span className="text-xs text-chalk-500">MP4, MOV, WebM · max 500 MB</span>
-        {uploadError && <span className="text-xs text-error-dark">{uploadError}</span>}
+        {uploadError && <span className="text-xs text-error">{uploadError}</span>}
       </div>
 
       {/* Video list */}
@@ -155,7 +155,7 @@ export default function VideoPanel({ matchId }: Props) {
                 {new Date(v.uploadedAt).toLocaleDateString()}
               </span>
               <button
-                className="text-chalk-600 hover:text-error-dark text-xs shrink-0"
+                className="text-chalk-600 hover:text-error text-xs shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (confirm(`Delete "${v.filename}"? This cannot be undone.`)) {

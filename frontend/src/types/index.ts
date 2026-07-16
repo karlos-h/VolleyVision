@@ -5,12 +5,19 @@
 
 export type UserRole = 'ADMIN' | 'COACH' | 'PLAYER' | 'VIEWER';
 
-export type TeamRole = 'HEAD_COACH' | 'ASSISTANT_COACH' | 'STATISTICIAN' | 'PLAYER' | 'VIEWER';
+export type TeamRole = 'HEAD_COACH' | 'MANAGER' | 'ASSISTANT_COACH' | 'STATISTICIAN' | 'PLAYER' | 'VIEWER';
+
+// Iteration 3 — per-member access tier for the three tiered mutation categories.
+export type AccessTier = 'VIEW_ONLY' | 'APPROVAL_REQUIRED' | 'FULL_ACCESS';
+export type AccessCategory = 'rosterAccess' | 'invitationAccess' | 'matchAccess';
 
 export interface TeamMember {
   id: string; // membership id
   role: TeamRole;
   joinedAt: string;
+  rosterAccess: AccessTier;
+  invitationAccess: AccessTier;
+  matchAccess: AccessTier;
   user: {
     id: string;
     firstName: string;
@@ -31,6 +38,7 @@ export interface UserTeamMembership {
     division?: string;
     season: string;
     ownerId?: string | null;
+    leagueSeasonId?: string | null;
     _count?: { players: number; matches: number };
   };
 }
@@ -59,6 +67,7 @@ export interface UserProfile {
   country: string | null;
   heightCm: number | null;
   weightKg: number | null;
+  preferredPosition: Position | null;
   createdAt: string;
 }
 
@@ -252,14 +261,63 @@ export interface Team {
   name: string;
   division?: string;
   season: string;
-  // Phase 5 Sprint 2 — optional because existing teams have no owner
-  ownerId?: string | null;
+  // Every team has an owner — a team is only ever visible to its owner, its
+  // accepted members, or a global ADMIN. There is no public-team concept.
+  ownerId: string;
   owner?: TeamOwner | null;
+  // Iteration 3 — the team's current league season (nullable). New matches
+  // default their competition from it.
+  leagueSeasonId?: string | null;
+  leagueSeason?: TeamLeagueSeason | null;
   createdAt: string;
   updatedAt: string;
   _count?: { players: number; matches: number };
   players?: Player[];
   matches?: Match[];
+}
+
+export interface TeamLeagueSeason {
+  id: string;
+  name: string;
+  league: { id: string; name: string; division: string | null };
+}
+
+/** Display label for a team's current league, e.g. "Coastal League · Div 1". */
+export function leagueLabel(ls: TeamLeagueSeason | null | undefined): string | null {
+  if (!ls) return null;
+  return ls.league.division ? `${ls.league.name} · ${ls.league.division}` : ls.league.name;
+}
+
+// ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
+// A non-head-coach mutation returns this 202 body instead of the created/updated
+// resource — the change is queued for the head coach to approve.
+export interface PendingApproval {
+  status: 'pending_approval';
+  requestId: string;
+}
+
+export function isPendingApproval(x: unknown): x is PendingApproval {
+  return typeof x === 'object' && x !== null && (x as { status?: unknown }).status === 'pending_approval';
+}
+
+export type ApprovalAction =
+  | 'PLAYER_CREATE' | 'PLAYER_UPDATE' | 'PLAYER_DELETE'
+  | 'MATCH_CREATE' | 'MATCH_UPDATE' | 'MATCH_DELETE'
+  | 'INVITATION_CREATE';
+
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface ApprovalRequest {
+  id: string;
+  teamId: string;
+  action: ApprovalAction;
+  status: ApprovalStatus;
+  payload: Record<string, unknown>;
+  targetId: string | null;
+  requestedBy: { id: string; firstName: string; lastName: string; email: string };
+  team: { id: string; name: string };
+  resolvedAt: string | null;
+  createdAt: string;
 }
 
 export interface Player {
@@ -446,9 +504,11 @@ export interface Event {
   rallyNumber?: number;
   courtZone?: number | null;
   notes?: string;
-  matchId: string;
-  playerId: string;
-  player?: Pick<Player, 'firstName' | 'lastName' | 'jerseyNumber'>;
+  matchId: string | null;
+  playerId: string | null;
+  player?: Pick<Player, 'firstName' | 'lastName' | 'jerseyNumber'> | null;
+  isOpponentEvent?: boolean;
+  opponentJerseyNumber?: number | null;
   recordedAt: string;
 }
 
@@ -631,7 +691,7 @@ export interface EventMeta {
 export const EVENT_META: EventMeta[] = [
   // Attacking
   { type: 'KILL', label: 'Kill', category: 'attack', outcome: 'positive' },
-  { type: 'ATTACK_ERROR', label: 'Att. Error', category: 'attack', outcome: 'negative' },
+  { type: 'ATTACK_ERROR', label: 'Attack Error', category: 'attack', outcome: 'negative' },
   { type: 'ATTACK_ATTEMPT', label: 'Attempt', category: 'attack', outcome: 'neutral' },
   { type: 'TIP', label: 'Tip', category: 'attack', outcome: 'neutral' },
   { type: 'FREE_BALL', label: 'Free Ball', category: 'attack', outcome: 'neutral' },
@@ -646,8 +706,8 @@ export const EVENT_META: EventMeta[] = [
   { type: 'PASS_0', label: 'Pass 0', category: 'pass', outcome: 'negative' },
   // Blocking
   { type: 'SOLO_BLOCK', label: 'Solo Block', category: 'block', outcome: 'positive' },
-  { type: 'BLOCK_ASSIST', label: 'Blk Assist', category: 'block', outcome: 'positive' },
-  { type: 'BLOCK_ERROR', label: 'Blk Error', category: 'block', outcome: 'negative' },
+  { type: 'BLOCK_ASSIST', label: 'Block Assist', category: 'block', outcome: 'positive' },
+  { type: 'BLOCK_ERROR', label: 'Block Error', category: 'block', outcome: 'negative' },
   // Defence
   { type: 'DIG', label: 'Dig', category: 'defence', outcome: 'positive' },
   { type: 'DIG_ERROR', label: 'Dig Error', category: 'defence', outcome: 'negative' },
@@ -656,6 +716,7 @@ export const EVENT_META: EventMeta[] = [
   { type: 'SETTING_ERROR', label: 'Set Error', category: 'set', outcome: 'negative' },
 ];
 
+/** Abbreviations — for genuinely tight spaces only (tracking screen, stat table columns). */
 export const POSITION_LABELS: Record<Position, string> = {
   SETTER: 'S',
   OUTSIDE_HITTER: 'OH',
@@ -663,6 +724,32 @@ export const POSITION_LABELS: Record<Position, string> = {
   MIDDLE_BLOCKER: 'MB',
   LIBERO: 'L',
   DEFENSIVE_SPECIALIST: 'DS',
+};
+
+/** Full names — preferred anywhere there's room to spell the position out. */
+export const POSITION_FULL_LABELS: Record<Position, string> = {
+  SETTER: 'Setter',
+  OUTSIDE_HITTER: 'Outside Hitter',
+  OPPOSITE: 'Opposite',
+  MIDDLE_BLOCKER: 'Middle Blocker',
+  LIBERO: 'Libero',
+  DEFENSIVE_SPECIALIST: 'Defensive Specialist',
+};
+
+/**
+ * Categorical badge styling for positions, grouped by what the position
+ * actually does on court (set / attack / defend). Deliberately does NOT reuse
+ * success/error/info — those carry positive/negative meaning elsewhere in the
+ * UI, and a position is not a judgement. The full label disambiguates within a
+ * group, so three groups is enough.
+ */
+export const POSITION_BADGE: Record<Position, string> = {
+  SETTER: 'badge-brand',
+  OUTSIDE_HITTER: 'badge-accent',
+  OPPOSITE: 'badge-accent',
+  MIDDLE_BLOCKER: 'badge-accent',
+  LIBERO: 'badge-neutral',
+  DEFENSIVE_SPECIALIST: 'badge-neutral',
 };
 
 // ─── Invitations (Phase 5 Sprint 4) ──────────────────────────────────────────
@@ -677,6 +764,9 @@ export interface Invitation {
   role: TeamRole;
   status: InvitationStatus;
   token: string;
+  // Stabilization Pass 2 — join code + email-delivery status (present on newly created invitations)
+  joinCode?: string | null;
+  emailSent?: boolean;
   expiresAt: string;
   acceptedAt: string | null;
   createdAt: string;

@@ -24,7 +24,7 @@ function Leaderboard({ title, entries, formatValue, valueLabel, emptyMessage }: 
                 <div className="text-chalk-500 text-xs truncate">{entry.teamName}</div>
               </div>
               <div className="text-right shrink-0">
-                <div className="font-mono font-semibold text-spike-400">{formatValue(entry.value)}</div>
+                <div className="font-mono font-semibold text-navy-700">{formatValue(entry.value)}</div>
                 <div className="text-chalk-600 text-xs">{valueLabel}</div>
               </div>
             </div>

@@ -23,7 +23,7 @@ export default function LeagueNavigation({ seasonId }: Props) {
           end
           className={({ isActive }) =>
             isActive
-              ? 'px-4 py-2 text-sm font-medium text-spike-400 border-b-2 border-spike-500 -mb-px'
+              ? 'px-4 py-2 text-sm font-medium text-navy-700 border-b-2 border-spike-500 -mb-px'
               : 'px-4 py-2 text-sm text-chalk-400 hover:text-chalk-200 border-b-2 border-transparent -mb-px'
           }
         >

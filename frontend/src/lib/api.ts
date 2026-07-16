@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getToken } from './tokenStorage';
-import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerBests, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer, PlayerTeamsResponse, Video, VideoTimestamp } from '../types';
+import type { Team, Player, Match, Event, MatchAnalytics, TeamAnalytics, PlayerAnalytics, HeatmapData, ZoneCounts, MomentumData, RotationData, AdvancedMetrics, MatchReport, User, AuthResponse, TeamOwner, TeamMember, TeamRole, UserTeamMembership, UserSearchResult, Invitation, UserProfile, PlayerBests, PlayerDashboard, CoachDashboard, DetailedHeatmapData, Recommendation, PlayerDevelopmentReport, SeasonIntelligenceReport, TrainingRecommendation, AssistantAnswer, PlayerTeamsResponse, Video, VideoTimestamp, PendingApproval, ApprovalRequest, ApprovalStatus } from '../types';
 export interface TeamTrend {
   matchId: string;
   opponent: string;
@@ -37,18 +37,26 @@ export const authApi = {
 };
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
+/** Ownership is assigned server-side from the authenticated caller. */
+export type CreateTeamInput = {
+  name: string;
+  season: string;
+  division?: string;
+  /** The team's current league season (Iteration 3). `null` clears it. */
+  leagueSeasonId?: string | null;
+};
+
 export const teamsApi = {
   list: () => api.get<Team[]>('/teams').then((r) => r.data),
   get: (id: string) => api.get<Team>(`/teams/${id}`).then((r) => r.data),
-  create: (data: Omit<Team, 'id' | 'createdAt' | 'updatedAt'>) =>
+  create: (data: CreateTeamInput) =>
     api.post<Team>('/teams', data).then((r) => r.data),
-  update: (id: string, data: Partial<Team>) =>
+  update: (id: string, data: Partial<CreateTeamInput>) =>
     api.patch<Team>(`/teams/${id}`, data).then((r) => r.data),
   delete: (id: string) => api.delete(`/teams/${id}`),
   // Phase 5 Sprint 2 — ownership
   myTeams: () => api.get<Team[]>('/teams/my-teams').then((r) => r.data),
   owner: (id: string) => api.get<TeamOwner | null>(`/teams/${id}/owner`).then((r) => r.data),
-  claim: (id: string) => api.post<Team>(`/teams/${id}/claim`).then((r) => r.data),
   transfer: (id: string, newOwnerId: string) =>
     api.post<Team>(`/teams/${id}/transfer`, { newOwnerId }).then((r) => r.data),
 };
@@ -58,11 +66,13 @@ export const playersApi = {
   listByTeam: (teamId: string) =>
     api.get<Player[]>(`/players/by-team/${teamId}`).then((r) => r.data),
   get: (id: string) => api.get<Player>(`/players/${id}`).then((r) => r.data),
+  // Mutations may return a 202 PendingApproval body when the actor is not a head coach.
   create: (data: Omit<Player, 'id' | 'createdAt' | 'updatedAt'>) =>
-    api.post<Player>('/players', data).then((r) => r.data),
+    api.post<Player | PendingApproval>('/players', data).then((r) => r.data),
   update: (id: string, data: Partial<Player>) =>
-    api.patch<Player>(`/players/${id}`, data).then((r) => r.data),
-  delete: (id: string) => api.delete(`/players/${id}`),
+    api.patch<Player | PendingApproval>(`/players/${id}`, data).then((r) => r.data),
+  delete: (id: string) =>
+    api.delete<PendingApproval | ''>(`/players/${id}`).then((r) => r.data),
   // Phase 7 — multi-team links
   getTeams: (playerId: string) =>
     api.get<PlayerTeamsResponse>(`/players/${playerId}/teams`).then((r) => r.data),
@@ -84,11 +94,13 @@ export const matchesApi = {
     return api.get<Match[]>(`/matches/by-team/${teamId}${qs ? `?${qs}` : ''}`).then((r) => r.data);
   },
   get: (id: string) => api.get<Match>(`/matches/${id}`).then((r) => r.data),
+  // Mutations may return a 202 PendingApproval body when the actor is not a head coach.
   create: (data: Omit<Match, 'id' | 'createdAt' | 'updatedAt' | 'status'>) =>
-    api.post<Match>('/matches', data).then((r) => r.data),
+    api.post<Match | PendingApproval>('/matches', data).then((r) => r.data),
   update: (id: string, data: Partial<Match>) =>
-    api.patch<Match>(`/matches/${id}`, data).then((r) => r.data),
-  delete: (id: string) => api.delete(`/matches/${id}`),
+    api.patch<Match | PendingApproval>(`/matches/${id}`, data).then((r) => r.data),
+  delete: (id: string) =>
+    api.delete<PendingApproval | ''>(`/matches/${id}`).then((r) => r.data),
   updateScore: (id: string, data: Partial<Pick<Match, 'homeScore' | 'awayScore' | 'homeSetsWon' | 'awaySetsWon'>>) =>
     api.patch<Match>(`/matches/${id}/score`, data).then((r) => r.data),
   resetSetScore: (id: string) =>
@@ -227,6 +239,12 @@ export const membershipsApi = {
     api.post<TeamMember>(`/teams/${teamId}/members`, data).then((r) => r.data),
   updateRole: (teamId: string, memberId: string, role: TeamRole) =>
     api.patch<TeamMember>(`/teams/${teamId}/members/${memberId}`, { role }).then((r) => r.data),
+  // Iteration 3 — patch one or more access tiers, leaving role untouched.
+  updateAccess: (
+    teamId: string,
+    memberId: string,
+    tiers: Partial<Pick<TeamMember, 'rosterAccess' | 'invitationAccess' | 'matchAccess'>>,
+  ) => api.patch<TeamMember>(`/teams/${teamId}/members/${memberId}`, tiers).then((r) => r.data),
   remove: (teamId: string, memberId: string) =>
     api.delete(`/teams/${teamId}/members/${memberId}`),
   myTeams: () => api.get<UserTeamMembership[]>('/users/me/teams').then((r) => r.data),
@@ -277,13 +295,27 @@ export const invitationsApi = {
   listByTeam: (teamId: string) =>
     api.get<Invitation[]>(`/teams/${teamId}/invitations`).then((r) => r.data),
   create: (teamId: string, data: { email: string; role: TeamRole }) =>
-    api.post<Invitation>(`/teams/${teamId}/invitations`, data).then((r) => r.data),
+    api.post<Invitation | PendingApproval>(`/teams/${teamId}/invitations`, data).then((r) => r.data),
   accept: (token: string) =>
     api.post<Invitation>(`/invitations/${token}/accept`).then((r) => r.data),
   decline: (token: string) =>
     api.post<Invitation>(`/invitations/${token}/decline`).then((r) => r.data),
+  redeem: (code: string) =>
+    api.post<Invitation>('/invitations/redeem', { code }).then((r) => r.data),
   myInvitations: () =>
     api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
+};
+
+// ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
+export const approvalApi = {
+  listByTeam: (teamId: string, status?: ApprovalStatus) =>
+    api.get<ApprovalRequest[]>(`/teams/${teamId}/approval-requests`, {
+      params: status ? { status } : {},
+    }).then((r) => r.data),
+  approve: (id: string) =>
+    api.post<ApprovalRequest>(`/approval-requests/${id}/approve`).then((r) => r.data),
+  reject: (id: string) =>
+    api.post<ApprovalRequest>(`/approval-requests/${id}/reject`).then((r) => r.data),
 };
 
 // ─── League Intelligence (Phase 7 Sprints 1-3) ───────────────────────────────

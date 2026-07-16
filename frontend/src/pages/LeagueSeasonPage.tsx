@@ -37,11 +37,11 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
 
       {/* Matchup */}
       <div className="flex-1 flex items-center gap-2 text-sm">
-        <span className={`font-medium ${iMyHome ? 'text-spike-400' : 'text-chalk-300'}`}>
+        <span className={`font-medium ${iMyHome ? 'text-navy-700' : 'text-chalk-300'}`}>
           {fixture.homeLeagueTeam.team.name}
         </span>
         <span className="text-chalk-600 text-xs">vs</span>
-        <span className={`font-medium ${iMyAway ? 'text-spike-400' : 'text-chalk-300'}`}>
+        <span className={`font-medium ${iMyAway ? 'text-navy-700' : 'text-chalk-300'}`}>
           {fixture.awayLeagueTeam.team.name}
         </span>
       </div>
@@ -50,7 +50,7 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
       <div className="flex gap-2 items-center text-xs">
         {/* Home side */}
         {fixture.homeMatch ? (
-          <Link to={`/matches/${fixture.homeMatch.id}/dashboard`} className="badge bg-success/30 text-success-dark">
+          <Link to={`/matches/${fixture.homeMatch.id}/dashboard`} className="badge bg-success/30 text-success">
             Home: {fixture.homeMatch.homeSetsWon}–{fixture.homeMatch.awaySetsWon}
           </Link>
         ) : iMyHome ? (
@@ -63,7 +63,7 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
 
         {/* Away side */}
         {fixture.awayMatch ? (
-          <Link to={`/matches/${fixture.awayMatch.id}/dashboard`} className="badge bg-success/30 text-success-dark">
+          <Link to={`/matches/${fixture.awayMatch.id}/dashboard`} className="badge bg-success/30 text-success">
             Away: {fixture.awayMatch.homeSetsWon}–{fixture.awayMatch.awaySetsWon}
           </Link>
         ) : iMyAway ? (
@@ -76,10 +76,10 @@ function FixtureRow({ fixture, myTeamIds, onLink, onUnlink }: {
 
         {/* Unlink buttons for own sides */}
         {fixture.homeMatch && iMyHome && (
-          <button onClick={() => onUnlink(fixture.id, 'home')} className="text-chalk-600 hover:text-error-dark text-xs">✕</button>
+          <button onClick={() => onUnlink(fixture.id, 'home')} className="text-chalk-600 hover:text-error text-xs">✕</button>
         )}
         {fixture.awayMatch && iMyAway && (
-          <button onClick={() => onUnlink(fixture.id, 'away')} className="text-chalk-600 hover:text-error-dark text-xs">✕</button>
+          <button onClick={() => onUnlink(fixture.id, 'away')} className="text-chalk-600 hover:text-error text-xs">✕</button>
         )}
       </div>
     </div>
@@ -118,7 +118,7 @@ function LinkMatchModal({ fixtureId, side, onDone }: { fixtureId: string; side: 
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="card p-6 w-full max-w-sm space-y-4">
         <h3 className="font-semibold text-chalk-100">Link {side} match</h3>
-        {err && <p className="text-error-dark text-xs">{err}</p>}
+        {err && <p className="text-error text-xs">{err}</p>}
         {isLoading ? (
           <p className="text-chalk-400 text-sm">Loading matches…</p>
         ) : (
@@ -177,7 +177,7 @@ function AddTeamForm({ seasonId, existingTeamIds, onDone }: { seasonId: string; 
     <form onSubmit={handleAdd} className="card p-4 flex gap-2 items-end">
       <div className="flex-1">
         <label className="text-xs text-chalk-500 mb-1 block">Add one of your teams</label>
-        {err && <p className="text-error-dark text-xs mb-1">{err}</p>}
+        {err && <p className="text-error text-xs mb-1">{err}</p>}
         <select className="input w-full" value={teamId} onChange={(e) => setTeamId(e.target.value)} required>
           <option value="">Select team…</option>
           {available.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -219,7 +219,7 @@ function CreateFixtureForm({ seasonId, leagueTeams, onDone }: {
   return (
     <form onSubmit={handleSubmit} className="card p-5 space-y-3 mt-4">
       <h3 className="font-semibold text-chalk-200 text-sm">Create Fixture</h3>
-      {err && <p className="text-error-dark text-xs">{err}</p>}
+      {err && <p className="text-error text-xs">{err}</p>}
       <div className="flex gap-2">
         <select className="input flex-1" value={home} onChange={(e) => setHome(e.target.value)} required>
           <option value="">Home team *</option>
@@ -270,7 +270,7 @@ export default function LeagueSeasonPage() {
   }
 
   if (loadingSeason) return <p className="text-chalk-400 text-sm">Loading…</p>;
-  if (!season) return <p className="text-error-dark text-sm">Season not found.</p>;
+  if (!season) return <p className="text-error text-sm">Season not found.</p>;
 
   return (
     <div className="space-y-6">
@@ -325,7 +325,7 @@ export default function LeagueSeasonPage() {
           {season.teams.map((lt) => (
             <span
               key={lt.id}
-              className={`badge text-sm py-1 px-3 ${myTeamIds.has(lt.teamId) ? 'bg-spike-600/20 text-spike-400' : 'bg-court-800 text-chalk-300'}`}
+              className={`badge text-sm py-1 px-3 ${myTeamIds.has(lt.teamId) ? 'bg-spike-600/20 text-navy-700' : 'bg-court-800 text-chalk-300'}`}
             >
               {lt.team.name}
             </span>

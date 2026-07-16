@@ -9,7 +9,7 @@ export default function LeagueSeasonStandingsPage() {
   const { data: result, isLoading: loadingStandings } = useSeasonStandings(seasonId!);
 
   if (loadingSeason) return <p className="text-chalk-400 text-sm">Loading…</p>;
-  if (!season) return <p className="text-error-dark text-sm">Season not found.</p>;
+  if (!season) return <p className="text-error text-sm">Season not found.</p>;
 
   const discrepancies = result?.fixtureResults.filter((f) => f.hasDiscrepancy) ?? [];
 

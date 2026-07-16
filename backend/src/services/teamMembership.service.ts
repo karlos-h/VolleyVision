@@ -1,11 +1,16 @@
-import { TeamRole } from '@prisma/client';
+import { AccessTier, TeamRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { defaultAccessTiers } from './permission.service';
 
 const memberSelect = {
   id: true,
   role: true,
   joinedAt: true,
+  // Iteration 3 — per-member access tiers, so the members UI can render/edit them.
+  rosterAccess: true,
+  invitationAccess: true,
+  matchAccess: true,
   user: {
     select: {
       id: true,
@@ -44,6 +49,7 @@ export async function getUserTeams(userId: string) {
           division: true,
           season: true,
           ownerId: true,
+          leagueSeasonId: true,
           _count: { select: { players: true, matches: true } },
         },
       },
@@ -67,18 +73,40 @@ export async function addMember(teamId: string, userId: string, role: TeamRole) 
   if (existing) throw new AppError(409, 'User is already a member of this team.');
 
   return prisma.teamMembership.create({
-    data: { teamId, userId, role },
+    data: { teamId, userId, role, ...defaultAccessTiers(role) },
     select: memberSelect,
   });
 }
 
-/** Update a member's role. */
+/**
+ * Update a member's role. Changing the role re-seeds the three access tiers to
+ * that role's defaults — a role change is a coarse action, and this avoids a
+ * demoted member silently keeping elevated access. A coach can then fine-tune.
+ */
 export async function updateMemberRole(membershipId: string, role: TeamRole) {
   const membership = await prisma.teamMembership.findUnique({ where: { id: membershipId } });
   if (!membership) throw new AppError(404, 'Membership not found.');
   return prisma.teamMembership.update({
     where: { id: membershipId },
-    data: { role },
+    data: { role, ...defaultAccessTiers(role) },
+    select: memberSelect,
+  });
+}
+
+/** Update one or more of a member's access tiers, leaving role untouched. */
+export async function updateMemberAccess(
+  membershipId: string,
+  tiers: { rosterAccess?: AccessTier; invitationAccess?: AccessTier; matchAccess?: AccessTier },
+) {
+  const membership = await prisma.teamMembership.findUnique({ where: { id: membershipId } });
+  if (!membership) throw new AppError(404, 'Membership not found.');
+  return prisma.teamMembership.update({
+    where: { id: membershipId },
+    data: {
+      ...(tiers.rosterAccess ? { rosterAccess: tiers.rosterAccess } : {}),
+      ...(tiers.invitationAccess ? { invitationAccess: tiers.invitationAccess } : {}),
+      ...(tiers.matchAccess ? { matchAccess: tiers.matchAccess } : {}),
+    },
     select: memberSelect,
   });
 }

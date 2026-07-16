@@ -5,7 +5,7 @@ export default function OnboardingCoachPage() {
     <div className="min-h-screen bg-court-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md text-center space-y-6">
         <div className="w-14 h-14 bg-spike-500/20 rounded-2xl flex items-center justify-center mx-auto">
-          <svg className="w-7 h-7 text-spike-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-7 h-7 text-navy-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
@@ -28,7 +28,7 @@ export default function OnboardingCoachPage() {
           <Link to="/teams/new" className="btn-primary w-full text-center">
             Create my first team
           </Link>
-          <Link to="/my-teams" className="btn-secondary w-full text-center text-sm">
+          <Link to="/teams" className="btn-secondary w-full text-center text-sm">
             Go to my teams
           </Link>
         </div>

@@ -17,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/teams', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.error ?? "Couldn't sign you in. Check your email and password, then try again.");
     } finally {
@@ -30,17 +30,13 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-spike-500 rounded-xl flex items-center justify-center">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-court-950">
-              <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 2a6 6 0 110 12A6 6 0 0110 4zm-1 3v3H6l4 4 4-4h-3V7H9z" />
-            </svg>
-          </div>
-          <span className="text-xl font-bold text-chalk-100 tracking-tight">VolleyVision</span>
+          <img src="/vv-icon.svg" alt="" className="w-9 h-9" />
+          <span className="font-display font-bold text-xl text-navy-700 tracking-tight">VolleyVision</span>
         </div>
 
         {/* Hero — the one place uppercase display type is allowed */}
         <div className="text-center mb-6">
-          <p className="font-display font-bold text-2xl text-white uppercase tracking-wide leading-tight">
+          <p className="font-display font-bold text-2xl text-navy-700 uppercase tracking-wide leading-tight">
             See the game.<br />Raise your game.
           </p>
           <p className="text-chalk-400 text-sm mt-1.5">Track every touch.</p>
@@ -51,7 +47,7 @@ export default function LoginPage() {
           <p className="text-chalk-500 text-sm mb-6">Sign in to your account</p>
 
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-error/30 border border-error text-error-dark text-sm">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-error/30 border border-error text-error text-sm">
               {error}
             </div>
           )}
@@ -89,7 +85,7 @@ export default function LoginPage() {
 
         <p className="text-center text-chalk-500 text-sm mt-4">
           Don't have an account?{' '}
-          <Link to="/register" className="text-spike-400 hover:text-spike-300 font-medium">
+          <Link to="/register" className="text-navy-700 hover:text-navy-700 font-medium">
             Create one
           </Link>
         </p>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePlayerTeams, useAddPlayerTeamLink, useRemovePlayerTeamLink } from '../../hooks';
-import { useTeams } from '../../hooks';
+import { useMyTeams, useMyMemberships } from '../../hooks';
+import { CloseIcon } from '../ui/icons';
 
 interface Props {
   playerId:      string;
@@ -10,16 +11,34 @@ interface Props {
 
 export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }: Props) {
   const { data, isLoading } = usePlayerTeams(playerId);
-  const { data: allTeams } = useTeams();
+  // Link targets must mirror the backend rule exactly: POST
+  // /players/:id/team-links requires MANAGE_TEAM on the *target* team, which
+  // only the owner and a HEAD_COACH hold. Building this from the general
+  // team list would offer teams the user merely plays on, and every one of
+  // those picks would 403.
+  const { data: ownedTeams } = useMyTeams();
+  const { data: memberships } = useMyMemberships();
   const addLink    = useAddPlayerTeamLink(playerId);
   const removeLink = useRemovePlayerTeamLink(playerId);
 
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [error, setError] = useState('');
 
-  // Teams the coach can link to: exclude home team and already-linked teams
-  const linkedIds = new Set([homeTeamId, ...(data?.linkedTeams.map((l) => l.team.id) ?? [])]);
-  const availableTeams = (allTeams ?? []).filter((t) => !linkedIds.has(t.id));
+  const manageable = [
+    ...(ownedTeams ?? []).map((t) => ({ id: t.id, name: t.name })),
+    ...(memberships ?? [])
+      .filter((m) => m.role === 'HEAD_COACH')
+      .map((m) => ({ id: m.team.id, name: m.team.name })),
+  ];
+
+  // Exclude the home team, teams already linked, and any duplicate between the
+  // owned and head-coach lists.
+  const excluded = new Set([homeTeamId, ...(data?.linkedTeams.map((l) => l.team.id) ?? [])]);
+  const availableTeams = manageable.filter((t) => {
+    if (excluded.has(t.id)) return false;
+    excluded.add(t.id);
+    return true;
+  });
 
   async function handleAdd() {
     if (!selectedTeamId) return;
@@ -40,23 +59,28 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
         {playerName}'s teams
       </p>
 
-      {/* Home team badge */}
-      <div className="flex flex-wrap gap-2">
-        <span className="text-xs px-2 py-0.5 rounded-full bg-spike-600/20 text-spike-400 border border-spike-600/30">
-          {data?.homeTeam.name} (home)
-        </span>
+      {/* Additional-team links only — the home team is obvious from the roster
+          this player is listed under, so its badge is redundant (Task 10). */}
+      <div className="flex flex-wrap items-center gap-2">
+        {data && data.linkedTeams.length === 0 && (
+          <span className="text-xs text-grey-400">Not linked to any additional teams.</span>
+        )}
         {data?.linkedTeams.map((l) => (
           <span
             key={l.linkId}
-            className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-chalk-500/10 border border-chalk-600/30 text-chalk-300"
+            className="inline-flex items-center gap-0.5 pl-2 pr-0.5 py-0.5 rounded-full
+                       bg-grey-200 text-grey-900 text-xs font-semibold"
           >
             {l.team.name}
             <button
-              className="text-chalk-600 hover:text-error-dark transition-colors leading-none"
+              className="w-7 h-7 shrink-0 grid place-items-center rounded-full text-grey-600
+                         hover:text-error hover:bg-error/10 transition-colors
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
               onClick={() => removeLink.mutate(l.team.id)}
               title={`Remove link to ${l.team.name}`}
+              aria-label={`Remove link to ${l.team.name}`}
             >
-              ×
+              <CloseIcon className="w-3.5 h-3.5" />
             </button>
           </span>
         ))}
@@ -84,7 +108,7 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
           </button>
         </div>
       )}
-      {error && <p className="text-error-dark text-xs">{error}</p>}
+      {error && <p className="text-error text-xs">{error}</p>}
     </div>
   );
 }

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360">
+<defs></defs>  <rect width="1200" height="360" fill="#1E2D50"></rect>
+  <g transform="translate(96 132) scale(1.5)">
+  <circle cx="32" cy="32" r="23" fill="none" stroke="#FFFFFF" stroke-width="3.2"></circle>
+  <path d="M11 27 Q32 20 53 27" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+  <path d="M32 9 Q22 32 27 55" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+  <path d="M32 9 Q42 32 37 55" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+  <polyline points="13,45 23,39 30,42 41,28 50,17" fill="none" stroke="#FFB81C" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+  <path d="M43 16 L50 17 L49.5 24" fill="none" stroke="#FFB81C" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></path>
+  <circle cx="13" cy="45" r="2.4" fill="#FFB81C"></circle>
+  <circle cx="30" cy="42" r="2.4" fill="#FFB81C"></circle>
+  </g>
+  <text x="216" y="180" font-family="&#39;Barlow Semi Condensed&#39;,sans-serif" font-weight="700" font-size="66" letter-spacing="-0.8" fill="#FFFFFF">VolleyVision</text>
+  <text x="219" y="222" font-family="&#39;Inter&#39;,sans-serif" font-weight="500" font-size="22" letter-spacing="3.4" fill="#8FA0C4">TRACK EVERY TOUCH</text>
+</svg>

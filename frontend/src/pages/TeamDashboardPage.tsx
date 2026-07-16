@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PlayerStatsTable, StatsCards } from '../components/analytics/StatsOverview';
 import StatLeaderboardChart from '../components/charts/StatLeaderboardChart';
 import { useTeamAnalytics, useTeamTrends, useTeamHeatmap, useTeamRotations, useTeamAdvanced, useTeamZoneDetail, useTeamRecommendations, useSeasonIntelligence, useTeamTrainingRecommendations, useAskAssistant } from '../hooks';
@@ -14,6 +14,7 @@ import CoachingRecommendationsPanel from '../components/analytics/CoachingRecomm
 import SeasonIntelligenceCard from '../components/analytics/SeasonIntelligenceCard';
 import TrainingRecommendationsPanel from '../components/analytics/TrainingRecommendationsPanel';
 import AssistantPanel from '../components/analytics/AssistantPanel';
+import TeamSubNav from '../components/ui/TeamSubNav';
 import { features } from '../config/features';
 
 export default function TeamDashboardPage() {
@@ -36,16 +37,14 @@ export default function TeamDashboardPage() {
 
 
   if (isLoading) return <p className="text-navy-300">Loading analytics...</p>;
-  if (isError || !data) return <p className="text-error-dark">Couldn't load team analytics.</p>;
+  if (isError || !data) return <p className="text-error">Couldn't load team analytics.</p>;
 
   return (
     <div className="space-y-6">
+      <TeamSubNav teamId={data.team.id} teamName={data.team.name} />
       <div>
-        <Link to={`/teams/${data.team.id}`} className="text-sm text-navy-300 hover:text-white">
-          Back to roster
-        </Link>
-        <h1 className="text-2xl font-bold text-white mt-2">{data.team.name} Dashboard</h1>
-        <p className="text-sm text-navy-300 mt-1">
+        <h1 className="text-2xl font-bold text-grey-900">{data.team.name} Dashboard</h1>
+        <p className="text-sm text-grey-600 mt-1">
           {data.team.division && `${data.team.division} | `}Season {data.team.season}
         </p>
       </div>
@@ -69,7 +68,7 @@ export default function TeamDashboardPage() {
       {/* Phase 6 Sprint 4 — Season Intelligence */}
       {features.recommendations && seasonData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Season Intelligence</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Season Intelligence</h2>
           <SeasonIntelligenceCard report={seasonData} />
         </section>
       )}
@@ -136,7 +135,7 @@ export default function TeamDashboardPage() {
       {/* Phase 4 Sprint 5 — Advanced Metrics */}
       {features.recommendations && advancedData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Advanced Performance Metrics</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Advanced Performance Metrics</h2>
           <AdvancedMetricsPanel data={advancedData} heatmapData={heatmapData} />
         </section>
       )}
@@ -144,7 +143,7 @@ export default function TeamDashboardPage() {
       {/* Phase 4 — Rotation Analytics */}
       {features.rotationAnalytics && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Rotation Analytics</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Rotation Analytics</h2>
           {rotationData ? (
             <RotationAnalytics data={rotationData} />
           ) : (
@@ -156,7 +155,7 @@ export default function TeamDashboardPage() {
       {/* Phase 3 — Season Heat Map */}
       {features.heatMaps && heatmapData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Season Heat Map</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Season Heat Map</h2>
           <HeatMapCourt data={heatmapData} />
         </section>
       )}
@@ -164,7 +163,7 @@ export default function TeamDashboardPage() {
       {/* Phase 3 — Zone Efficiency */}
       {features.heatMaps && zoneDetail && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Zone Efficiency</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Zone Efficiency</h2>
           <CourtHeatMap data={zoneDetail} />
         </section>
       )}
@@ -172,7 +171,7 @@ export default function TeamDashboardPage() {
       {/* Phase 6 Sprint 1 — Coaching Recommendations */}
       {features.recommendations && recommendationsData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Coaching Recommendations</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Coaching Recommendations</h2>
           <CoachingRecommendationsPanel recommendations={recommendationsData} />
         </section>
       )}
@@ -180,7 +179,7 @@ export default function TeamDashboardPage() {
       {/* Phase 6 Sprint 5 — Training Recommendations */}
       {features.recommendations && trainingData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Practice Allocation</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Practice Allocation</h2>
           <TrainingRecommendationsPanel recommendations={trainingData} />
         </section>
       )}
@@ -188,7 +187,7 @@ export default function TeamDashboardPage() {
       {/* Phase 6 Sprint 6 — Coaching Assistant */}
       {features.assistant && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Coaching Assistant</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Coaching Assistant</h2>
           <AssistantPanel
             onAsk={askAssistant}
             answer={assistantAnswer}
@@ -201,7 +200,7 @@ export default function TeamDashboardPage() {
       <PlayerInsights players={data.playerStats} />
 
       <section>
-        <h2 className="text-lg font-semibold text-white mb-3">Season Player Statistics</h2>
+        <h2 className="text-lg font-semibold text-grey-900 mb-3">Season Player Statistics</h2>
         <PlayerStatsTable rows={data.playerStats} />
       </section>
     </div>

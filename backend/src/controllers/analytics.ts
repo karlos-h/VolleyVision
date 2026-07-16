@@ -410,11 +410,14 @@ async function fetchTeamRosterContext(teamId: string, playerIds: string[]) {
   // playerId is guaranteed non-null here since we filtered by playerId: { in: playerIds }.
   const eventsByPlayerMatch = new Map<string, Map<string, { matchId: string; playerId: string; eventType: string; setNumber: number }[]>>();
   for (const ev of allPlayerEvents) {
+    // matchId is guaranteed by the `match: { teamId }` filter, but the column is
+    // now nullable (training events) — narrow it for the map key.
+    if (ev.matchId == null) continue;
     const pid = ev.playerId as string;
     if (!eventsByPlayerMatch.has(pid)) eventsByPlayerMatch.set(pid, new Map());
     const byMatch = eventsByPlayerMatch.get(pid)!;
     if (!byMatch.has(ev.matchId)) byMatch.set(ev.matchId, []);
-    byMatch.get(ev.matchId)!.push({ ...ev, playerId: pid });
+    byMatch.get(ev.matchId)!.push({ ...ev, playerId: pid, matchId: ev.matchId });
   }
 
   return { completedMatches, eventsByPlayerMatch };

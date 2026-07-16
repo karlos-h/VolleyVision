@@ -9,7 +9,7 @@
   }
 
   body {
-    @apply bg-navy-900 text-white antialiased;
+    @apply bg-grey-50 text-grey-900 antialiased;
   }
 
   /* Brand type scale (docs/brand/BRAND-GUIDELINES.md §3):
@@ -39,44 +39,66 @@
   .btn-event {
     @apply no-select relative flex flex-col items-center justify-center rounded-xl
            font-semibold text-sm leading-tight transition-all duration-75
-           active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
+           active:scale-95 active:shadow-inner focus:outline-none
+           focus-visible:ring-2 focus-visible:ring-gold-500;
     min-height: 76px;
-    padding: 10px 8px;
+    /* Slightly tighter than the old 10px/8px so longer labels (e.g. "Attack
+       Error") have more room to wrap to a second line without ever pushing
+       past min-height — CSS Grid then stretches every button in the row to
+       match, so a wrapped neighbour never looks uneven next to a one-line one. */
+    padding: 8px 6px;
+  }
+
+  /* Post-tap pulse: reuse the same gold ring as focus-visible above, so
+     "this just happened" reads as the same accent as every other
+     active/highlight state in the app, instead of a plain brightness jump. */
+  .btn-event-just-recorded {
+    @apply ring-2 ring-gold-500;
   }
 
   /* Courtside usability: positive=green, negative=red, neutral=navy.
-     These stay semantic — never gold. */
+     These stay semantic — never gold. Every variant carries a subtle
+     border for a consistent, "designed" frame: neutral uses navy-600 (a
+     step darker than its navy-700 fill, already in the palette); positive/
+     negative use a translucent black since success/error only have DEFAULT/
+     dark/strong shades, none of which reads as "one step darker than fill" —
+     black/10 gets the same subtle-edge effect without inventing new hex
+     values outside the brand palette. */
   .btn-event-positive {
-    @apply btn-event bg-success hover:brightness-110 text-white;
+    @apply btn-event bg-success hover:brightness-110 text-white border border-black/10;
   }
 
   .btn-event-negative {
-    @apply btn-event bg-error hover:brightness-110 text-white;
+    @apply btn-event bg-error hover:brightness-110 text-white border border-black/10;
   }
 
   .btn-event-neutral {
     @apply btn-event bg-navy-700 hover:bg-navy-500 text-navy-100 border border-navy-600;
   }
 
-  /* Nav link */
+  /* Nav link — sidebar shell (components/ui/Layout.tsx).
+     The active item carries a gold left accent bar; the 3px border on the
+     active state is offset by 3px of extra padding on the idle state so
+     labels don't shift horizontally when selection moves. */
   .nav-link {
-    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-navy-300
-           hover:text-white hover:bg-navy-700 transition-colors text-sm font-medium;
+    @apply flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-xl text-grey-600
+           hover:text-navy-700 hover:bg-grey-50 transition-colors text-sm font-medium;
   }
 
   .nav-link-active {
-    @apply nav-link text-gold-500 bg-navy-700;
+    @apply flex items-center gap-3 pl-[13px] pr-3 py-2.5 rounded-xl text-sm font-semibold
+           text-navy-700 bg-navy-100 border-l-[3px] border-gold-500 transition-colors;
   }
 
   /* Card */
   .card {
-    @apply bg-navy-800 border border-navy-600 rounded-2xl;
+    @apply bg-white border border-grey-200 rounded-2xl;
   }
 
   /* Form input */
   .input {
-    @apply w-full bg-navy-700 border border-navy-600 rounded-xl px-4 py-2.5
-           text-white placeholder-navy-300 focus:outline-none
+    @apply w-full bg-white border border-grey-200 rounded-xl px-4 py-2.5
+           text-grey-900 placeholder-grey-400 focus:outline-none
            focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors;
   }
 
@@ -87,10 +109,11 @@
            focus-visible:ring-2 focus-visible:ring-gold-500 disabled:opacity-50;
   }
 
-  /* Secondary button */
+  /* Secondary button — stays a filled navy chip on light backgrounds, so a
+     strong secondary action still reads as a button rather than a link. */
   .btn-secondary {
-    @apply bg-navy-700 hover:bg-navy-500 text-navy-100 font-medium
-           px-5 py-2.5 rounded-xl border border-navy-600 transition-colors;
+    @apply bg-navy-700 hover:bg-navy-500 text-white font-medium
+           px-5 py-2.5 rounded-xl border border-navy-700 transition-colors;
   }
 
   /* Danger button */
@@ -104,8 +127,50 @@
     @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-sans tabular-nums;
   }
 
+  /* Badge variants. Every pair below clears WCAG AA (4.5:1) on a white card.
+     Semantic variants pair a 15% tint with the `.strong` text shade — the
+     DEFAULT semantic tones are fills and fail as small text on white.
+     Categorical variants (brand/accent/neutral) carry no positive/negative
+     meaning, so use them for things like positions and roles rather than
+     borrowing success/error/info. */
+  .badge-brand {
+    @apply bg-navy-100 text-navy-700;
+  }
+
+  .badge-accent {
+    @apply bg-gold-200 text-navy-900;
+  }
+
+  .badge-neutral {
+    @apply bg-grey-200 text-grey-900;
+  }
+
+  .badge-success {
+    @apply bg-success/15 text-success-strong;
+  }
+
+  .badge-error {
+    @apply bg-error/15 text-error-strong;
+  }
+
+  .badge-info {
+    @apply bg-info/15 text-info-strong;
+  }
+
+  /* Row-level action button — a real tap target for Edit/Remove/Delete/Unlink,
+     which were previously bare text-xs links with no padding. */
+  .btn-icon {
+    @apply w-9 h-9 shrink-0 grid place-items-center rounded-lg text-grey-600
+           hover:text-navy-700 hover:bg-grey-200 transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
+  }
+
+  .btn-icon-danger {
+    @apply btn-icon hover:text-error hover:bg-error/10;
+  }
+
   .stat-cell {
-    @apply px-3 py-3 text-center font-sans tabular-nums text-navy-100;
+    @apply px-3 py-3 text-center font-sans tabular-nums text-grey-900;
   }
 }
 

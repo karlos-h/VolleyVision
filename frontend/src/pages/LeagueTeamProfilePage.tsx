@@ -11,7 +11,7 @@ function TrendBar({ trend }: { trend: ('W' | 'L')[] }) {
         <span
           key={i}
           className={`w-6 h-6 rounded text-xs font-bold flex items-center justify-center
-            ${r === 'W' ? 'bg-success/40 text-success-dark' : 'bg-error/30 text-error-dark'}`}
+            ${r === 'W' ? 'bg-success/40 text-success' : 'bg-error/30 text-error'}`}
         >
           {r}
         </span>
@@ -27,7 +27,7 @@ export default function LeagueTeamProfilePage() {
   const { data: profile, isLoading, error } = useLeagueTeamProfile(leagueTeamId!);
 
   if (isLoading) return <p className="text-chalk-400 text-sm">Loading team profile…</p>;
-  if (error || !profile) return <p className="text-error-dark text-sm">Team profile not found.</p>;
+  if (error || !profile) return <p className="text-error text-sm">Team profile not found.</p>;
 
   const { standing, recentResults, winLossTrend, upcomingFixtures, privateIntel } = profile;
 
@@ -52,11 +52,11 @@ export default function LeagueTeamProfilePage() {
       {standing && (
         <section className="card p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
           <div>
-            <div className="font-mono font-bold text-2xl text-spike-400">{standing.points}</div>
+            <div className="font-mono font-bold text-2xl text-navy-700">{standing.points}</div>
             <div className="text-xs text-chalk-400 mt-0.5">Points</div>
           </div>
           <div>
-            <div className="font-mono font-bold text-2xl text-success-dark">{standing.wins}</div>
+            <div className="font-mono font-bold text-2xl text-success">{standing.wins}</div>
             <div className="text-xs text-chalk-400 mt-0.5">Wins</div>
           </div>
           <div>
@@ -64,7 +64,7 @@ export default function LeagueTeamProfilePage() {
             <div className="text-xs text-chalk-400 mt-0.5">Losses</div>
           </div>
           <div>
-            <div className={`font-mono font-bold text-2xl ${standing.setDifferential >= 0 ? 'text-success-dark' : 'text-error-dark'}`}>
+            <div className={`font-mono font-bold text-2xl ${standing.setDifferential >= 0 ? 'text-success' : 'text-error'}`}>
               {standing.setDifferential >= 0 ? `+${standing.setDifferential}` : standing.setDifferential}
             </div>
             <div className="text-xs text-chalk-400 mt-0.5">Set diff</div>
@@ -91,7 +91,7 @@ export default function LeagueTeamProfilePage() {
             {recentResults.map((r) => (
               <div key={r.fixtureId} className="card p-3 flex items-center gap-3 text-sm">
                 <span className={`w-7 h-7 rounded font-bold text-xs flex items-center justify-center shrink-0
-                  ${r.result === 'W' ? 'bg-success/40 text-success-dark' : 'bg-error/30 text-error-dark'}`}>
+                  ${r.result === 'W' ? 'bg-success/40 text-success' : 'bg-error/30 text-error'}`}>
                   {r.result}
                 </span>
                 <span className="text-chalk-300 flex-1">
@@ -153,10 +153,10 @@ export default function LeagueTeamProfilePage() {
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-chalk-400 flex items-center gap-2">
               Team Heatmap
-              <span className="badge bg-spike-600/20 text-spike-400 text-xs">Your team only</span>
+              <span className="badge bg-spike-600/20 text-navy-700 text-xs">Your team only</span>
             </h2>
             <div className="card p-4 text-sm text-chalk-300">
-              <Link to={privateIntel.heatmapUrl.replace('/api/v1', '')} className="text-spike-400 hover:underline">
+              <Link to={privateIntel.heatmapUrl.replace('/api/v1', '')} className="text-navy-700 hover:underline">
                 View full heatmap →
               </Link>
               <p className="text-chalk-600 text-xs mt-1">Shows aggregate court-zone event distribution across all matches.</p>
@@ -167,7 +167,7 @@ export default function LeagueTeamProfilePage() {
             <section className="space-y-3">
               <h2 className="text-sm font-semibold text-chalk-400 flex items-center gap-2">
                 Recent Match Reports
-                <span className="badge bg-spike-600/20 text-spike-400 text-xs">Your team only</span>
+                <span className="badge bg-spike-600/20 text-navy-700 text-xs">Your team only</span>
               </h2>
               <div className="space-y-2">
                 {privateIntel.recentMatchReports.map((m) => (

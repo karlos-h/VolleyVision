@@ -97,12 +97,14 @@ export async function getPlayerRecentMatches(userId: string, limit = 5) {
 
   // Get distinct match IDs from events for these players
   const matchEvents = await prisma.event.findMany({
-    where: { playerId: { in: playerIds } },
+    // ownEventsOnly excludes training events (matchId null), so every returned
+    // matchId is a real match; the filter below narrows the type accordingly.
+    where: { playerId: { in: playerIds }, ...ownEventsOnly },
     select: { matchId: true },
     distinct: ['matchId'],
   });
 
-  const matchIds = matchEvents.map((e) => e.matchId);
+  const matchIds = matchEvents.map((e) => e.matchId).filter((id): id is string => id !== null);
   if (!matchIds.length) return [];
 
   return prisma.match.findMany({
@@ -132,12 +134,14 @@ export async function getDevelopmentMetrics(userId: string, matchCount = 5) {
 
   // Get the most recent matches for these players
   const matchEvents = await prisma.event.findMany({
-    where: { playerId: { in: playerIds } },
+    // ownEventsOnly excludes training events (matchId null), so every returned
+    // matchId is a real match; the filter below narrows the type accordingly.
+    where: { playerId: { in: playerIds }, ...ownEventsOnly },
     select: { matchId: true },
     distinct: ['matchId'],
   });
 
-  const matchIds = matchEvents.map((e) => e.matchId);
+  const matchIds = matchEvents.map((e) => e.matchId).filter((id): id is string => id !== null);
   if (!matchIds.length) return [];
 
   const recentMatches = await prisma.match.findMany({
@@ -175,11 +179,13 @@ export async function getPlayerBests(userId: string) {
   const playerIds = players.map((p) => p.id);
 
   const matchEvents = await prisma.event.findMany({
-    where: { playerId: { in: playerIds } },
+    // ownEventsOnly excludes training events (matchId null), so every returned
+    // matchId is a real match; the filter below narrows the type accordingly.
+    where: { playerId: { in: playerIds }, ...ownEventsOnly },
     select: { matchId: true },
     distinct: ['matchId'],
   });
-  const matchIds = matchEvents.map((e) => e.matchId);
+  const matchIds = matchEvents.map((e) => e.matchId).filter((id): id is string => id !== null);
   if (!matchIds.length) return null;
 
   const matches = await prisma.match.findMany({

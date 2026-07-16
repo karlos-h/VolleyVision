@@ -68,21 +68,51 @@ Colour inspiration: Canterbury Hornby Volleyball Club (navy + white). Typography
 | `warning` | `#E8890C` | Cautions, incomplete data (distinct from gold — warmer/orange) |
 | `info` | `#2B7FD4` | Informational banners, neutral stats |
 
-### Mode tokens (light default, dark supported)
+### Mode tokens (light default, dark = future phase)
 
-| Role | Light | Dark |
+Light mode is what ships today. Surfaces are **layered** — the app canvas sits
+*behind* chrome and cards, both of which are white and separated from the canvas
+by a `grey-200` border. Don't collapse this into a single "background/surface"
+pair: the canvas-vs-card distinction is what gives the dashboard its depth.
+
+| Role | Light | Dark (future) |
 |---|---|---|
-| Background | `white` | `navy-900` |
-| Surface / card | `grey-50` | `#1A2745` (navy-800) |
+| App canvas (scrollable area behind cards) | `grey-50` | `navy-900` |
+| Chrome (sidebar, topbar controls) | `white` | `#0C1428` |
+| Card (KPI tiles, chart + list panels) | `white` | `#1A2745` (navy-800) |
+| Recessed fill (chips, wells, hover surfaces) | `grey-50` | `navy-700` |
+| Card / chrome border | `grey-200` | `#2A3A63` |
 | Text primary | `grey-900` | `white` |
 | Text secondary | `grey-600` | `navy-300` |
-| Primary action | `navy-700` | `gold-500` (navy is invisible on navy) |
-| Accent | `gold-500` | `gold-500` |
-| Border | `grey-200` | `#2A3A63` |
+| Text muted / placeholder | `grey-400` | `#5A668C` |
+| Brand navy (logo, links, active nav text/icons) | `navy-700` | `white` |
+| Active nav item background | `navy-100` | `gold-500 @ 10%` |
+| Active nav item left accent bar | `gold-500` | `gold-500` |
+| Avatar chip | `navy-500` fill, `gold-500` 2px border | same |
+| Primary action | `gold-500` fill, `navy-900` text | same |
+| Secondary action | `navy-700` fill, `white` text | `navy-700` fill, `white` text |
+| Positive / negative delta badge | `success` / `error` on a 15% tint of itself | `success.dark` / `error.dark` |
+
+**Theme-invariant:** gold accent, the semantic colours (`success` / `error` /
+`warning` / `info`), and all typography are the same in both modes. Only the
+**navy/grey surface and text roles flip.** The one nuance is the semantic pair:
+light mode uses the `success` / `error` DEFAULT tones, and dark mode uses the
+`.dark` variants (`#4CBF7F` / `#E86A6A`), which are brightened for contrast on a
+navy surface and lose contrast on white. Never use the `-dark` variants in
+light-mode UI.
+
+**Exception — the tracking screen** (`/track/:matchId`) stays dark in both modes.
+Courtside legibility beats theme consistency, so it pins explicit `navy-*` /
+`white` classes rather than inheriting the shared surface tokens.
 
 ### Chart palette (in order)
-1. `navy-700` 2. `gold-500` 3. `navy-500` 4. `info #2B7FD4` 5. `#7A5FB8` (violet) 6. `grey-400`
-Positive/negative deltas always use `success`/`error`.
+1. `gold-500` 2. `navy-500` 3. `info #2B7FD4` 4. `#7A5FB8` (violet) 5. `grey-400` 6. `navy-300`
+The primary series is gold so the headline metric reads first. Positive/negative
+deltas always use `success`/`error`.
+
+Charts must import these from `frontend/src/lib/chartColors.ts` — never hardcode
+a hex in chart code. That file is the single switch that re-themes every chart,
+court diagram, and heat map at once.
 
 ### Usage rules
 - Gold is an accent, not a theme: ≤10% of any screen. One gold CTA per view.

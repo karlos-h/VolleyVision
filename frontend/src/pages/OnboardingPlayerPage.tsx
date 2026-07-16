@@ -5,7 +5,7 @@ export default function OnboardingPlayerPage() {
     <div className="min-h-screen bg-court-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md text-center space-y-6">
         <div className="w-14 h-14 bg-success/20 rounded-2xl flex items-center justify-center mx-auto">
-          <svg className="w-7 h-7 text-success-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-7 h-7 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
@@ -28,7 +28,7 @@ export default function OnboardingPlayerPage() {
           <Link to="/invitations" className="btn-primary w-full text-center">
             Check my invitations
           </Link>
-          <Link to="/my-teams" className="btn-secondary w-full text-center text-sm">
+          <Link to="/teams" className="btn-secondary w-full text-center text-sm">
             Go to my teams
           </Link>
         </div>

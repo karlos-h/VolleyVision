@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore } from '../hooks';
-import type { EventType, Player } from '../types';
-import { EVENT_META, POSITION_LABELS } from '../types';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useHasPermission } from '../hooks';
+import type { EventType, Player, Position } from '../types';
+import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
+import type { EventMeta } from '../types';
 import clsx from 'clsx';
 import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
+import MatchPageHeader from '../components/ui/MatchPageHeader';
 
 // Event buttons grouped by category for the tablet layout
 const CATEGORIES = [
@@ -39,6 +41,24 @@ function getMeta(type: EventType) {
   return EVENT_META.find((m) => m.type === type)!;
 }
 
+// Focus mode filters which event-button groups render (roster/score/zone stay
+// put). Categories are matched against EVENT_META[].category so the lists stay
+// in sync with the data rather than being hardcoded event-by-event.
+type FocusMode = 'all' | 'attack' | 'defense';
+
+const FOCUS_CATEGORIES: Record<Exclude<FocusMode, 'all'>, EventMeta['category'][]> = {
+  attack: ['attack', 'serve', 'set'],
+  defense: ['pass', 'block', 'defence'],
+};
+
+// Positions surfaced first (in this order) when a focus mode is active — a
+// convenience re-sort of the roster, never a filter (any player can dig, pass,
+// set, or attack, so all stay tappable).
+const FOCUS_POSITION_PRIORITY: Record<Exclude<FocusMode, 'all'>, Position[]> = {
+  attack: ['OUTSIDE_HITTER', 'OPPOSITE', 'MIDDLE_BLOCKER'],
+  defense: ['LIBERO', 'DEFENSIVE_SPECIALIST'],
+};
+
 // Flash feedback state
 type FlashState = { text: string; ok: boolean } | null;
 
@@ -52,6 +72,9 @@ export default function TrackingPage() {
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
+  // Track is offered only to those who can track a live match (players never
+  // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
+  const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
 
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
@@ -62,6 +85,11 @@ export default function TrackingPage() {
   const [justRecorded, setJustRecorded] = useState<string | null>(null);
   const [isOpponentMode, setIsOpponentMode] = useState(false);
   const [opponentJerseyNumber, setOpponentJerseyNumber] = useState('');
+  // Local-only, like keepZone/selectedRotation — never persisted.
+  const [focusMode, setFocusMode] = useState<FocusMode>('all');
+  // Distinct player IDs from the last few own-team events, most-recent-first,
+  // capped at 3 — powers the quick-switch strip above the roster.
+  const [recentPlayerIds, setRecentPlayerIds] = useState<string[]>([]);
 
   // Auto-select first player when roster loads
   useEffect(() => {
@@ -98,6 +126,9 @@ export default function TrackingPage() {
       if (isOpponentMode) {
         showFlash(`OPP: ${meta.label}${jerseyNum != null ? ` #${jerseyNum}` : ''}`, true);
       } else {
+        // Push onto the recently-used history (dedupe, most-recent-first, cap 3).
+        const usedId = selectedPlayer!.id;
+        setRecentPlayerIds((prev) => [usedId, ...prev.filter((id) => id !== usedId)].slice(0, 3));
         showFlash(`${meta.label} → #${selectedPlayer!.jerseyNumber}`, true);
       }
       setTimeout(() => setJustRecorded(null), 300);
@@ -123,73 +154,107 @@ export default function TrackingPage() {
     await updateMatch.mutateAsync({ id: matchId!, data: { status: next } });
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <p className="text-navy-300">Loading match…</p>
-      </div>
-    );
+  // Destructive — zeroes the current set's score and clears its manual
+  // adjustment history, so confirm before doing it (consistent with the
+  // Delete confirm in MatchesPage.tsx).
+  function handleResetSetScore() {
+    if (confirm(`Reset the score for Set ${currentSet} to 0–0? This cannot be undone.`)) {
+      resetSetScore.mutate();
+    }
   }
+
+  if (isLoading) return <p className="text-grey-600">Loading match…</p>;
 
   if (!match) {
     return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <p className="text-navy-300">Match not found. <Link to="/teams" className="text-gold-500">Go back</Link></p>
-      </div>
+      <p className="text-grey-600">Match not found. <Link to="/teams" className="text-navy-700 font-medium">Go back</Link></p>
     );
+  }
+
+  // Live tracking is only for in-progress matches (Iteration 3 Task 6). A
+  // scheduled/completed/cancelled match can't be live-edited — send the viewer
+  // to the read-only Events changelog instead.
+  if (match.status !== 'IN_PROGRESS') {
+    return <Navigate to={`/matches/${matchId}/events`} replace />;
   }
 
   const recentEvents = [...(events ?? [])].reverse().slice(0, 6);
   const players = match.team?.players ?? [];
 
+  // Focus mode re-sorts the roster so the most relevant positions surface first
+  // (stable — everyone else keeps their original order and stays tappable) and
+  // filters which event-button groups render.
+  const orderedPlayers =
+    focusMode === 'all'
+      ? players
+      : [...players].sort((a, b) => {
+          const priority = FOCUS_POSITION_PRIORITY[focusMode];
+          const ra = priority.indexOf(a.position);
+          const rb = priority.indexOf(b.position);
+          return (ra === -1 ? priority.length : ra) - (rb === -1 ? priority.length : rb);
+        });
+
+  const visibleCategories =
+    focusMode === 'all'
+      ? CATEGORIES
+      : CATEGORIES.filter((cat) =>
+          FOCUS_CATEGORIES[focusMode].includes(getMeta(cat.events[0]).category)
+        );
+
+  // Quick-switch chips: recent players minus the one already selected (shown as
+  // selected in the grid). Only meaningful in own-team recording mode.
+  const recentPlayers = recentPlayerIds
+    .filter((id) => id !== selectedPlayer?.id)
+    .map((id) => players.find((p) => p.id === id))
+    .filter((p): p is Player => p != null);
+
   return (
-    <div className="min-h-screen bg-navy-900 flex flex-col select-none">
-      {/* ── Top bar ── */}
-      <header className="bg-navy-800 border-b border-navy-700 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link to={`/teams/${match.teamId}/matches`} className="text-navy-300 hover:text-navy-100 shrink-0">
-              ← Back
-            </Link>
-            <div className="min-w-0">
-              <div className="font-bold text-white leading-tight truncate">
-                {match.team?.name} <span className="text-navy-300 font-normal">vs</span> {match.opponent}
-              </div>
-              <div className="text-xs text-navy-300">
-                {match.competition && `${match.competition} · `}
-                {format(new Date(match.matchDate), 'PPP')}
-                {match.venue && ` · ${match.venue}`}
-              </div>
-            </div>
+    <div className="space-y-6 select-none">
+      <MatchPageHeader
+        matchId={match.id}
+        teamId={match.teamId}
+        teamName={match.team?.name}
+        opponent={match.opponent}
+        matchDate={match.matchDate}
+        competition={match.competition}
+        venue={match.venue}
+        status={match.status}
+        canTrack={canTrack}
+      />
+
+      {/* ── Live Scoreboard + controls ── */}
+      <div className="card p-4 space-y-3">
+        {/* Control row: set selector + finish-match quick action + undo. The
+            match title/date/status now live in the shared MatchPageHeader. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Set selector */}
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <button
+                key={s}
+                onClick={() => setCurrentSet(s)}
+                className={clsx(
+                  'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
+                  currentSet === s
+                    ? 'bg-gold-500 border-gold-500 text-navy-900'
+                    : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                {s}
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Set selector */}
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setCurrentSet(s)}
-                  className={clsx(
-                    'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors',
-                    currentSet === s
-                      ? 'bg-gold-500 text-navy-900'
-                      : 'bg-navy-700 text-navy-300 hover:bg-navy-600'
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            {/* Match status */}
+          <div className="flex items-center gap-2">
+            {/* Finish match — a natural real-time action while tracking
+                (IN_PROGRESS → COMPLETED). Completing redirects to Events. */}
             <button
               onClick={handleStatusToggle}
               className={clsx(
                 'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
                 match.status === 'IN_PROGRESS'
-                  ? 'bg-gold-500/20 text-gold-500 border border-gold-500/30'
-                  : 'bg-navy-700 text-navy-300 border border-navy-600'
+                  ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
+                  : 'bg-grey-50 text-grey-600 border border-grey-200'
               )}
             >
               {match.status === 'IN_PROGRESS' ? '● LIVE' : match.status}
@@ -199,102 +264,94 @@ export default function TrackingPage() {
             <button
               onClick={handleUndo}
               disabled={undoEvent.isPending || !events?.length}
-              className="bg-navy-700 hover:bg-navy-600 disabled:opacity-40 text-navy-100 text-xs font-medium px-3 py-1.5 rounded-lg border border-navy-600 transition-colors"
+              className="bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-xs font-medium px-3 py-1.5 rounded-lg border border-grey-200 transition-colors"
             >
               ↩ Undo
             </button>
           </div>
         </div>
-      </header>
 
-      {/* ── Live Scoreboard ── */}
-      <div className="bg-navy-800 border-b border-navy-700 px-4 py-3">
-        <div className="max-w-5xl mx-auto space-y-2">
-          {/* Match winner banner */}
-          {match.status === 'COMPLETED' && (
-            <div className="text-center py-1 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-500 text-sm font-semibold">
-              {(match.homeSetsWon ?? 0) >= 3
-                ? `${match.team?.name ?? 'Home'} wins the match!`
-                : `${match.opponent} wins the match!`}
-            </div>
-          )}
-
+        {/* A completed match redirects to the Events changelog (Task 6), so the
+            tracker only ever renders a live, in-progress match here. */}
           <div className="flex items-center justify-between gap-4">
             {/* Home team */}
             <div className="flex-1 text-right">
-              <div className="text-sm font-semibold text-navy-100 truncate">{match.team?.name ?? 'Home'}</div>
-              <div className="tabular-nums text-4xl font-bold text-white leading-none mt-1">{match.homeScore ?? 0}</div>
-            </div>
-
-            {/* Centre — sets won + controls */}
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="tabular-nums text-xl font-bold text-gold-500">{match.homeSetsWon ?? 0}</span>
-                <span className="text-navy-300 text-xs font-semibold">Sets</span>
-                <span className="tabular-nums text-xl font-bold text-navy-300">{match.awaySetsWon ?? 0}</span>
-              </div>
-              <div className="text-xs text-navy-300">Set {currentSet}</div>
-
-              {/* Per-set score history */}
-              {Array.isArray(match.setScores) && (match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
-                <div className="flex gap-1 mt-0.5">
-                  {(match.setScores as {set:number;home:number;away:number}[]).map((s) => (
-                    <span key={s.set} className="text-[10px] tabular-nums text-navy-300 bg-navy-700 px-1.5 py-0.5 rounded border border-navy-600">
-                      {s.home}–{s.away}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-1 mt-1">
+              <div className="text-sm font-semibold text-grey-900 truncate">{match.team?.name ?? 'Home'}</div>
+              <div className="tabular-nums text-4xl font-bold text-grey-900 leading-none mt-1">{match.homeScore ?? 0}</div>
+              {/* Stacked on narrow viewports so the enlarged buttons don't force
+                  the name/score blocks to wrap; side-by-side from sm up. */}
+              <div className="flex flex-col sm:flex-row items-end sm:items-stretch gap-2 mt-2 justify-end">
                 <button
                   onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
                   title="Home −1"
                 >
                   −
                 </button>
                 <button
                   onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
                   title="Home +1"
-                >
-                  +
-                </button>
-                <button
-                  onClick={() => resetSetScore.mutate()}
-                  className="px-2 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-[10px] font-medium border border-navy-600"
-                  title="Reset set score"
-                >
-                  RST
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
-                  title="Away −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
-                  className="w-6 h-6 rounded bg-navy-700 hover:bg-navy-600 text-navy-300 text-xs font-bold border border-navy-600"
-                  title="Away +1"
                 >
                   +
                 </button>
               </div>
             </div>
 
+            {/* Centre — sets won + reset (not tied to one side, so it stays centred) */}
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="tabular-nums text-xl font-bold text-navy-700">{match.homeSetsWon ?? 0}</span>
+                <span className="text-grey-600 text-xs font-semibold">Sets</span>
+                <span className="tabular-nums text-xl font-bold text-grey-600">{match.awaySetsWon ?? 0}</span>
+              </div>
+              <div className="text-xs text-grey-600">Set {currentSet}</div>
+
+              {/* Per-set score history */}
+              {Array.isArray(match.setScores) && (match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
+                <div className="flex gap-1 mt-0.5">
+                  {(match.setScores as {set:number;home:number;away:number}[]).map((s) => (
+                    <span key={s.set} className="text-[10px] tabular-nums text-grey-600 bg-grey-50 px-1.5 py-0.5 rounded border border-grey-200">
+                      {s.home}–{s.away}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={handleResetSetScore}
+                className="mt-1 px-3 h-7 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-medium border border-grey-200 transition-colors"
+                title="Reset set score"
+              >
+                Reset Set
+              </button>
+            </div>
+
             {/* Away team */}
             <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-navy-100 truncate">{match.opponent}</div>
-              <div className="tabular-nums text-4xl font-bold text-navy-300 leading-none mt-1">{match.awayScore ?? 0}</div>
+              <div className="text-sm font-semibold text-grey-900 truncate">{match.opponent}</div>
+              <div className="tabular-nums text-4xl font-bold text-grey-600 leading-none mt-1">{match.awayScore ?? 0}</div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-stretch gap-2 mt-2 justify-start">
+                <button
+                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
+                  title="Away −1"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
+                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
+                  title="Away +1"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* ── Main ── */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-4 flex flex-col gap-4 pb-6">
+      <div className="space-y-4">
         {/* Flash feedback overlay */}
         {flash && (
           <div
@@ -308,14 +365,14 @@ export default function TrackingPage() {
         )}
 
         {/* ── Recording mode toggle ── */}
-        <div className="flex items-center gap-3 card p-3">
-          <span className="text-xs text-navy-300 font-medium shrink-0">Recording for:</span>
-          <div className="flex rounded-lg overflow-hidden border border-navy-600 text-xs font-semibold">
+        <div className="flex items-center gap-3 flex-wrap card p-3">
+          <span className="text-xs text-grey-600 font-medium shrink-0">Recording for:</span>
+          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
             <button
               onClick={() => setIsOpponentMode(false)}
               className={clsx(
                 'px-4 py-2 transition-colors',
-                !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'
+                !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
               )}
             >
               Us
@@ -324,7 +381,7 @@ export default function TrackingPage() {
               onClick={() => setIsOpponentMode(true)}
               className={clsx(
                 'px-4 py-2 transition-colors',
-                isOpponentMode ? 'bg-error text-white' : 'bg-navy-700 text-navy-300 hover:bg-navy-600'
+                isOpponentMode ? 'bg-error text-white' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
               )}
             >
               Opponent
@@ -341,15 +398,61 @@ export default function TrackingPage() {
               className="input text-sm w-36"
             />
           )}
+
+          {/* Focus mode — filters which event groups render and re-sorts the
+              roster by relevant position. Roster/score/zone stay visible. */}
+          <span className="text-xs text-grey-600 font-medium shrink-0 ml-auto">Focus:</span>
+          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
+            {([
+              ['all', 'All'],
+              ['attack', 'Attack'],
+              ['defense', 'Defense'],
+            ] as [FocusMode, string][]).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setFocusMode(mode)}
+                className={clsx(
+                  'px-4 py-2 transition-colors',
+                  focusMode === mode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Player roster (hidden in opponent mode) ── */}
         {!isOpponentMode && <div className="card p-3">
-          <div className="text-xs text-navy-300 font-medium mb-2 px-1">
+          <div className="text-xs text-grey-600 font-medium mb-2 px-1">
             Select Player — Set {currentSet}
           </div>
+
+          {/* Recently-used quick strip — fast switching between the 2–3 players
+              trading a stat, without hunting the full grid. Hidden until there
+              is history to show. */}
+          {recentPlayers.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto">
+              <span className="text-[10px] text-grey-600 font-medium shrink-0">Recent:</span>
+              {recentPlayers.map((player) => (
+                <button
+                  key={player.id}
+                  onClick={() => setSelectedPlayer(player)}
+                  className="flex items-center gap-1.5 shrink-0 rounded-lg py-1.5 px-2.5 border bg-grey-50 border-grey-200 text-grey-900 hover:border-navy-500 transition-colors"
+                >
+                  <span className="tabular-nums font-bold text-sm leading-none">
+                    #{player.jerseyNumber}
+                  </span>
+                  <span className="text-xs font-medium leading-none truncate max-w-[6rem]">
+                    {player.lastName}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-            {players.map((player) => (
+            {orderedPlayers.map((player) => (
               <button
                 key={player.id}
                 onClick={() => setSelectedPlayer(player)}
@@ -357,7 +460,7 @@ export default function TrackingPage() {
                   'flex flex-col items-center justify-center rounded-xl py-2 px-1 transition-all border',
                   selectedPlayer?.id === player.id
                     ? 'bg-gold-500 border-gold-500 text-navy-900'
-                    : 'bg-navy-700 border-navy-600 text-navy-100 hover:border-navy-300'
+                    : 'bg-grey-50 border-grey-200 text-grey-900 hover:border-navy-500'
                 )}
               >
                 <span className="tabular-nums font-bold text-base leading-tight">
@@ -369,7 +472,7 @@ export default function TrackingPage() {
                 <span
                   className={clsx(
                     'text-[10px] font-semibold mt-0.5',
-                    selectedPlayer?.id === player.id ? 'text-navy-900/70' : 'text-navy-300'
+                    selectedPlayer?.id === player.id ? 'text-navy-900/70' : 'text-grey-600'
                   )}
                 >
                   {POSITION_LABELS[player.position]}
@@ -382,45 +485,45 @@ export default function TrackingPage() {
         {/* ── Selected player banner (own events only) ── */}
         {!isOpponentMode && <div
           className={clsx(
-            'rounded-2xl px-5 py-3 flex items-center justify-between transition-colors',
-            selectedPlayer ? 'bg-navy-700 border border-navy-500' : 'bg-navy-800 border border-navy-700'
+            'rounded-2xl px-5 py-3 flex items-center justify-between transition-colors border',
+            selectedPlayer ? 'bg-navy-100 border-navy-500' : 'bg-white border-grey-200'
           )}
         >
           {selectedPlayer ? (
             <>
               <div>
-                <span className="text-gold-500 tabular-nums font-bold text-lg">
+                <span className="text-navy-700 tabular-nums font-bold text-lg">
                   #{selectedPlayer.jerseyNumber}
                 </span>
-                <span className="text-white font-semibold ml-2">
+                <span className="text-grey-900 font-semibold ml-2">
                   {selectedPlayer.firstName} {selectedPlayer.lastName}
                 </span>
-                <span className="text-navy-300 text-sm ml-2">
-                  {POSITION_LABELS[selectedPlayer.position]}
+                <span className="text-grey-600 text-sm ml-2">
+                  {POSITION_FULL_LABELS[selectedPlayer.position]}
                 </span>
               </div>
-              <div className="text-xs text-navy-300">
+              <div className="text-xs text-grey-600">
                 Tap an event button to record
               </div>
             </>
           ) : (
-            <span className="text-navy-300 text-sm">← Select a player above</span>
+            <span className="text-grey-600 text-sm">← Select a player above</span>
           )}
         </div>}
 
         {/* ── Opponent mode banner ── */}
         {isOpponentMode && (
-          <div className="rounded-2xl px-5 py-3 flex items-center justify-between bg-error/30 border border-error/40">
-            <span className="text-error-dark font-semibold text-sm">Recording opponent actions</span>
-            <span className="text-xs text-navy-300">Tap an event to record for opponent</span>
+          <div className="rounded-2xl px-5 py-3 flex items-center justify-between bg-error/15 border border-error/30">
+            <span className="text-error-strong font-semibold text-sm">Recording opponent actions</span>
+            <span className="text-xs text-grey-600">Tap an event to record for opponent</span>
           </div>
         )}
 
         {/* ── Event buttons ── */}
         <div className="space-y-3">
-          {CATEGORIES.map((cat) => (
+          {visibleCategories.map((cat) => (
             <div key={cat.label}>
-              <div className="text-xs font-semibold text-navy-300 mb-2 px-1">
+              <div className="text-xs font-semibold text-grey-600 mb-2 px-1">
                 {cat.label}
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cat.events.length}, 1fr)` }}>
@@ -435,7 +538,7 @@ export default function TrackingPage() {
                   return (
                     <button
                       key={eventType}
-                      className={clsx(cls, justRecorded === eventType && 'scale-95 brightness-150')}
+                      className={clsx(cls, justRecorded === eventType && 'scale-95 btn-event-just-recorded')}
                       onClick={() => handleRecord(eventType)}
                       disabled={recordEvent.isPending}
                     >
@@ -451,7 +554,7 @@ export default function TrackingPage() {
         {/* ── Court zone + Rotation selectors ── */}
         <div className="grid md:grid-cols-2 gap-3">
           <div className="card p-3">
-            <label className="flex items-center gap-2 text-xs text-navy-300 mb-3 cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-xs text-grey-600 mb-3 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={keepZone}
@@ -464,7 +567,7 @@ export default function TrackingPage() {
           </div>
 
           <div className="card p-3">
-            <div className="text-xs text-navy-300 mb-3">Rotation (optional)</div>
+            <div className="text-xs text-grey-600 mb-3">Rotation (optional)</div>
             <div className="grid grid-cols-3 gap-2">
               {[1, 2, 3, 4, 5, 6].map((r) => (
                 <button
@@ -474,7 +577,7 @@ export default function TrackingPage() {
                     'py-3 rounded-xl text-sm font-bold tabular-nums transition-all border',
                     selectedRotation === r
                       ? 'bg-gold-500 border-gold-500 text-navy-900'
-                      : 'bg-navy-700 border-navy-600 text-navy-100 hover:border-navy-300'
+                      : 'bg-grey-50 border-grey-200 text-grey-900 hover:border-navy-500'
                   )}
                 >
                   R{r}
@@ -482,7 +585,7 @@ export default function TrackingPage() {
               ))}
             </div>
             {selectedRotation && (
-              <p className="text-xs text-gold-500 mt-2 text-center">
+              <p className="text-xs text-navy-700 mt-2 text-center">
                 Rotation {selectedRotation} selected — tap again to deselect
               </p>
             )}
@@ -492,10 +595,10 @@ export default function TrackingPage() {
         {/* ── Recent events feed ── */}
         {recentEvents.length > 0 && (
           <div className="card overflow-hidden mt-2">
-            <div className="px-4 py-2 border-b border-navy-700 text-xs text-navy-300 font-medium">
+            <div className="px-4 py-2 border-b border-grey-200 text-xs text-grey-600 font-medium">
               Recent Events
             </div>
-            <div className="divide-y divide-navy-700">
+            <div className="divide-y divide-grey-200">
               {recentEvents.map((event) => {
                 const meta = getMeta(event.eventType);
                 return (
@@ -507,22 +610,22 @@ export default function TrackingPage() {
                           ? 'bg-success'
                           : meta.outcome === 'negative'
                           ? 'bg-error'
-                          : 'bg-navy-300'
+                          : 'bg-grey-400'
                       )}
                     />
-                    <span className="tabular-nums text-xs text-navy-300 shrink-0">
+                    <span className="tabular-nums text-xs text-grey-600 shrink-0">
                       S{event.setNumber}
                     </span>
-                    <span className="text-sm font-medium text-navy-100 flex-1">
+                    <span className="text-sm font-medium text-grey-900 flex-1">
                       {meta.label}
                     </span>
                     {event.player && (
-                      <span className="text-xs text-navy-300 tabular-nums">
+                      <span className="text-xs text-grey-600 tabular-nums">
                         #{event.player.jerseyNumber} {event.player.lastName}
                       </span>
                     )}
                     {event.courtZone != null && (
-                      <span className="badge bg-navy-700 text-gold-500 border border-navy-600">
+                      <span className="badge bg-grey-50 text-navy-700 border border-grey-200">
                         Z{event.courtZone}
                       </span>
                     )}

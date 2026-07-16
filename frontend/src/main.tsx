@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 
@@ -11,7 +11,7 @@ import Layout from './components/ui/Layout';
 import RequireAuth from './components/ui/RequireAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import MyTeamsPage from './pages/MyTeamsPage';
+import RedeemInvitationPage from './pages/RedeemInvitationPage';
 import InvitationsPage from './pages/InvitationsPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
@@ -22,6 +22,7 @@ import TeamDetailPage from './pages/TeamDetailPage';
 import MatchesPage from './pages/MatchesPage';
 import TrackingPage from './pages/TrackingPage';
 import MatchDashboardPage from './pages/MatchDashboardPage';
+import MatchEventsPage from './pages/MatchEventsPage';
 import TeamDashboardPage from './pages/TeamDashboardPage';
 import PlayersDashboardPage from './pages/PlayersDashboardPage';
 import OnboardingCoachPage from './pages/OnboardingCoachPage';
@@ -34,6 +35,13 @@ import ResultsPage from './pages/ResultsPage';
 import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 import LeagueSeasonRankingsPage from './pages/LeagueSeasonRankingsPage';
 import MatchCentrePage from './pages/MatchCentrePage';
+
+// Backward-compat redirect: live tracking moved under the shared match shell at
+// /matches/:matchId/track. Old bookmarks to /track/:matchId land here.
+function LegacyTrackRedirect() {
+  const { matchId } = useParams<{ matchId: string }>();
+  return <Navigate to={`/matches/${matchId}/track`} replace />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +61,8 @@ function App() {
           {/* Auth pages — standalone, no Layout chrome */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          {/* Invitation redemption — public so brand-new / logged-out invitees can join */}
+          <Route path="/invitations/redeem" element={<RedeemInvitationPage />} />
           {/* Post-registration onboarding nudges — one-time, intent-driven */}
           <Route path="/onboarding/coach" element={<OnboardingCoachPage />} />
           <Route path="/onboarding/player" element={<OnboardingPlayerPage />} />
@@ -67,9 +77,23 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/player" element={<PlayerPortalPage />} />
               <Route path="/coach" element={<CoachDashboardPage />} />
-              <Route path="/my-teams" element={<MyTeamsPage />} />
+              {/* "My Teams" merged into /teams — teams are members-only, so
+                  there is no separate "browse all teams" list any more. */}
+              <Route path="/my-teams" element={<Navigate to="/teams" replace />} />
               <Route path="/invitations" element={<InvitationsPage />} />
-              <Route path="/track/:matchId" element={<TrackingPage />} />
+              <Route path="/track/:matchId" element={<LegacyTrackRedirect />} />
+              {/* Team-scoped routes. Teams are private to their members, so
+                  every one of these 404s for a non-member on the backend —
+                  there is nothing here to read while logged out. */}
+              <Route path="/teams" element={<TeamsPage />} />
+              <Route path="/teams/:teamId" element={<TeamDetailPage />} />
+              <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
+              <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
+              <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
+              <Route path="/matches/:matchId/events" element={<MatchEventsPage />} />
+              <Route path="/matches/:matchId/track" element={<TrackingPage />} />
+              <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
+
               {features.leagues && (
                 <>
                   <Route path="/leagues" element={<LeagueHubPage />} />
@@ -83,14 +107,6 @@ function App() {
                 </>
               )}
             </Route>
-
-            {/* Public routes — readable without login */}
-            <Route path="/teams" element={<TeamsPage />} />
-            <Route path="/teams/:teamId" element={<TeamDetailPage />} />
-            <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
-            <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
-            <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
-            <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
           </Route>
         </Routes>
         </ViewModeProvider>

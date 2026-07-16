@@ -26,8 +26,17 @@ export async function createLeague(req: Request, res: Response, next: NextFuncti
   try {
     const { name, division } = req.body;
     if (!name) throw new AppError(400, 'name is required.');
+    // Iteration 3 — auto-create a default season so a coach-created league is
+    // immediately usable as a team's "current league" without a separate season
+    // step. Admins/League Hub can still add more seasons via createSeason.
     const league = await prisma.league.create({
-      data: { name, division: division ?? null, createdByUserId: req.user!.userId },
+      data: {
+        name,
+        division: division ?? null,
+        createdByUserId: req.user!.userId,
+        seasons: { create: { name: 'Current season', startDate: new Date() } },
+      },
+      include: { seasons: { include: { _count: { select: { teams: true, fixtures: true } } } } },
     });
     res.status(201).json(league);
   } catch (err) { next(err); }

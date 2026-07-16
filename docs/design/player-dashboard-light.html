@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="design_doc_mode" content="canvas">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0}
+  a{color:#33477A;text-decoration:none;border-bottom:1px solid rgba(51,71,122,.35)}
+  a:hover{color:#1E2D50;border-bottom-color:#1E2D50}
+</style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+  <symbol id="ic-rally" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3"></circle>
+    <path d="M22 12 Q31 32 22 52" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M20 49 Q40 40 43 18" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.4" stroke-linecap="round"></path>
+    <path d="M38.5 23 L43 18 L47.5 23" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="20" cy="49" r="2.6" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-spike" viewBox="0 0 64 64">
+    <circle cx="30" cy="37" r="19" fill="none" stroke="currentColor" stroke-width="3"></circle>
+    <path d="M14 33 Q30 27 46 33" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.55"></path>
+    <path d="M30 18 Q22.5 37 27 55.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.55"></path>
+    <path d="M30 18 Q37.5 37 33 55.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.55"></path>
+    <path d="M12 29 Q33 3 55 20" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round"></path>
+    <path d="M49 14.5 L55.5 20 L52.5 27.5" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+  </symbol>
+  <symbol id="ic-ascend" viewBox="0 0 64 64">
+    <path d="M13 19 L31 47 L49 19" fill="none" stroke="currentColor" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="51.5" cy="15.5" r="6" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-rotation" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="7" stroke-dasharray="17.04 6" transform="rotate(-90 32 32)"></circle>
+    <circle cx="32" cy="32" r="22" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="7" stroke-dasharray="17.04 121.2" transform="rotate(-90 32 32)"></circle>
+    <circle cx="32" cy="32" r="2.8" fill="currentColor"></circle>
+  </symbol>
+
+  <symbol id="ic-rally-m" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3"></circle>
+    <path d="M22 12 Q31 32 22 52" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M20 49 Q40 40 43 18" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"></path>
+    <path d="M38.5 23 L43 18 L47.5 23" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="20" cy="49" r="2.6" fill="currentColor"></circle>
+  </symbol>
+  <symbol id="ic-spike-m" viewBox="0 0 64 64">
+    <circle cx="30" cy="37" r="19" fill="none" stroke="currentColor" stroke-width="3"></circle>
+    <path d="M14 33 Q30 27 46 33" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.55"></path>
+    <path d="M30 18 Q22.5 37 27 55.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.55"></path>
+    <path d="M30 18 Q37.5 37 33 55.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.55"></path>
+    <path d="M12 29 Q33 3 55 20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"></path>
+    <path d="M49 14.5 L55.5 20 L52.5 27.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+  </symbol>
+  <symbol id="ic-ascend-m" viewBox="0 0 64 64">
+    <path d="M13 19 L31 47 L49 19" fill="none" stroke="currentColor" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="51.5" cy="15.5" r="6" fill="currentColor"></circle>
+  </symbol>
+  <symbol id="ic-rotation-m" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="7" stroke-dasharray="17.04 6" transform="rotate(-90 32 32)"></circle>
+    <circle cx="32" cy="32" r="2.8" fill="currentColor"></circle>
+  </symbol>
+  <symbol id="ic-rally-2" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M23 12 Q31 32 23 52" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.4"></path>
+    <polyline points="16,46 25,39 32,42 41,30 48,20" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M41.5 20 L48 20 L48 26.5" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="16" cy="46" r="2.2" fill="var(--accent,#FFB81C)"></circle>
+    <circle cx="32" cy="42" r="2.2" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-spike-2" viewBox="0 0 64 64">
+    <circle cx="28" cy="38" r="19" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M12 34 Q28 28 44 34" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M28 19 Q20.5 38 25 56" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M28 19 Q35.5 38 31 56" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M14 44 Q30 4 54 22" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round"></path>
+    <path d="M55 16.5 L55 23 L48.5 23" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="14" cy="44" r="2.6" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-ui-grid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.6"></rect><rect x="13" y="4" width="7" height="7" rx="1.6"></rect><rect x="4" y="13" width="7" height="7" rx="1.6"></rect><rect x="13" y="13" width="7" height="7" rx="1.6"></rect></g></symbol>
+  <symbol id="ic-ui-activity" viewBox="0 0 24 24"><polyline points="3,14 8,14 10,7 14,18 16,12 21,12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></polyline></symbol>
+  <symbol id="ic-ui-team" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.2"></circle><path d="M3.5 19c0-3.2 2.5-5 5.5-5s5.5 1.8 5.5 5"></path><circle cx="17" cy="8" r="2.4"></circle><path d="M16 13.6c2.6-.2 5 1.2 5 4.4"></path></g></symbol>
+  <symbol id="ic-ui-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2.2"></rect><path d="M4 10h16M8 3.5v4M16 3.5v4"></path></g></symbol>
+  <symbol id="ic-ui-spark" viewBox="0 0 24 24"><path d="M13 3 L6.5 13 H11 L10 21 L17.5 10.5 H12.5 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="ic-ui-sliders" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h8M17 8h3M4 16h3M12 16h8"></path><circle cx="14" cy="8" r="2.1"></circle><circle cx="9" cy="16" r="2.1"></circle></g></symbol>
+  <symbol id="ic-ui-bell" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 4.5 1.8 5.8 1.8 5.8H4.2S6 13.5 6 9Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></g></symbol>
+  <symbol id="ic-ui-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.6-4.6"></path></g></symbol>
+  <symbol id="ic-ui-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"></path><path d="M6.2 9.6V19.5H17.8V9.6"></path></g></symbol>
+  <symbol id="ic-ui-bars" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 20V11M12 20V5M18 20V14"></path></g></symbol>
+  <symbol id="ic-ui-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"></circle><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6"></path></g></symbol>
+  <symbol id="ic-ui-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="ic-combo" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M11 27 Q32 20 53 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q22 32 27 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q42 32 37 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <polyline points="13,45 23,39 30,42 41,28 50,17" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M43 16 L50 17 L49.5 24" fill="none" stroke="var(--accent,#FFB81C)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="13" cy="45" r="2.4" fill="var(--accent,#FFB81C)"></circle>
+    <circle cx="30" cy="42" r="2.4" fill="var(--accent,#FFB81C)"></circle>
+  </symbol>
+  <symbol id="ic-combo-m" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="3.2"></circle>
+    <path d="M11 27 Q32 20 53 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q22 32 27 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <path d="M32 9 Q42 32 37 55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+    <polyline points="13,45 23,39 30,42 41,28 50,17" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    <path d="M43 16 L50 17 L49.5 24" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="13" cy="45" r="2.4" fill="currentColor"></circle>
+    <circle cx="30" cy="42" r="2.4" fill="currentColor"></circle>
+  </symbol>
+</svg>
+
+<div style="min-height:100vh;background:#E7EBF1;padding:56px 60px 80px;font-family:'Inter',sans-serif;color:#1A1D23">
+
+  <section style="display:flex;flex-direction:column;gap:22px">
+    <header style="max-width:900px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:'Inter',sans-serif;font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9AA1AD">Player dashboard · Light mode · Combined mark</div>
+      <h1 style="margin:0;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:40px;line-height:1.05;letter-spacing:-0.01em;color:#1E2D50">VolleyVision, in daylight</h1>
+      <p style="margin:0;font-size:15px;line-height:1.55;color:#5A6270;max-width:770px">The same web and mobile dashboards in light mode — white surfaces, navy text, and gold kept strictly for fills (chart line, sparklines, jersey, prep button) since gold text fails contrast on white. Both are branded with the new <b style="color:#1E2D50">combined mark</b>: a full-seam volleyball with the gold trend line breaking out over the top.</p>
+    </header>
+    <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:20px 24px;display:flex;align-items:center;gap:26px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:18px">
+        <svg width="70" height="70" style="color:#1E2D50"><use href="#ic-combo"></use></svg>
+        <div><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:18px;color:#1E2D50">Combined mark</div><div style="font-size:12.5px;color:#5A6270;max-width:230px;line-height:1.45;margin-top:2px">Volleyball seams + a bold gold trend line breaking out on top.</div></div>
+      </div>
+      <div style="width:1px;height:52px;background:#E2E5EA"></div>
+      <div style="background:#111C36;border-radius:14px;padding:14px 20px;display:flex;align-items:center;gap:14px"><svg width="48" height="48" style="color:#FFFFFF"><use href="#ic-combo"></use></svg><span style="font-size:11px;color:#8FA0C4;letter-spacing:.06em">REVERSED</span></div>
+      <div style="display:flex;align-items:flex-end;gap:16px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><svg width="16" height="16" style="color:#1E2D50"><use href="#ic-combo"></use></svg><span style="font-size:10px;color:#9AA1AD">16</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><svg width="24" height="24" style="color:#1E2D50"><use href="#ic-combo"></use></svg><span style="font-size:10px;color:#9AA1AD">24</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><svg width="32" height="32" style="color:#1E2D50"><use href="#ic-combo"></use></svg><span style="font-size:10px;color:#9AA1AD">32</span></div>
+      </div>
+      <div style="width:1px;height:52px;background:#E2E5EA"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><svg width="46" height="46" style="color:#1E2D50"><use href="#ic-combo-m"></use></svg><span style="font-size:10px;color:#9AA1AD">1-colour</span></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+<!-- ============ 2a — WEB APP ============ -->
+      <div id="web" style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;padding:0 8px;border-radius:7px;background:#1E2D50;color:#1A1D23;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:13px">W</span>
+          <span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:17px;color:#1E2D50">Web app · Player dashboard</span>
+          <span style="font-size:12.5px;color:#9AA1AD">Combined mark · 1280 px</span>
+        </div>
+
+        <div data-screen-label="Web dashboard" style="width:1280px;border:1px solid #E2E5EA;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px rgba(30,45,80,.16);display:flex;font-family:'Inter',sans-serif">
+
+          <!-- sidebar -->
+          <aside style="width:246px;flex:none;background:#FFFFFF;border-right:1px solid #E2E5EA;padding:24px 18px;display:flex;flex-direction:column;gap:22px">
+            <div style="display:flex;align-items:center;gap:11px;padding:0 6px">
+              <svg width="30" height="30" style="color:#1E2D50;flex:none"><use href="#ic-combo"></use></svg>
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:19px;letter-spacing:-0.01em;color:#1E2D50">VolleyVision</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:.14em;color:#9AA1AD;padding:0 8px;margin-bottom:6px">MENU</div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:11px;background:#EAEEF7;color:#1E2D50;font-size:14px;font-weight:600;border-left:3px solid #FFB81C"><svg width="19" height="19" style="color:#1E2D50"><use href="#ic-ui-grid"></use></svg>Dashboard</div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:11px;color:#5A6270;font-size:14px;font-weight:500"><svg width="19" height="19" style="color:#5A6270"><use href="#ic-ui-activity"></use></svg>Matches</div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:11px;color:#5A6270;font-size:14px;font-weight:500"><svg width="19" height="19" style="color:#5A6270"><use href="#ic-ui-team"></use></svg>Team</div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:11px;color:#5A6270;font-size:14px;font-weight:500"><svg width="19" height="19" style="color:#5A6270"><use href="#ic-ui-cal"></use></svg>Schedule</div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:11px;color:#5A6270;font-size:14px;font-weight:500"><svg width="19" height="19" style="color:#5A6270"><use href="#ic-ui-spark"></use></svg>Insights</div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:11px;color:#5A6270;font-size:14px;font-weight:500"><svg width="19" height="19" style="color:#5A6270"><use href="#ic-ui-sliders"></use></svg>Settings</div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px;border-radius:14px;background:#F6F7F9;border:1px solid #E2E5EA">
+              <div style="width:38px;height:38px;border-radius:50%;background:#33477A;border:2px solid #FFB81C;display:grid;place-items:center;color:#FFFFFF;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:14px;flex:none">MO</div>
+              <div style="min-width:0;line-height:1.2"><div style="font-size:13px;font-weight:600;color:#1A1D23;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Maya Okafor</div><div style="font-size:11px;color:#5A6270">Outside hitter</div></div>
+              <svg width="16" height="16" style="color:#9AA1AD;margin-left:auto;flex:none"><use href="#ic-ui-chevron"></use></svg>
+            </div>
+          </aside>
+
+          <!-- main -->
+          <main style="flex:1;min-width:0;background:#F6F7F9;padding:26px 28px;display:flex;flex-direction:column;gap:18px">
+            <!-- topbar -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:25px;color:#1A1D23;letter-spacing:-0.01em">Dashboard</div>
+                <div style="font-size:13px;color:#5A6270;margin-top:2px">Season 2025/26 · 18 matches played</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:11px;padding:9px 14px;display:flex;align-items:center;gap:9px;color:#5A6270;font-size:13px;width:230px"><svg width="17" height="17" style="color:#5A6270"><use href="#ic-ui-search"></use></svg>Search players, matches</div>
+                <div style="width:40px;height:40px;background:#FFFFFF;border:1px solid #E2E5EA;border-radius:11px;display:grid;place-items:center;color:#5A6270;position:relative"><svg width="19" height="19" style="color:#5A6270"><use href="#ic-ui-bell"></use></svg><span style="position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:50%;background:#FFB81C;border:1.5px solid #FFFFFF"></span></div>
+                <div style="width:40px;height:40px;border-radius:50%;background:#33477A;border:2px solid #FFB81C;display:grid;place-items:center;color:#FFFFFF;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:15px">MO</div>
+              </div>
+            </div>
+
+            <!-- row A: profile + hero efficiency -->
+            <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:22px;display:flex;align-items:center;gap:22px">
+                <div style="width:88px;height:88px;border-radius:20px;background:#E2E5EA;border:1px solid #33477A;display:grid;place-items:center;position:relative;flex:none">
+                  <span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:34px;color:#1A1D23">MO</span>
+                  <span style="position:absolute;right:-4px;bottom:-4px;background:#FFB81C;color:#111C36;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:12px;padding:2px 8px;border-radius:9px;border:2px solid #FFFFFF">#7</span>
+                </div>
+                <div style="min-width:0">
+                  <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:27px;color:#1A1D23;letter-spacing:-0.01em;line-height:1.1">Maya Okafor</div>
+                  <div style="font-size:13.5px;color:#5A6270;margin-top:3px">Outside hitter · Coastal Storm VC</div>
+                  <div style="display:flex;gap:26px;margin-top:16px">
+                    <div><div style="font-size:11px;color:#5A6270;letter-spacing:.04em">Height</div><div style="font-size:15px;color:#1A1D23;font-weight:600;margin-top:2px">1.86 m</div></div>
+                    <div><div style="font-size:11px;color:#5A6270;letter-spacing:.04em">Age</div><div style="font-size:15px;color:#1A1D23;font-weight:600;margin-top:2px">24</div></div>
+                    <div><div style="font-size:11px;color:#5A6270;letter-spacing:.04em">Spike reach</div><div style="font-size:15px;color:#1A1D23;font-weight:600;margin-top:2px">3.02 m</div></div>
+                  </div>
+                </div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:22px;display:flex;flex-direction:column;justify-content:space-between">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Kill efficiency</span><span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:#2E9E5B;background:rgba(46,158,91,.15);padding:3px 8px;border-radius:999px">▲ 12%</span></div>
+                <div style="display:flex;align-items:flex-end;gap:12px;margin-top:8px">
+                  <span style="font-family:'Inter',sans-serif;font-weight:700;font-size:42px;color:#1A1D23;font-variant-numeric:tabular-nums;line-height:1">41%</span>
+                  <svg viewBox="0 0 200 60" width="120" height="46" style="display:block;margin-bottom:6px"><path d="M6,44 L34,38 L62,42 L90,28 L118,32 L146,20 L174,26 L196,10 L196,58 L6,58 Z" fill="#FFB81C" fill-opacity="0.12"></path><polyline points="6,44 34,38 62,42 90,28 118,32 146,20 174,26 196,10" fill="none" stroke="#FFB81C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="196" cy="10" r="3.4" fill="#FFB81C"></circle></svg>
+                </div>
+                <div style="font-size:12px;color:#5A6270;margin-top:8px">Up from 29% at the start of the season — over your last 5 matches.</div>
+              </div>
+            </div>
+
+            <!-- row B: KPIs -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:16px;padding:17px 18px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Kills</span><span style="font-size:12px;font-weight:600;color:#2E9E5B;background:rgba(46,158,91,.15);padding:3px 8px;border-radius:999px">▲ 12%</span></div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px"><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:32px;color:#1A1D23;font-variant-numeric:tabular-nums;line-height:1">312</span><svg viewBox="0 0 64 26" width="64" height="26"><polyline points="2,20 12,16 22,18 32,10 42,12 52,6 62,3" fill="none" stroke="#FFB81C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:16px;padding:17px 18px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Digs</span><span style="font-size:12px;font-weight:600;color:#2E9E5B;background:rgba(46,158,91,.15);padding:3px 8px;border-radius:999px">▲ 6%</span></div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px"><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:32px;color:#1A1D23;font-variant-numeric:tabular-nums;line-height:1">268</span><svg viewBox="0 0 64 26" width="64" height="26"><polyline points="2,14 12,16 22,10 32,13 42,8 52,11 62,7" fill="none" stroke="#FFB81C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:16px;padding:17px 18px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Aces</span><span style="font-size:12px;font-weight:600;color:#2E9E5B;background:rgba(46,158,91,.15);padding:3px 8px;border-radius:999px">▲ 21%</span></div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px"><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:32px;color:#1A1D23;font-variant-numeric:tabular-nums;line-height:1">47</span><svg viewBox="0 0 64 26" width="64" height="26"><polyline points="2,22 12,18 22,20 32,12 42,14 52,7 62,4" fill="none" stroke="#FFB81C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:16px;padding:17px 18px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Blocks</span><span style="font-size:12px;font-weight:600;color:#D64545;background:rgba(214,69,69,.15);padding:3px 8px;border-radius:999px">▼ 4%</span></div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px"><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:32px;color:#1A1D23;font-variant-numeric:tabular-nums;line-height:1">89</span><svg viewBox="0 0 64 26" width="64" height="26"><polyline points="2,6 12,9 22,7 32,12 42,10 52,15 62,17" fill="none" stroke="#D64545" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>
+              </div>
+            </div>
+
+            <!-- row C: line chart + radar -->
+            <div style="display:grid;grid-template-columns:1.75fr 1fr;gap:18px">
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:17px;color:#1A1D23">Kill efficiency</div><div style="font-size:12px;color:#5A6270;margin-top:2px">Last 8 matches · attack conversion</div></div>
+                  <div style="background:#F6F7F9;border:1px solid #E2E5EA;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;color:#1A1D23;font-size:13px">Last 8<svg width="15" height="15" style="color:#5A6270;transform:rotate(90deg)"><use href="#ic-ui-chevron"></use></svg></div>
+                </div>
+                <svg viewBox="0 0 640 210" width="100%" style="display:block">
+                  <line x1="40" y1="180" x2="600" y2="180" stroke="#E2E5EA" stroke-width="1"></line>
+                  <line x1="40" y1="144" x2="600" y2="144" stroke="#E2E5EA" stroke-width="1" stroke-dasharray="3 6"></line>
+                  <line x1="40" y1="96" x2="600" y2="96" stroke="#E2E5EA" stroke-width="1" stroke-dasharray="3 6"></line>
+                  <line x1="40" y1="48" x2="600" y2="48" stroke="#E2E5EA" stroke-width="1" stroke-dasharray="3 6"></line>
+                  <path d="M40 138 L120 120 L200 132 L280 102 L360 114 L440 84 L520 96 L600 66 L600 180 L40 180 Z" fill="#FFB81C" fill-opacity="0.10"></path>
+                  <polyline points="40,138 120,120 200,132 280,102 360,114 440,84 520,96 600,66" fill="none" stroke="#FFB81C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  <circle cx="40" cy="138" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="120" cy="120" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="200" cy="132" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="280" cy="102" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="360" cy="114" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="440" cy="84" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="520" cy="96" r="3" fill="#F6F7F9" stroke="#FFB81C" stroke-width="2"></circle>
+                  <circle cx="600" cy="66" r="5.5" fill="#FFB81C" stroke="#F6F7F9" stroke-width="2.5"></circle>
+                  <rect x="566" y="26" width="64" height="27" rx="8" fill="#FFB81C"></rect>
+                  <text x="598" y="44" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700" font-size="13" fill="#111C36">44%</text>
+                  <text x="40" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M1</text>
+                  <text x="120" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M2</text>
+                  <text x="200" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M3</text>
+                  <text x="280" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M4</text>
+                  <text x="360" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M5</text>
+                  <text x="440" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M6</text>
+                  <text x="520" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M7</text>
+                  <text x="600" y="200" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">M8</text>
+                </svg>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+                <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:17px;color:#1A1D23">Skill profile</div>
+                <svg viewBox="-20 8 280 224" width="100%" style="display:block">
+                  <polygon points="120,38 191,79 191,161 120,202 49,161 49,79" fill="none" stroke="#E2E5EA" stroke-width="1"></polygon>
+                  <polygon points="120,79 155.5,99.5 155.5,140.5 120,161 84.5,140.5 84.5,99.5" fill="none" stroke="#E2E5EA" stroke-width="1"></polygon>
+                  <line x1="120" y1="120" x2="120" y2="38" stroke="#E2E5EA" stroke-width="1"></line>
+                  <line x1="120" y1="120" x2="191" y2="79" stroke="#E2E5EA" stroke-width="1"></line>
+                  <line x1="120" y1="120" x2="191" y2="161" stroke="#E2E5EA" stroke-width="1"></line>
+                  <line x1="120" y1="120" x2="120" y2="202" stroke="#E2E5EA" stroke-width="1"></line>
+                  <line x1="120" y1="120" x2="49" y2="161" stroke="#E2E5EA" stroke-width="1"></line>
+                  <line x1="120" y1="120" x2="49" y2="79" stroke="#E2E5EA" stroke-width="1"></line>
+                  <polygon points="120,44.6 175.4,88 180.4,154.85 120,177.4 77.4,144.6 57.5,83.9" fill="#FFB81C" fill-opacity="0.18" stroke="#FFB81C" stroke-width="2.4" stroke-linejoin="round"></polygon>
+                  <circle cx="120" cy="44.6" r="3" fill="#FFB81C"></circle><circle cx="175.4" cy="88" r="3" fill="#FFB81C"></circle><circle cx="180.4" cy="154.85" r="3" fill="#FFB81C"></circle><circle cx="120" cy="177.4" r="3" fill="#FFB81C"></circle><circle cx="77.4" cy="144.6" r="3" fill="#FFB81C"></circle><circle cx="57.5" cy="83.9" r="3" fill="#FFB81C"></circle>
+                  <text x="120" y="26" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">Attack <tspan fill="#1A1D23" font-weight="600">92</tspan></text>
+                  <text x="198" y="74" text-anchor="start" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">Serve <tspan fill="#1A1D23" font-weight="600">78</tspan></text>
+                  <text x="198" y="168" text-anchor="start" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">Block <tspan fill="#1A1D23" font-weight="600">85</tspan></text>
+                  <text x="120" y="222" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">Dig <tspan fill="#1A1D23" font-weight="600">70</tspan></text>
+                  <text x="42" y="168" text-anchor="end" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">Set <tspan fill="#1A1D23" font-weight="600">60</tspan></text>
+                  <text x="42" y="74" text-anchor="end" font-family="Inter,sans-serif" font-size="11" fill="#5A6270">Receive <tspan fill="#1A1D23" font-weight="600">88</tspan></text>
+                </svg>
+              </div>
+            </div>
+
+            <!-- row D: recent matches + next -->
+            <div style="display:grid;grid-template-columns:1.75fr 1fr;gap:18px">
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:17px;color:#1A1D23">Recent matches</div><span style="font-size:13px;color:#1E2D50;font-weight:600">View all</span></div>
+                <div style="display:grid;grid-template-columns:1.6fr .8fr .5fr .5fr .5fr .6fr;gap:8px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600;padding:0 4px 8px;border-bottom:1px solid #E2E5EA"><span>Opponent</span><span>Result</span><span style="text-align:right">K</span><span style="text-align:right">D</span><span style="text-align:right">A</span><span style="text-align:right">Rating</span></div>
+                <div style="display:grid;grid-template-columns:1.6fr .8fr .5fr .5fr .5fr .6fr;gap:8px;align-items:center;padding:11px 4px;border-bottom:1px solid #ECEEF2;font-size:13.5px;color:#1A1D23;font-variant-numeric:tabular-nums"><span style="color:#1A1D23;font-weight:500">vs Northsyde Vipers</span><span style="color:#2E9E5B;font-weight:600">W 3–1</span><span style="text-align:right">22</span><span style="text-align:right">15</span><span style="text-align:right">4</span><span style="text-align:right;color:#1E2D50;font-weight:700">8.9</span></div>
+                <div style="display:grid;grid-template-columns:1.6fr .8fr .5fr .5fr .5fr .6fr;gap:8px;align-items:center;padding:11px 4px;border-bottom:1px solid #ECEEF2;font-size:13.5px;color:#1A1D23;font-variant-numeric:tabular-nums"><span style="color:#1A1D23;font-weight:500">@ Harbor City Aces</span><span style="color:#D64545;font-weight:600">L 2–3</span><span style="text-align:right">18</span><span style="text-align:right">19</span><span style="text-align:right">2</span><span style="text-align:right;color:#1E2D50;font-weight:700">7.8</span></div>
+                <div style="display:grid;grid-template-columns:1.6fr .8fr .5fr .5fr .5fr .6fr;gap:8px;align-items:center;padding:11px 4px;border-bottom:1px solid #ECEEF2;font-size:13.5px;color:#1A1D23;font-variant-numeric:tabular-nums"><span style="color:#1A1D23;font-weight:500">vs Ridgeline Volt</span><span style="color:#2E9E5B;font-weight:600">W 3–0</span><span style="text-align:right">25</span><span style="text-align:right">12</span><span style="text-align:right">5</span><span style="text-align:right;color:#1E2D50;font-weight:700">9.2</span></div>
+                <div style="display:grid;grid-template-columns:1.6fr .8fr .5fr .5fr .5fr .6fr;gap:8px;align-items:center;padding:11px 4px;border-bottom:1px solid #ECEEF2;font-size:13.5px;color:#1A1D23;font-variant-numeric:tabular-nums"><span style="color:#1A1D23;font-weight:500">@ Summit Peak VC</span><span style="color:#2E9E5B;font-weight:600">W 3–2</span><span style="text-align:right">20</span><span style="text-align:right">17</span><span style="text-align:right">3</span><span style="text-align:right;color:#1E2D50;font-weight:700">8.4</span></div>
+                <div style="display:grid;grid-template-columns:1.6fr .8fr .5fr .5fr .5fr .6fr;gap:8px;align-items:center;padding:11px 4px;font-size:13.5px;color:#1A1D23;font-variant-numeric:tabular-nums"><span style="color:#1A1D23;font-weight:500">vs Delta Wave</span><span style="color:#D64545;font-weight:600">L 1–3</span><span style="text-align:right">14</span><span style="text-align:right">11</span><span style="text-align:right">1</span><span style="text-align:right;color:#1E2D50;font-weight:700">6.9</span></div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#5A6270;font-weight:600">Next match</div>
+                  <div><div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:22px;color:#1A1D23;letter-spacing:-0.01em">Northsyde Vipers</div><div style="font-size:13px;color:#5A6270;margin-top:3px">Sat 20:00 · Home · Round 12</div></div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#5A6270;font-weight:600">Recent form</div>
+                    <div style="display:flex;gap:7px">
+                      <span style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(46,158,91,.18);color:#2E9E5B">W</span>
+                      <span style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(214,69,69,.18);color:#D64545">L</span>
+                      <span style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(46,158,91,.18);color:#2E9E5B">W</span>
+                      <span style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(46,158,91,.18);color:#2E9E5B">W</span>
+                      <span style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(214,69,69,.18);color:#D64545">L</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top:auto;background:#FFB81C;color:#111C36;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:15px;text-align:center;padding:13px;border-radius:12px">Prep scouting report</div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      
+<!-- ============ 2b — MOBILE APP ============ -->
+      <div id="mobile" style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;padding:0 8px;border-radius:7px;background:#1E2D50;color:#1A1D23;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:13px">M</span>
+          <span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:17px;color:#1E2D50">Mobile app</span>
+          <span style="font-size:12.5px;color:#9AA1AD">Combined mark</span>
+        </div>
+        <div style="width:392px;background:#D4DBEA;border-radius:46px;padding:12px;border:1px solid #E2E5EA;box-shadow:0 30px 80px rgba(30,45,80,.16)">
+          <div data-screen-label="Mobile dashboard" style="background:#F6F7F9;border-radius:36px;overflow:hidden;font-family:'Inter',sans-serif">
+            <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;color:#1A1D23;font-size:13px;font-weight:600"><span style="font-family:'Inter',sans-serif">9:41</span><span style="display:flex;align-items:center;gap:5px"><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#1A1D23"></rect><rect x="4.5" y="5" width="3" height="7" rx="1" fill="#1A1D23"></rect><rect x="9" y="2.5" width="3" height="9.5" rx="1" fill="#1A1D23"></rect><rect x="13" y="0" width="3" height="12" rx="1" fill="#5A6270"></rect></svg><svg width="20" height="12" viewBox="0 0 24 12"><rect x="0.5" y="1" width="20" height="10" rx="3" fill="none" stroke="#5A6270"></rect><rect x="2.5" y="3" width="14" height="6" rx="1.5" fill="#1A1D23"></rect><rect x="21.5" y="4" width="2" height="4" rx="1" fill="#5A6270"></rect></svg></span></div>
+            <div style="padding:8px 18px 18px;display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <svg width="26" height="26" style="color:#1E2D50;flex:none"><use href="#ic-combo"></use></svg>
+                <span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:17px;color:#1E2D50;letter-spacing:-0.01em">VolleyVision</span>
+                <div style="margin-left:auto;width:36px;height:36px;border-radius:50%;background:#33477A;border:2px solid #FFB81C;display:grid;place-items:center;color:#FFFFFF;font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:13px">MO</div>
+              </div>
+              <div>
+                <div style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:24px;color:#1A1D23;letter-spacing:-0.01em;line-height:1.1">Good run, Maya</div>
+                <div style="font-size:13.5px;color:#5A6270;margin-top:4px">Kill efficiency up 12% over your last 5 matches.</div>
+              </div>
+              <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:18px;display:flex;align-items:center;justify-content:space-between">
+                <div><div style="font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Kill efficiency</div><div style="display:flex;align-items:flex-end;gap:8px;margin-top:6px"><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:38px;color:#1A1D23;font-variant-numeric:tabular-nums;line-height:1">41%</span><span style="font-size:12px;font-weight:600;color:#2E9E5B;background:rgba(46,158,91,.15);padding:3px 8px;border-radius:999px;margin-bottom:6px">▲ 12%</span></div></div>
+                <svg viewBox="0 0 120 70" width="104" height="60" style="display:block"><path d="M6,52 L22,46 L38,50 L54,36 L70,42 L86,28 L102,34 L114,16 L114,66 L6,66 Z" fill="#FFB81C" fill-opacity="0.12"></path><polyline points="6,52 22,46 38,50 54,36 70,42 86,28 102,34 114,16" fill="none" stroke="#FFB81C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="114" cy="16" r="3.6" fill="#FFB81C"></circle></svg>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:15px;padding:15px 16px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Kills</span><span style="font-size:11.5px;font-weight:600;color:#2E9E5B">▲ 12%</span></div><div style="font-family:'Inter',sans-serif;font-weight:700;font-size:27px;color:#1A1D23;font-variant-numeric:tabular-nums;margin-top:8px">312</div></div>
+                <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:15px;padding:15px 16px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Digs</span><span style="font-size:11.5px;font-weight:600;color:#2E9E5B">▲ 6%</span></div><div style="font-family:'Inter',sans-serif;font-weight:700;font-size:27px;color:#1A1D23;font-variant-numeric:tabular-nums;margin-top:8px">268</div></div>
+                <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:15px;padding:15px 16px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Aces</span><span style="font-size:11.5px;font-weight:600;color:#2E9E5B">▲ 21%</span></div><div style="font-family:'Inter',sans-serif;font-weight:700;font-size:27px;color:#1A1D23;font-variant-numeric:tabular-nums;margin-top:8px">47</div></div>
+                <div style="background:#FFFFFF;border:1px solid #E2E5EA;border-radius:15px;padding:15px 16px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5A6270;font-weight:600">Blocks</span><span style="font-size:11.5px;font-weight:600;color:#D64545">▼ 4%</span></div><div style="font-family:'Inter',sans-serif;font-weight:700;font-size:27px;color:#1A1D23;font-variant-numeric:tabular-nums;margin-top:8px">89</div></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:16px;color:#1A1D23">Recent matches</span><span style="font-size:12.5px;color:#1E2D50;font-weight:600">All</span></div>
+                <div style="display:flex;align-items:center;gap:12px;background:#FFFFFF;border:1px solid #E2E5EA;border-radius:14px;padding:12px 14px"><span style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(46,158,91,.18);color:#2E9E5B;flex:none">W</span><div style="min-width:0;flex:1"><div style="font-size:13.5px;color:#1A1D23;font-weight:500">vs Northsyde Vipers</div><div style="font-size:11.5px;color:#5A6270;font-variant-numeric:tabular-nums">3–1 · 22 K · 15 D · 4 A</div></div><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:16px;color:#1E2D50;font-variant-numeric:tabular-nums">8.9</span></div>
+                <div style="display:flex;align-items:center;gap:12px;background:#FFFFFF;border:1px solid #E2E5EA;border-radius:14px;padding:12px 14px"><span style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(214,69,69,.18);color:#D64545;flex:none">L</span><div style="min-width:0;flex:1"><div style="font-size:13.5px;color:#1A1D23;font-weight:500">@ Harbor City Aces</div><div style="font-size:11.5px;color:#5A6270;font-variant-numeric:tabular-nums">2–3 · 18 K · 19 D · 2 A</div></div><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:16px;color:#1E2D50;font-variant-numeric:tabular-nums">7.8</span></div>
+                <div style="display:flex;align-items:center;gap:12px;background:#FFFFFF;border:1px solid #E2E5EA;border-radius:14px;padding:12px 14px"><span style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(46,158,91,.18);color:#2E9E5B;flex:none">W</span><div style="min-width:0;flex:1"><div style="font-size:13.5px;color:#1A1D23;font-weight:500">vs Ridgeline Volt</div><div style="font-size:11.5px;color:#5A6270;font-variant-numeric:tabular-nums">3–0 · 25 K · 12 D · 5 A</div></div><span style="font-family:'Inter',sans-serif;font-weight:700;font-size:16px;color:#1E2D50;font-variant-numeric:tabular-nums">9.2</span></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-around;background:#FFFFFF;border:1px solid #E2E5EA;border-radius:18px;padding:12px 8px;margin-top:2px">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#1E2D50"><svg width="22" height="22" style="color:#1E2D50"><use href="#ic-ui-home"></use></svg><span style="font-size:10px;font-weight:600">Home</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#5A6270"><svg width="22" height="22" style="color:#5A6270"><use href="#ic-ui-activity"></use></svg><span style="font-size:10px;font-weight:500">Matches</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#5A6270"><svg width="22" height="22" style="color:#5A6270"><use href="#ic-ui-bars"></use></svg><span style="font-size:10px;font-weight:500">Stats</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#5A6270"><svg width="22" height="22" style="color:#5A6270"><use href="#ic-ui-user"></use></svg><span style="font-size:10px;font-weight:500">Profile</span></div>
+              </div>
+              <div style="display:flex;justify-content:center;padding-top:2px"><div style="width:130px;height:5px;border-radius:3px;background:#33477A"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+</body>
+</html>

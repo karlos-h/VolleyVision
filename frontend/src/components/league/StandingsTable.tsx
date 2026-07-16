@@ -86,16 +86,16 @@ export default function StandingsTable({ rows }: Props) {
                 <td className="py-2.5 px-2 font-medium text-chalk-100">
                   <Link
                     to={`/leagues/league-teams/${row.leagueTeamId}/profile`}
-                    className="hover:text-spike-400 transition-colors"
+                    className="hover:text-navy-700 transition-colors"
                   >
                     {row.teamName}
                   </Link>
                 </td>
                 <td className="py-2.5 px-2 text-right font-mono text-chalk-300">{row.matchesPlayed}</td>
-                <td className="py-2.5 px-2 text-right font-mono text-success-dark">{row.wins}</td>
-                <td className="py-2.5 px-2 text-right font-mono font-bold text-spike-400">{row.points}</td>
+                <td className="py-2.5 px-2 text-right font-mono text-success">{row.wins}</td>
+                <td className="py-2.5 px-2 text-right font-mono font-bold text-navy-700">{row.points}</td>
                 <td className="py-2.5 px-2 text-right font-mono text-chalk-300">{row.setsWon}</td>
-                <td className={`py-2.5 px-2 text-right font-mono ${row.setDifferential >= 0 ? 'text-success-dark' : 'text-error-dark'}`}>
+                <td className={`py-2.5 px-2 text-right font-mono ${row.setDifferential >= 0 ? 'text-success' : 'text-error'}`}>
                   {row.setDifferential >= 0 ? `+${row.setDifferential}` : row.setDifferential}
                 </td>
               </tr>

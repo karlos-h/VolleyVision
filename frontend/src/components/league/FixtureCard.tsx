@@ -29,7 +29,7 @@ export default function FixtureCard({ fixture, myTeamIds = new Set(), isPending 
 
       <div className="flex items-center gap-3">
         {/* Home */}
-        <div className={`flex-1 text-right ${iMyHome ? 'text-spike-400' : 'text-chalk-200'} font-semibold text-sm`}>
+        <div className={`flex-1 text-right ${iMyHome ? 'text-navy-700' : 'text-chalk-200'} font-semibold text-sm`}>
           <Link to={`/leagues/league-teams/${fixture.homeLeagueTeam.id}/profile`} className="hover:underline">
             {homeTeam.name}
           </Link>
@@ -38,7 +38,7 @@ export default function FixtureCard({ fixture, myTeamIds = new Set(), isPending 
         <div className="text-chalk-600 text-xs font-mono shrink-0">vs</div>
 
         {/* Away */}
-        <div className={`flex-1 text-left ${iMyAway ? 'text-spike-400' : 'text-chalk-200'} font-semibold text-sm`}>
+        <div className={`flex-1 text-left ${iMyAway ? 'text-navy-700' : 'text-chalk-200'} font-semibold text-sm`}>
           <Link to={`/leagues/league-teams/${fixture.awayLeagueTeam.id}/profile`} className="hover:underline">
             {awayTeam.name}
           </Link>
@@ -47,11 +47,11 @@ export default function FixtureCard({ fixture, myTeamIds = new Set(), isPending 
 
       {/* Link status — show which sides have linked matches */}
       <div className="flex gap-2 justify-center">
-        <span className={`text-xs ${fixture.homeMatchId ? 'text-success-dark' : 'text-chalk-600'}`}>
+        <span className={`text-xs ${fixture.homeMatchId ? 'text-success' : 'text-chalk-600'}`}>
           {fixture.homeMatchId ? '✓ Home linked' : '— Home unlinked'}
         </span>
         <span className="text-chalk-700">·</span>
-        <span className={`text-xs ${fixture.awayMatchId ? 'text-success-dark' : 'text-chalk-600'}`}>
+        <span className={`text-xs ${fixture.awayMatchId ? 'text-success' : 'text-chalk-600'}`}>
           {fixture.awayMatchId ? '✓ Away linked' : '— Away unlinked'}
         </span>
       </div>

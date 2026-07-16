@@ -38,7 +38,7 @@ export default function CoachingRecommendationsPanel({ recommendations }: Props)
             <span
               className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
                 rec.priority === 'high'
-                  ? 'bg-error/20 text-error-dark'
+                  ? 'bg-error/20 text-error'
                   : rec.priority === 'medium'
                   ? 'bg-warning/20 text-warning'
                   : 'bg-chalk-500/20 text-chalk-400'
@@ -53,7 +53,7 @@ export default function CoachingRecommendationsPanel({ recommendations }: Props)
           <p
             className={
               rec.priority === 'high'
-                ? 'text-error-dark'
+                ? 'text-error'
                 : rec.priority === 'medium'
                 ? 'text-warning'
                 : 'text-chalk-300'

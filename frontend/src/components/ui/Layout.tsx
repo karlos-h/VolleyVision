@@ -1,20 +1,53 @@
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useViewMode } from '../../context/ViewModeContext';
+import { useMyInvitations } from '../../hooks';
 import { features } from '../../config/features';
+import {
+  GridIcon, TeamIcon, SparkIcon, MailIcon, UserIcon,
+  BellIcon, ChevronIcon, MenuIcon, LogoutIcon,
+} from './icons';
 
-const NAV_PUBLIC = [
-  { to: '/teams', label: 'Teams' },
+type NavItem = {
+  to: string;
+  label: string;
+  icon: (p: { className?: string }) => JSX.Element;
+  /** Renders the pending-invitation count as a badge on this item. */
+  badge?: boolean;
+};
+
+const NAV_AUTH: NavItem[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: GridIcon },
+  { to: '/teams', label: 'Teams', icon: TeamIcon },
+  ...(features.leagues ? [{ to: '/leagues', label: 'League Hub', icon: SparkIcon }] : []),
+  { to: '/invitations', label: 'Invitations', icon: MailIcon, badge: true },
+  { to: '/profile', label: 'Profile', icon: UserIcon },
 ];
 
-const NAV_AUTH = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/teams', label: 'Teams' },
-  { to: '/my-teams', label: 'My Teams' },
-  ...(features.leagues ? [{ to: '/leagues', label: 'League Hub' }] : []),
-  { to: '/invitations', label: 'Invitations' },
-  { to: '/profile', label: 'Profile' },
-];
+function BrandMark({ className = 'w-7 h-7' }: { className?: string }) {
+  return <img src="/vv-icon.svg" alt="" className={className} />;
+}
+
+function Initials({ user, size = 'md' }: { user: { firstName: string; lastName: string }; size?: 'sm' | 'md' }) {
+  const dims = size === 'sm' ? 'w-[30px] h-[30px] text-[12px]' : 'w-9 h-9 text-sm';
+  return (
+    <span
+      className={`${dims} shrink-0 rounded-full bg-navy-500 border-2 border-gold-500
+                  grid place-items-center font-display font-bold text-white`}
+    >
+      {user.firstName[0]}{user.lastName[0]}
+    </span>
+  );
+}
+
+/** Nav pill: active = navy-100 tint + navy text, per the mockup. */
+function navPillClass(isActive: boolean) {
+  return [
+    'flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13.5px] transition-colors',
+    isActive ? 'bg-navy-100 text-navy-700 font-semibold' : 'text-grey-600 font-medium hover:text-navy-700 hover:bg-grey-50',
+  ].join(' ');
+}
 
 function ViewModeToggle() {
   const { viewMode, setViewMode, isDual } = useViewMode();
@@ -22,21 +55,135 @@ function ViewModeToggle() {
 
   const base = 'px-3 py-1 text-xs font-semibold rounded-md transition-colors';
   return (
-    <div className="hidden sm:flex items-center gap-0.5 p-0.5 rounded-lg bg-navy-700 border border-navy-600">
+    <div className="flex items-center gap-0.5 p-[3px] rounded-lg bg-grey-50 border border-grey-200">
       <button
         type="button"
         onClick={() => setViewMode('coach')}
-        className={viewMode === 'coach' ? `${base} bg-gold-600 text-white` : `${base} text-navy-300 hover:text-navy-100`}
+        className={viewMode === 'coach' ? `${base} bg-navy-700 text-white` : `${base} text-grey-600 hover:text-navy-700`}
       >
         Coach
       </button>
       <button
         type="button"
         onClick={() => setViewMode('player')}
-        className={viewMode === 'player' ? `${base} bg-gold-600 text-white` : `${base} text-navy-300 hover:text-navy-100`}
+        className={viewMode === 'player' ? `${base} bg-navy-700 text-white` : `${base} text-grey-600 hover:text-navy-700`}
       >
         Player
       </button>
+    </div>
+  );
+}
+
+/** A dropdown that closes when its full-screen backdrop is clicked. */
+function Dropdown({ open, onClose, children, className = '' }: {
+  open: boolean; onClose: () => void; children: React.ReactNode; className?: string;
+}) {
+  if (!open) return null;
+  return (
+    <>
+      <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={onClose} />
+      <div className={`absolute z-50 mt-2 rounded-xl bg-white border border-grey-200 shadow-lg overflow-hidden ${className}`}>
+        {children}
+      </div>
+    </>
+  );
+}
+
+/** Overflow menu for the nav items below the pill breakpoint. */
+function NavOverflow({ pendingCount }: { pendingCount: number }) {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  return (
+    <div className="relative lg:hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Menu"
+        aria-expanded={open}
+        className="w-10 h-10 rounded-xl bg-white border border-grey-200 grid place-items-center text-grey-600 hover:text-navy-700 transition-colors"
+      >
+        <MenuIcon className="w-5 h-5" />
+      </button>
+      <Dropdown open={open} onClose={() => setOpen(false)} className="left-0 w-52 py-1.5">
+        {NAV_AUTH.map(({ to, label, icon: Icon, badge }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? 'text-navy-700 bg-navy-100' : 'text-grey-700 hover:bg-grey-50'
+              }`}
+          >
+            <Icon className="w-[18px] h-[18px] shrink-0" />
+            {label}
+            {badge && pendingCount > 0 && (
+              <span className="ml-auto badge bg-gold-500 text-navy-900">{pendingCount}</span>
+            )}
+          </NavLink>
+        ))}
+      </Dropdown>
+    </div>
+  );
+}
+
+/** Avatar chip that opens a Profile / Sign out dropdown. */
+function AvatarMenu({ user, onSignOut }: {
+  user: { firstName: string; lastName: string }; onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Account menu"
+        aria-expanded={open}
+        className="flex items-center gap-2.5 pl-[5px] pr-2.5 py-[5px] rounded-xl bg-grey-50 border border-grey-200 hover:bg-grey-200/60 transition-colors"
+      >
+        <Initials user={user} size="sm" />
+        <span className="hidden sm:block text-[13px] font-semibold text-grey-900 max-w-[120px] truncate">
+          {user.firstName} {user.lastName}
+        </span>
+        <ChevronIcon className={`hidden sm:block w-4 h-4 text-grey-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      <Dropdown open={open} onClose={() => setOpen(false)} className="right-0 w-44 py-1.5">
+        <Link to="/profile" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-grey-700 hover:bg-grey-50 transition-colors">
+          <UserIcon className="w-4 h-4" /> Profile
+        </Link>
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-grey-700 hover:text-error hover:bg-grey-50 transition-colors"
+        >
+          <LogoutIcon className="w-4 h-4" /> Sign out
+        </button>
+      </Dropdown>
+    </div>
+  );
+}
+
+/** Logged-out chrome: same top-nav visual language, no app nav. */
+function PublicShell() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-50 bg-white border-b border-grey-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[60px] flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5">
+            <BrandMark />
+            <span className="font-display font-bold text-lg tracking-tight text-navy-700">VolleyVision</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <NavLink to="/teams" className={({ isActive }) => navPillClass(isActive)}>Teams</NavLink>
+            <NavLink to="/login" className={({ isActive }) => navPillClass(isActive)}>Sign in</NavLink>
+            <NavLink to="/register" className="btn-primary text-sm px-4 py-2">Register</NavLink>
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+        <Outlet />
+      </main>
     </div>
   );
 }
@@ -45,85 +192,69 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { viewMode, isDual } = useViewMode();
+  const { data: invitations } = useMyInvitations();
+
   const isTracking = location.pathname.startsWith('/track/');
 
-  if (isTracking) {
-    return <Outlet />;
-  }
+  // The tracking screen is chrome-free and tablet-optimised — never wrapped.
+  if (isTracking) return <Outlet />;
+  if (!user) return <PublicShell />;
 
-  function handleLogout() {
+  const pendingCount = invitations?.length ?? 0;
+
+  function handleSignOut() {
     logout();
     navigate('/login', { replace: true });
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Top nav */}
-      <header className="sticky top-0 z-50 border-b border-navy-700 bg-navy-900/90 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          {/* Brand */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gold-500 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-navy-900">
-                <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 2a6 6 0 110 12A6 6 0 0110 4zm-1 3v3H6l4 4 4-4h-3V7H9z" />
-              </svg>
-            </div>
-            <span className="font-bold text-white tracking-tight">VolleyVision</span>
-          </div>
-
-          {/* Nav + Auth */}
-          <div className="flex items-center gap-1">
-            <nav className="flex items-center gap-1 mr-2">
-              {(user ? NAV_AUTH : NAV_PUBLIC).map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) => (isActive ? 'nav-link-active' : 'nav-link')}
-                >
-                  {item.label}
+    <div className="min-h-screen flex flex-col bg-grey-50">
+      {/* Top nav — single row, sticky */}
+      <header className="sticky top-0 z-30 bg-white border-b border-grey-200">
+        <div className="h-[60px] px-4 sm:px-6 flex items-center justify-between gap-4">
+          {/* Left: brand + nav */}
+          <div className="flex items-center gap-5 min-w-0">
+            <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0">
+              <BrandMark />
+              <span className="font-display font-bold text-lg tracking-tight text-navy-700 hidden sm:block">
+                VolleyVision
+              </span>
+            </Link>
+            <nav className="hidden lg:flex items-center gap-0.5">
+              {NAV_AUTH.map(({ to, label, icon: Icon, badge }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => navPillClass(isActive)}>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {label}
+                  {badge && pendingCount > 0 && (
+                    <span className="badge bg-gold-500 text-navy-900 ml-0.5">{pendingCount}</span>
+                  )}
                 </NavLink>
               ))}
             </nav>
+          </div>
 
-            {user ? (
-              <div className="flex items-center gap-3">
-                <ViewModeToggle />
-                {/* User chip */}
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-navy-700 border border-navy-600">
-                  <div className="w-6 h-6 rounded-full bg-gold-600 flex items-center justify-center text-xs font-bold text-white">
-                    {user.firstName[0]}{user.lastName[0]}
-                  </div>
-                  <span className="text-navy-100 text-sm font-medium">
-                    {user.firstName} {user.lastName}
-                  </span>
-                  {!isDual && (
-                    <span className="badge bg-navy-600 text-navy-300 text-xs capitalize">
-                      {viewMode}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="nav-link text-navy-300 hover:text-error-dark"
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <NavLink to="/login" className="nav-link">Sign in</NavLink>
-                <NavLink to="/register" className="btn-primary text-sm px-4 py-2">
-                  Register
-                </NavLink>
-              </div>
-            )}
+          {/* Right: view toggle + bell + avatar; overflow menu on small screens */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="hidden sm:block"><ViewModeToggle /></div>
+
+            <Link
+              to="/invitations"
+              aria-label={pendingCount > 0 ? `Invitations (${pendingCount} pending)` : 'Invitations'}
+              className="relative w-10 h-10 rounded-xl bg-white border border-grey-200 grid place-items-center text-grey-600 hover:text-navy-700 transition-colors"
+            >
+              <BellIcon className="w-[18px] h-[18px]" />
+              {pendingCount > 0 && (
+                <span className="absolute top-2 right-2.5 w-[7px] h-[7px] rounded-full bg-gold-500 border-[1.5px] border-white" />
+              )}
+            </Link>
+
+            <AvatarMenu user={user} onSignOut={handleSignOut} />
+            <NavOverflow pendingCount={pendingCount} />
           </div>
         </div>
       </header>
 
-      {/* Page content */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 py-6">
         <Outlet />
       </main>
     </div>

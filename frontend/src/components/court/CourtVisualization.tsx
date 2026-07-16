@@ -57,7 +57,7 @@ export default function CourtVisualization({ heatmapData, title }: Props) {
             className={clsx(
               'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
               activeCategory === key
-                ? 'bg-spike-500 text-court-950 border-spike-400'
+                ? 'bg-spike-500 text-navy-900 border-spike-400'
                 : 'bg-court-800 text-chalk-400 border-court-700 hover:border-chalk-500'
             )}
           >

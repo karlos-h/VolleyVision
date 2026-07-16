@@ -71,7 +71,7 @@ function ReportView({ report }: { report: OpponentScoutingReport }) {
           <p className="text-sm text-chalk-500 italic">No opponent errors recorded.</p>
         ) : (
           <div className="flex items-center gap-3">
-            <span className="text-spike-400 font-mono text-2xl font-bold">
+            <span className="text-navy-700 font-mono text-2xl font-bold">
               {report.dominantErrorCount}
             </span>
             <div>
@@ -91,15 +91,15 @@ function ReportView({ report }: { report: OpponentScoutingReport }) {
           <div className="divide-y divide-court-800">
             {report.jerseyTallies.map((t) => (
               <div key={t.jerseyNumber} className="flex items-center gap-4 py-2.5">
-                <span className="font-mono font-bold text-spike-400 w-8 shrink-0">#{t.jerseyNumber}</span>
+                <span className="font-mono font-bold text-navy-700 w-8 shrink-0">#{t.jerseyNumber}</span>
                 <div className="flex gap-4 text-xs">
-                  <span className={clsx(t.kills > 0 ? 'text-success-dark' : 'text-chalk-600')}>
+                  <span className={clsx(t.kills > 0 ? 'text-success' : 'text-chalk-600')}>
                     {t.kills} K
                   </span>
-                  <span className={clsx(t.aces > 0 ? 'text-success-dark' : 'text-chalk-600')}>
+                  <span className={clsx(t.aces > 0 ? 'text-success' : 'text-chalk-600')}>
                     {t.aces} A
                   </span>
-                  <span className={clsx(t.errors > 0 ? 'text-error-dark' : 'text-chalk-600')}>
+                  <span className={clsx(t.errors > 0 ? 'text-error' : 'text-chalk-600')}>
                     {t.errors} Err
                   </span>
                 </div>

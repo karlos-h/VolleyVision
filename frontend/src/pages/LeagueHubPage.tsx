@@ -23,7 +23,7 @@ function CreateLeagueForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="card p-5 space-y-3 mt-4">
       <h3 className="font-semibold text-chalk-200 text-sm">New League</h3>
-      {err && <p className="text-error-dark text-xs">{err}</p>}
+      {err && <p className="text-error text-xs">{err}</p>}
       <input className="input w-full" placeholder="League name *" value={name} onChange={(e) => setName(e.target.value)} required />
       <input className="input w-full" placeholder="Division (optional)" value={division} onChange={(e) => setDivision(e.target.value)} />
       <div className="flex gap-2">
@@ -60,7 +60,7 @@ function CreateSeasonForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="card p-5 space-y-3 mt-4">
       <h3 className="font-semibold text-chalk-200 text-sm">New Season</h3>
-      {err && <p className="text-error-dark text-xs">{err}</p>}
+      {err && <p className="text-error text-xs">{err}</p>}
       <select className="input w-full" value={leagueId} onChange={(e) => setLeagueId(e.target.value)} required>
         <option value="">Select league *</option>
         {leagues.map((l) => (

@@ -19,26 +19,28 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-xs font-semibold text-chalk-500">
-          Court Zone <span className="normal-case font-normal text-chalk-600">(optional)</span>
+        <span className="text-xs font-semibold text-grey-600">
+          Court Zone <span className="normal-case font-normal text-grey-400">(optional)</span>
         </span>
         {value !== null && (
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="text-xs text-chalk-500 hover:text-chalk-300 transition-colors"
+            className="text-xs text-grey-600 hover:text-navy-700 transition-colors"
           >
             Clear
           </button>
         )}
       </div>
 
-      <div className="relative border border-court-700 rounded-xl overflow-hidden bg-court-900 select-none">
-        {/* NET divider */}
-        <div className="absolute inset-x-0 top-1/2 h-px bg-spike-500/50 z-10 pointer-events-none" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20
-                        text-[9px] font-bold tracking-widest text-spike-400/60 bg-court-900 px-1.5 pointer-events-none">
-          NET
+      <div className="border border-grey-200 rounded-xl overflow-hidden bg-grey-50 select-none">
+        {/* NET — the boundary at the top of the diagram, above the front row
+            (4 | 3 | 2). The grey borders between the two zone rows already
+            read as a divider, so the back row doesn't need its own marker. */}
+        <div className="flex items-center justify-center border-b-2 border-gold-500 py-1">
+          <span className="text-[9px] font-bold tracking-widest text-navy-700">
+            NET
+          </span>
         </div>
 
         {ZONE_LAYOUT.map((row, rowIdx) => (
@@ -49,11 +51,11 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
                 type="button"
                 onClick={() => onChange(value === zone ? null : zone)}
                 className={clsx(
-                  'h-12 flex items-center justify-center border border-court-700/40',
+                  'h-12 flex items-center justify-center border border-grey-200',
                   'text-lg font-mono font-bold transition-all active:scale-95',
                   value === zone
-                    ? 'bg-spike-500 text-court-950 shadow-inner'
-                    : 'bg-court-800 text-chalk-500 hover:bg-court-700 hover:text-chalk-200'
+                    ? 'bg-gold-500 text-navy-900 shadow-inner'
+                    : 'bg-white text-grey-900 hover:bg-grey-200'
                 )}
               >
                 {zone}
@@ -63,7 +65,7 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
         ))}
       </div>
 
-      <p className="text-[10px] text-chalk-600 px-0.5">
+      <p className="text-[10px] text-grey-400 px-0.5">
         {value !== null
           ? `Zone ${value} selected — tap again to deselect`
           : 'Tap a zone to record attack/serve location'}

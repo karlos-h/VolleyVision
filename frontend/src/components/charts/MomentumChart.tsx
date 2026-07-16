@@ -31,7 +31,7 @@ function MomentumTooltip({ active, payload, teamName, opponentName }: any) {
         {teamName} {d.homeScore} – {d.awayScore} {opponentName}
       </div>
       {d.runLength >= 3 && (
-        <div className="text-spike-400 mt-1">
+        <div className="text-navy-700 mt-1">
           {d.runLength}-point run
         </div>
       )}
@@ -75,7 +75,7 @@ export default function MomentumChart({ data, teamName, opponentName }: Props) {
         </div>
         <div className="card p-3 text-center">
           <p className="text-xs text-chalk-500 mb-1">Largest lead</p>
-          <p className="font-mono text-2xl font-bold text-spike-400">{stats.largestHomeLead}</p>
+          <p className="font-mono text-2xl font-bold text-navy-700">{stats.largestHomeLead}</p>
           <p className="text-xs text-chalk-500 mt-0.5">{teamName}</p>
         </div>
         <div className="card p-3 text-center">
@@ -154,7 +154,7 @@ export default function MomentumChart({ data, teamName, opponentName }: Props) {
                 key={i}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${
                   run.team === 'home'
-                    ? 'bg-spike-500/10 border-spike-500/30 text-spike-400'
+                    ? 'bg-spike-500/10 border-spike-500/30 text-navy-700'
                     : 'bg-court-800 border-court-700 text-chalk-400'
                 }`}
               >

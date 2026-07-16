@@ -1,39 +1,99 @@
-import { Link, useParams } from 'react-router-dom';
-import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport } from '../hooks';
+import { useEffect } from 'react';
+import { Link, NavLink, useParams, useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
+import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport, useMatchAnalytics } from '../hooks';
 import { StatsCards } from '../components/analytics/StatsOverview';
-import { POSITION_LABELS } from '../types';
+import { POSITION_FULL_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
 import HeatMapCourt from '../components/court/HeatMapCourt';
 import PlayerDevelopmentCard from '../components/analytics/PlayerDevelopmentCard';
 import { features } from '../config/features';
 import type { StatLine } from '../types';
+import { ArrowLeftIcon } from '../components/ui/icons';
 
 export default function PlayerDashboardPage() {
   const { playerId } = useParams<{ playerId: string }>();
+  const [searchParams] = useSearchParams();
+  // Present only when arriving from a match's Player Statistics table — keeps
+  // the coach inside that match's context (back button + player tab bar)
+  // instead of the generic career-wide profile view.
+  const matchId = searchParams.get('matchId') ?? undefined;
   const { data, isLoading, isError } = usePlayerAnalytics(playerId!);
   const { data: heatmapData } = usePlayerHeatmap(playerId!);
   const { data: developmentData } = usePlayerDevelopmentReport(playerId!);
+  const { data: matchData } = useMatchAnalytics(matchId ?? '');
+
+  // Only when arriving in match context — restores the previous title on unmount.
+  useEffect(() => {
+    if (!matchId || !matchData) return;
+    const previous = document.title;
+    document.title = `Game Day Stats – vs ${matchData.match.opponent} | VolleyVision`;
+    return () => { document.title = previous; };
+  }, [matchId, matchData]);
 
   if (isLoading) return <p className="text-navy-300">Loading analytics…</p>;
-  if (isError || !data) return <p className="text-error-dark">Couldn't load player analytics.</p>;
+  if (isError || !data) return <p className="text-error">Couldn't load player analytics.</p>;
 
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          to={`/teams/${data.player.teamId}`}
-          className="text-sm text-navy-300 hover:text-white"
-        >
-          ← Back to Roster
-        </Link>
+        {matchId ? (
+          <Link
+            to={`/matches/${matchId}/dashboard`}
+            className="btn-secondary inline-flex items-center gap-1.5 text-sm py-1.5 px-3"
+          >
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Match Stats
+          </Link>
+        ) : (
+          <Link
+            to={`/teams/${data.player.teamId}`}
+            className="text-sm text-navy-300 hover:text-navy-700"
+          >
+            ← Back to Roster
+          </Link>
+        )}
 
-        <h1 className="text-2xl font-bold text-white mt-2">
+        {matchId && matchData && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-grey-500">Game Day Stats</p>
+            <p className="text-sm text-grey-600 mt-0.5">
+              vs {matchData.match.opponent} · {format(new Date(matchData.match.matchDate), 'PPP')}
+              {matchData.match.venue && ` · ${matchData.match.venue}`}
+              {matchData.match.competition && ` · ${matchData.match.competition}`}
+            </p>
+          </div>
+        )}
+
+        <h1 className="text-2xl font-bold text-grey-900 mt-2">
           #{data.player.jerseyNumber} {data.player.firstName} {data.player.lastName}
         </h1>
         <p className="text-sm text-navy-300 mt-1">
-          {POSITION_LABELS[data.player.position]}
+          {POSITION_FULL_LABELS[data.player.position]}
         </p>
       </div>
+
+      {/* Player tab bar — only in match context, listing every player with
+          stats in that match (not the full roster), so the coach can compare
+          players while staying inside the same match. */}
+      {matchId && matchData && matchData.playerStats.length > 0 && (
+        <div className="flex items-center gap-1 border-b border-grey-200 pb-px overflow-x-auto">
+          {matchData.playerStats.map((row) => (
+            <NavLink
+              key={row.player.id}
+              to={`/players/${row.player.id}/dashboard?matchId=${matchId}`}
+              className={({ isActive }) =>
+                `px-3.5 py-2 -mb-px text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'border-gold-500 text-navy-700 font-semibold'
+                    : 'border-transparent text-grey-600 hover:text-navy-700'
+                }`}
+            >
+              #{row.player.jerseyNumber} {row.player.lastName}
+            </NavLink>
+          ))}
+        </div>
+      )}
 
       <StatsCards stats={data.stats} />
       <PlayerRadarChart stats={data.stats} />
@@ -41,20 +101,20 @@ export default function PlayerDashboardPage() {
       {/* Phase 6 Sprint 2 — Player Development Intelligence */}
       {features.recommendations && developmentData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Development Report</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Development Report</h2>
           <PlayerDevelopmentCard report={developmentData} />
         </section>
       )}
 
       {features.heatMaps && heatmapData && (
         <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Player Heat Map</h2>
+          <h2 className="text-lg font-semibold text-grey-900 mb-3">Player Heat Map</h2>
           <HeatMapCourt data={heatmapData} />
         </section>
       )}
 
       <section>
-        <h2 className="text-lg font-semibold text-white mb-3">Set Breakdown</h2>
+        <h2 className="text-lg font-semibold text-grey-900 mb-3">Set Breakdown</h2>
         {data.setStats.length === 0 ? (
           <div className="card p-6 text-navy-300 text-sm text-center">
             Record events to generate set statistics.
@@ -64,14 +124,14 @@ export default function PlayerDashboardPage() {
             {data.setStats.map((set: StatLine & { setNumber: number }) => (
               <div key={set.setNumber} className="card p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-white">Set {set.setNumber}</h3>
+                  <h3 className="font-semibold text-grey-900">Set {set.setNumber}</h3>
                   <span className="tabular-nums text-xs text-navy-300">{set.totalEvents} events</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="text-navy-300">Kills</span><span className="tabular-nums ml-2 text-white">{set.kills}</span></div>
-                  <div><span className="text-navy-300">Aces</span><span className="tabular-nums ml-2 text-white">{set.aces}</span></div>
-                  <div><span className="text-navy-300">Blocks</span><span className="tabular-nums ml-2 text-white">{set.totalBlocks}</span></div>
-                  <div><span className="text-navy-300">Digs</span><span className="tabular-nums ml-2 text-white">{set.digs}</span></div>
+                  <div><span className="text-navy-300">Kills</span><span className="tabular-nums ml-2 text-grey-900">{set.kills}</span></div>
+                  <div><span className="text-navy-300">Aces</span><span className="tabular-nums ml-2 text-grey-900">{set.aces}</span></div>
+                  <div><span className="text-navy-300">Blocks</span><span className="tabular-nums ml-2 text-grey-900">{set.totalBlocks}</span></div>
+                  <div><span className="text-navy-300">Digs</span><span className="tabular-nums ml-2 text-grey-900">{set.digs}</span></div>
                 </div>
               </div>
             ))}
