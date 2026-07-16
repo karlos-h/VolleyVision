@@ -105,13 +105,8 @@ export const matchesApi = {
     api.patch<Match>(`/matches/${id}/score`, data).then((r) => r.data),
   resetSetScore: (id: string) =>
     api.post<Match>(`/matches/${id}/score/reset`).then((r) => r.data),
-  // Manual set overrides. endSet awards the current set to whichever side
-  // leads (400s on a tie); resetMatch clears sets won and the whole history,
-  // unlike resetSetScore which only zeroes the current set.
-  endSet: (id: string) =>
-    api.post<Match>(`/matches/${id}/score/end-set`).then((r) => r.data),
-  undoSet: (id: string) =>
-    api.post<Match>(`/matches/${id}/score/undo-set`).then((r) => r.data),
+  // Clears sets won and the whole set history, unlike resetSetScore which only
+  // zeroes the current set.
   resetMatch: (id: string) =>
     api.post<Match>(`/matches/${id}/score/reset-match`).then((r) => r.data),
 };

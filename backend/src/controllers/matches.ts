@@ -3,7 +3,10 @@ import { AccessTier, ApprovalAction, MatchStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion, loadScoreState } from '../lib/scoring';
-import { completeSet, undoLastSet, resetMatchScore, leadingSide } from '../lib/setOperations';
+// Re-add `completeSet, leadingSide` here if the endSet controller below is
+// ever restored. `completeSet` is still very much live — lib/scoring.ts calls
+// it for automatic set completion; it's just no longer used from this file.
+import { resetMatchScore } from '../lib/setOperations';
 import type { MatchScoreState } from '../lib/setOperations';
 import { logAudit } from '../lib/audit';
 import { getAccessTier } from '../services/permission.service';
@@ -198,11 +201,11 @@ export async function resetSetScore(req: Request, res: Response, next: NextFunct
 
 // ─── Manual set overrides ─────────────────────────────────────────────────────
 //
-// End Set / Undo Set / Reset Match declare set boundaries that the event
-// timeline cannot reproduce (a set force-ended at 18-12 is not derivable from
-// the events). Each therefore sets manualScoreOverride, which stops
-// applyEventRemoval from rebuilding set state by replay and silently erasing
-// the coach's decision. See services/matchState.service.ts.
+// These declare set boundaries that the event timeline cannot reproduce (a set
+// force-ended at 18-12 is not derivable from the events). They therefore set
+// manualScoreOverride, which stops applyEventRemoval from rebuilding set state
+// by replay and silently erasing the coach's decision. See
+// services/matchState.service.ts.
 
 /** Persists a pure set-operation result, marking the match as manually overridden. */
 async function writeOverriddenState(matchId: string, next: MatchScoreState) {
@@ -223,46 +226,35 @@ async function writeOverriddenState(matchId: string, next: MatchScoreState) {
 // Manually end the current set in favour of whoever leads, without requiring
 // the 25/15-point threshold — for forfeits, abandoned sets, or unsticking a
 // bad state. Runs the same completion effects as the automatic path.
-export async function endSet(req: Request, res: Response, next: NextFunction) {
-  try {
-    const state = await loadScoreState(req.params.id);
-    if (!state) throw new AppError(404, 'Match not found.');
-
-    const winner = leadingSide(state);
-    if (!winner) {
-      throw new AppError(400, 'Cannot end a tied set — there is no winner to award it to.');
-    }
-
-    // The set's own adjustments are folded into the recorded score, so drop
-    // them; leaving them would let a later replay re-apply the same points.
-    await prisma.scoreAdjustment.deleteMany({
-      where: { matchId: req.params.id, setNumber: state.homeSetsWon + state.awaySetsWon + 1 },
-    });
-
-    const match = await writeOverriddenState(req.params.id, completeSet(state, winner));
-    res.json(match);
-  } catch (err) {
-    next(err);
-  }
-}
-
-// Undo the most recent completed set: restore its score so play resumes
-// mid-set, take the set back off its winner, and reopen the match if that set
-// is what completed it.
-export async function undoSet(req: Request, res: Response, next: NextFunction) {
-  try {
-    const state = await loadScoreState(req.params.id);
-    if (!state) throw new AppError(404, 'Match not found.');
-
-    const next_ = undoLastSet(state);
-    if (!next_) throw new AppError(400, 'No completed set to undo.');
-
-    const match = await writeOverriddenState(req.params.id, next_);
-    res.json(match);
-  } catch (err) {
-    next(err);
-  }
-}
+//
+// DISABLED: this complicated the live-tracking flow in hands-on testing, so the
+// scoreboard no longer offers it and its route in routes/matches.ts is not
+// registered. Kept here for possible future use. Automatic set completion at
+// 25/15 win-by-2 goes through checkSetCompletion in lib/scoring.ts and is a
+// separate path — it is unaffected by this being disabled.
+//
+// export async function endSet(req: Request, res: Response, next: NextFunction) {
+//   try {
+//     const state = await loadScoreState(req.params.id);
+//     if (!state) throw new AppError(404, 'Match not found.');
+//
+//     const winner = leadingSide(state);
+//     if (!winner) {
+//       throw new AppError(400, 'Cannot end a tied set — there is no winner to award it to.');
+//     }
+//
+//     // The set's own adjustments are folded into the recorded score, so drop
+//     // them; leaving them would let a later replay re-apply the same points.
+//     await prisma.scoreAdjustment.deleteMany({
+//       where: { matchId: req.params.id, setNumber: state.homeSetsWon + state.awaySetsWon + 1 },
+//     });
+//
+//     const match = await writeOverriddenState(req.params.id, completeSet(state, winner));
+//     res.json(match);
+//   } catch (err) {
+//     next(err);
+//   }
+// }
 
 // Reset the whole match: zero the running score and sets won, clear the set
 // history, and reopen a completed match. Broader than resetSetScore, which

@@ -7,8 +7,7 @@ import {
   deleteMatch,
   updateScore,
   resetSetScore,
-  endSet,
-  undoSet,
+  // endSet — disabled, see the commented-out route below.
   resetMatch,
 } from '../controllers/matches';
 import { requireAuth, optionalAuth } from '../middleware/auth';
@@ -42,10 +41,15 @@ router.post('/', requireAuth, requireCreateMatch, createMatch);
 router.patch('/:id', requireAuth, requireMatchAccess('match'), updateMatch);
 router.patch('/:id/score', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), updateScore);
 router.post('/:id/score/reset', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), resetSetScore);
-// Manual set overrides — same untiered live-tracking permission as the score
-// updates above, since they're all real-time courtside actions.
-router.post('/:id/score/end-set', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), endSet);
-router.post('/:id/score/undo-set', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), undoSet);
+// Manual set override — same untiered live-tracking permission as the score
+// updates above, since it's a real-time courtside action.
+//
+// DISABLED: manual End Set complicated the live-tracking flow in hands-on
+// testing, so the button is gone from the scoreboard and this route is not
+// registered. Kept (with its `endSet` controller) for possible future use —
+// automatic set completion at 25/15 win-by-2 is a separate path in
+// lib/scoring.ts and is unaffected.
+// router.post('/:id/score/end-set', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), endSet);
 router.post('/:id/score/reset-match', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), resetMatch);
 router.delete('/:id', requireAuth, requireMatchAccess('match'), deleteMatch);
 

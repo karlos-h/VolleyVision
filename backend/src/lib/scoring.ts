@@ -42,9 +42,12 @@ export async function loadScoreState(matchId: string): Promise<MatchScoreState |
 
 /**
  * Auto-completes the current set the moment a side passes the threshold with a
- * 2-point lead. The completion effects themselves live in setOperations
- * .completeSet, which the manual End Set override also calls — this function
- * only decides *whether* the threshold has been met.
+ * 2-point lead. This function only decides *whether* the threshold has been
+ * met; the completion effects themselves live in setOperations.completeSet.
+ *
+ * This is the only set-completion path in use. The manual End Set override that
+ * also called completeSet is currently disabled (see controllers/matches.ts) —
+ * that does not affect this path.
  */
 export async function checkSetCompletion(matchId: string): Promise<void> {
   const state = await loadScoreState(matchId);

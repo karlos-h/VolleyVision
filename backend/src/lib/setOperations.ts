@@ -36,7 +36,12 @@ export function currentSetNumber(state: Pick<MatchScoreState, 'homeSetsWon' | 'a
   return state.homeSetsWon + state.awaySetsWon + 1;
 }
 
-/** Whichever side currently leads the running score, or null if it's tied. */
+/**
+ * Whichever side currently leads the running score, or null if it's tied.
+ *
+ * No live caller today — kept for the commented-out endSet controller in
+ * controllers/matches.ts, which uses it to pick the set's winner.
+ */
 export function leadingSide(state: Pick<MatchScoreState, 'homeScore' | 'awayScore'>): Side | null {
   if (state.homeScore > state.awayScore) return 'home';
   if (state.awayScore > state.homeScore) return 'away';
@@ -71,41 +76,6 @@ export function completeSet(state: MatchScoreState, winner: Side): MatchScoreSta
     awaySetsWon,
     setScores,
     status: matchWon ? 'COMPLETED' : state.status,
-  };
-}
-
-/**
- * Undo the most recent completed set: restore its score so play resumes
- * mid-set, take the set back off whoever won it, and un-complete the match if
- * that set is what finished it.
- *
- * Returns null when there is no set to undo, so callers can no-op rather than
- * writing a pointless update.
- */
-export function undoLastSet(state: MatchScoreState): MatchScoreState | null {
-  if (state.setScores.length === 0) return null;
-
-  const ordered = [...state.setScores].sort((a, b) => a.set - b.set);
-  const last = ordered[ordered.length - 1];
-
-  // A tied entry can't exist (neither the threshold nor End Set can produce
-  // one), but if some legacy row has one there's no winner to give the set
-  // back to — restore the score and leave the set counts alone.
-  const winner = leadingSide({ homeScore: last.home, awayScore: last.away });
-
-  const homeSetsWon = Math.max(0, state.homeSetsWon - (winner === 'home' ? 1 : 0));
-  const awaySetsWon = Math.max(0, state.awaySetsWon - (winner === 'away' ? 1 : 0));
-  const stillWon = homeSetsWon >= SETS_TO_WIN_MATCH || awaySetsWon >= SETS_TO_WIN_MATCH;
-
-  return {
-    homeScore: last.home,
-    awayScore: last.away,
-    homeSetsWon,
-    awaySetsWon,
-    setScores: ordered.slice(0, -1),
-    // Only un-complete if the popped set is what won it — a match sitting at
-    // 3-1 that loses its 4th (dead-rubber) set entry stays COMPLETED.
-    status: state.status === 'COMPLETED' && !stillWon ? 'IN_PROGRESS' : state.status,
   };
 }
 

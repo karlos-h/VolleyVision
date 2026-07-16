@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useEndSet, useUndoSet, useResetMatch, useHasPermission } from '../hooks';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useResetMatch, useHasPermission } from '../hooks';
 import type { EventType, Player, Position } from '../types';
 import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
 import type { EventMeta } from '../types';
@@ -74,8 +74,6 @@ export default function TrackingPage() {
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
-  const endSet = useEndSet(matchId!);
-  const undoSet = useUndoSet(matchId!);
   const resetMatch = useResetMatch(matchId!);
   // Track is offered only to those who can track a live match (players never
   // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
@@ -175,24 +173,6 @@ export default function TrackingPage() {
     updateScore.mutate(side === 'home' ? { homeScore: next } : { awayScore: next });
   }
 
-  async function handleEndSet() {
-    try {
-      await endSet.mutateAsync();
-      showFlash('Set ended', true);
-    } catch {
-      showFlash("Couldn't end the set", false);
-    }
-  }
-
-  async function handleUndoSet() {
-    try {
-      await undoSet.mutateAsync();
-      showFlash('Set undone', true);
-    } catch {
-      showFlash('No set to undo', false);
-    }
-  }
-
   // The most destructive action on this screen — wipes every set and the whole
   // score history, not just the current set. Same confirm pattern as above.
   async function handleResetMatch() {
@@ -229,8 +209,6 @@ export default function TrackingPage() {
   const scoreboardBusy =
     updateScore.isPending ||
     resetSetScore.isPending ||
-    endSet.isPending ||
-    undoSet.isPending ||
     resetMatch.isPending ||
     undoEvent.isPending;
 
@@ -288,8 +266,6 @@ export default function TrackingPage() {
         currentSet={currentSet}
         onSelectSet={setCurrentSet}
         onScore={handleScore}
-        onEndSet={handleEndSet}
-        onUndoSet={handleUndoSet}
         onResetSet={handleResetSetScore}
         onResetMatch={handleResetMatch}
         onToggleStatus={handleStatusToggle}

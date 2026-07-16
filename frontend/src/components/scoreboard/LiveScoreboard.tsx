@@ -31,17 +31,20 @@ export interface LiveScoreboardProps {
   onSelectSet?: (set: number) => void;
   /** Adjust a side's running score by `delta`. */
   onScore?: (side: ScoreSide, delta: number) => void;
-  /** Award the current set to whoever leads, ignoring the points threshold. */
+  /**
+   * Award the current set to whoever leads, ignoring the points threshold.
+   * No surface passes this today — the manual End Set flow complicated live
+   * tracking in testing and is disabled (see the commented-out route in
+   * backend/src/routes/matches.ts). Kept wired for possible future use.
+   */
   onEndSet?: () => void;
-  /** Take back the most recently completed set. */
-  onUndoSet?: () => void;
   /** Zero the current set's running score only. */
   onResetSet?: () => void;
   /** Zero the entire match — sets won and history included. */
   onResetMatch?: () => void;
   /** Start/finish the match (IN_PROGRESS ↔ COMPLETED). */
   onToggleStatus?: () => void;
-  /** Undo the last recorded stat event — distinct from undoing a set. */
+  /** Undo the last recorded stat event (kill, dig…) — never a whole set. */
   onUndoEvent?: () => void;
   canUndoEvent?: boolean;
   /** Disables the mutating controls while a request is in flight. */
@@ -125,28 +128,39 @@ function TeamPanel({ name, score, setsWon, side, onScore, busy }: TeamPanelProps
       <div className="font-display tabular-nums font-extrabold leading-[0.92] tracking-tight text-grey-900 mt-auto pt-4 text-[clamp(56px,11vw,120px)]">
         {String(score).padStart(2, '0')}
       </div>
-
-      {onScore && (
-        <div className={clsx('flex items-center gap-3 mt-2', !isHome && 'flex-row-reverse')}>
-          <button
-            type="button"
-            aria-label={`Subtract a point from ${name}`}
-            disabled={busy || score === 0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onScore(side, -1);
-            }}
-            // The panel itself is a keyboard target, so keep this button's own
-            // Enter/Space from bubbling up and also adding a point.
-            onKeyDown={(e) => e.stopPropagation()}
-            className="grid place-items-center w-11 h-11 shrink-0 rounded-lg bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-2xl font-semibold border border-grey-200 transition-colors leading-none"
-          >
-            −
-          </button>
-          <span className="text-[11px] text-grey-400 font-medium">Tap score to add · − to correct</span>
-        </div>
-      )}
     </div>
+  );
+}
+
+/**
+ * A side's point-correction button. Lives in the shared controls row below the
+ * scorebug rather than inside its TeamPanel, so all the board's controls read
+ * as one row — but it stays aligned under the side it corrects.
+ */
+function MinusButton({
+  name,
+  score,
+  side,
+  onScore,
+  busy,
+}: {
+  name: string;
+  score: number;
+  side: ScoreSide;
+  onScore: (side: ScoreSide, delta: number) => void;
+  busy?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={`Subtract a point from ${name}`}
+      title={`Subtract a point from ${name}`}
+      disabled={busy || score === 0}
+      onClick={() => onScore(side, -1)}
+      className="grid place-items-center w-11 h-11 shrink-0 rounded-lg bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-2xl font-semibold border border-grey-200 transition-colors leading-none"
+    >
+      −
+    </button>
   );
 }
 
@@ -163,7 +177,6 @@ export default function LiveScoreboard({
   onSelectSet,
   onScore,
   onEndSet,
-  onUndoSet,
   onResetSet,
   onResetMatch,
   onToggleStatus,
@@ -173,13 +186,14 @@ export default function LiveScoreboard({
 }: LiveScoreboardProps) {
   const tied = homeScore === awayScore;
   const hasSets = setScores.length > 0;
+  const hasControlsRow = !!(onScore || onUndoEvent || onEndSet || onResetSet || onResetMatch);
 
   return (
     <div className="card p-2.5 space-y-2">
-      {/* ── Set jump + match-level controls ──
+      {/* ── Set jump + match status ──
           Direct 1–5 jump (rather than prev/next stepping) so a mis-tap in an
           earlier set can be fixed without walking back through the others. */}
-      {(onSelectSet || onToggleStatus || onUndoEvent) && (
+      {(onSelectSet || onToggleStatus) && (
         <div className="flex items-center justify-between gap-3 flex-wrap px-1.5 pt-1.5">
           {onSelectSet && (
             <div className="flex gap-1">
@@ -202,36 +216,20 @@ export default function LiveScoreboard({
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            {onToggleStatus && (
-              <button
-                type="button"
-                onClick={onToggleStatus}
-                className={clsx(
-                  'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
-                  status === 'IN_PROGRESS'
-                    ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
-                    : 'bg-grey-50 text-grey-600 border border-grey-200',
-                )}
-              >
-                {status === 'IN_PROGRESS' ? '● LIVE' : status}
-              </button>
-            )}
-
-            {onUndoEvent && (
-              <button
-                type="button"
-                onClick={onUndoEvent}
-                disabled={busy || !canUndoEvent}
-                // "Event" vs. the "Undo Set" button below: this takes back the
-                // last recorded stat (kill, dig…), not a whole set.
-                title="Undo the last recorded stat event"
-                className="bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-xs font-medium px-3 py-1.5 rounded-lg border border-grey-200 transition-colors"
-              >
-                ↩ Undo Event
-              </button>
-            )}
-          </div>
+          {onToggleStatus && (
+            <button
+              type="button"
+              onClick={onToggleStatus}
+              className={clsx(
+                'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
+                status === 'IN_PROGRESS'
+                  ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
+                  : 'bg-grey-50 text-grey-600 border border-grey-200',
+              )}
+            >
+              {status === 'IN_PROGRESS' ? '● LIVE' : status}
+            </button>
+          )}
         </div>
       )}
 
@@ -269,58 +267,75 @@ export default function LiveScoreboard({
         />
       </div>
 
-      {/* ── Set operations ── */}
-      {(onUndoSet || onEndSet || onResetSet || onResetMatch) && (
-        <div className="flex items-center justify-center gap-2 flex-wrap px-2 pb-1.5 pt-1">
-          {onUndoSet && (
-            <button
-              type="button"
-              onClick={onUndoSet}
-              disabled={busy || !hasSets}
-              title="Take back the most recently completed set"
-              className="text-sm font-medium text-grey-600 hover:text-navy-700 bg-grey-50 border border-grey-200 hover:border-grey-400 disabled:opacity-40 disabled:hover:text-grey-600 disabled:hover:border-grey-200 rounded-xl px-4 py-2.5 transition-colors"
-            >
-              ↩ Undo Set
-            </button>
-          )}
+      {/* ── Controls ──
+          One row directly under the scorebug: each side's − sits at its own
+          edge, aligned under the score it corrects, with the shared actions
+          centred between them. */}
+      {hasControlsRow && (
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-2 pb-1.5 pt-1">
+          <div>
+            {onScore && (
+              <MinusButton name={homeName} score={homeScore} side="home" onScore={onScore} busy={busy} />
+            )}
+          </div>
 
-          {onEndSet && (
-            <button
-              type="button"
-              onClick={onEndSet}
-              disabled={busy || tied}
-              // A tied set has no winner to award it to; the backend rejects it
-              // too, but disabling here explains why rather than erroring.
-              title={tied ? 'Scores are tied — no winner to award the set to' : 'Award this set to whoever leads'}
-              className="font-display font-bold text-[15px] tracking-wide text-navy-900 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:hover:bg-gold-500 rounded-xl px-6 py-2.5 transition-colors"
-            >
-              END SET →
-            </button>
-          )}
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            {onUndoEvent && (
+              <button
+                type="button"
+                onClick={onUndoEvent}
+                disabled={busy || !canUndoEvent}
+                title="Undo the last recorded stat event"
+                className="text-sm font-medium text-grey-600 hover:text-navy-700 bg-grey-50 border border-grey-200 hover:border-grey-400 disabled:opacity-40 disabled:hover:text-grey-600 disabled:hover:border-grey-200 rounded-xl px-4 py-2.5 transition-colors"
+              >
+                ↩ Undo Event
+              </button>
+            )}
 
-          {onResetSet && (
-            <button
-              type="button"
-              onClick={onResetSet}
-              disabled={busy}
-              title="Zero this set's score only"
-              className="text-sm font-medium text-grey-600 hover:text-navy-700 bg-grey-50 border border-grey-200 hover:border-grey-400 disabled:opacity-40 rounded-xl px-4 py-2.5 transition-colors"
-            >
-              Reset Set
-            </button>
-          )}
+            {onEndSet && (
+              <button
+                type="button"
+                onClick={onEndSet}
+                disabled={busy || tied}
+                // A tied set has no winner to award it to; the backend rejects it
+                // too, but disabling here explains why rather than erroring.
+                title={tied ? 'Scores are tied — no winner to award the set to' : 'Award this set to whoever leads'}
+                className="font-display font-bold text-[15px] tracking-wide text-navy-900 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:hover:bg-gold-500 rounded-xl px-6 py-2.5 transition-colors"
+              >
+                END SET →
+              </button>
+            )}
 
-          {onResetMatch && (
-            <button
-              type="button"
-              onClick={onResetMatch}
-              disabled={busy}
-              title="Zero the whole match — every set and its history"
-              className="text-sm font-semibold text-error-strong bg-error/10 hover:bg-error/20 border border-error/30 disabled:opacity-40 rounded-xl px-4 py-2.5 transition-colors"
-            >
-              Reset Match
-            </button>
-          )}
+            {onResetSet && (
+              <button
+                type="button"
+                onClick={onResetSet}
+                disabled={busy}
+                title="Zero this set's score only"
+                className="text-sm font-medium text-grey-600 hover:text-navy-700 bg-grey-50 border border-grey-200 hover:border-grey-400 disabled:opacity-40 rounded-xl px-4 py-2.5 transition-colors"
+              >
+                Reset Set
+              </button>
+            )}
+
+            {onResetMatch && (
+              <button
+                type="button"
+                onClick={onResetMatch}
+                disabled={busy}
+                title="Zero the whole match — every set and its history"
+                className="text-sm font-semibold text-error-strong bg-error/10 hover:bg-error/20 border border-error/30 disabled:opacity-40 rounded-xl px-4 py-2.5 transition-colors"
+              >
+                Reset Match
+              </button>
+            )}
+          </div>
+
+          <div>
+            {onScore && (
+              <MinusButton name={awayName} score={awayScore} side="away" onScore={onScore} busy={busy} />
+            )}
+          </div>
         </div>
       )}
 
@@ -353,10 +368,7 @@ export default function LiveScoreboard({
               })}
           </div>
         ) : (
-          <div className="text-sm text-grey-400">
-            No completed sets yet — press{' '}
-            <span className="text-navy-700 font-semibold">END SET</span> to record one.
-          </div>
+          <div className="text-sm text-grey-400">None yet</div>
         )}
       </div>
     </div>

@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   completeSet,
-  undoLastSet,
   resetMatchScore,
   reverseEventScore,
   leadingSide,
@@ -133,91 +132,6 @@ describe('completeSet', () => {
     );
     assert.equal(next.setScores.length, 1);
     assert.deepEqual(next.setScores, [{ set: 1, home: 25, away: 20 }]);
-  });
-});
-
-// ─── undoLastSet ──────────────────────────────────────────────────────────────
-
-describe('undoLastSet', () => {
-  it('no-ops when there is no completed set', () => {
-    assert.equal(undoLastSet(state()), null);
-  });
-
-  it('restores the set score so play resumes mid-set', () => {
-    const next = undoLastSet(state({
-      homeScore: 4, awayScore: 2,
-      homeSetsWon: 1, awaySetsWon: 0,
-      setScores: [{ set: 1, home: 25, away: 22 }],
-    }))!;
-    assert.equal(next.homeScore, 25, 'running score restored to the set score');
-    assert.equal(next.awayScore, 22);
-    assert.equal(next.homeSetsWon, 0, 'set taken back off the winner');
-    assert.deepEqual(next.setScores, []);
-    assertIntegrity(next, 'undoLastSet');
-  });
-
-  it('decrements the away side when away won the popped set', () => {
-    const next = undoLastSet(state({
-      homeSetsWon: 1, awaySetsWon: 1,
-      setScores: [{ set: 1, home: 25, away: 20 }, { set: 2, home: 22, away: 25 }],
-    }))!;
-    assert.equal(next.homeSetsWon, 1, 'home keeps its set');
-    assert.equal(next.awaySetsWon, 0);
-    assert.equal(next.homeScore, 22);
-    assert.equal(next.awayScore, 25);
-    assert.deepEqual(next.setScores, [{ set: 1, home: 25, away: 20 }]);
-    assertIntegrity(next, 'undoLastSet away');
-  });
-
-  it('un-completes a match whose final set is undone', () => {
-    const next = undoLastSet(state({
-      homeSetsWon: 3, awaySetsWon: 1,
-      status: 'COMPLETED',
-      setScores: [
-        { set: 1, home: 25, away: 20 },
-        { set: 2, home: 20, away: 25 },
-        { set: 3, home: 25, away: 18 },
-        { set: 4, home: 25, away: 22 },
-      ],
-    }))!;
-    assert.equal(next.homeSetsWon, 2);
-    assert.equal(next.status, 'IN_PROGRESS', 'match reopens when the winning set is undone');
-    assert.equal(next.homeScore, 25);
-    assert.equal(next.awayScore, 22);
-    assertIntegrity(next, 'undoLastSet un-complete');
-  });
-
-  it('leaves an already in-progress match in progress', () => {
-    const next = undoLastSet(state({
-      homeSetsWon: 1, awaySetsWon: 0,
-      status: 'IN_PROGRESS',
-      setScores: [{ set: 1, home: 25, away: 20 }],
-    }))!;
-    assert.equal(next.status, 'IN_PROGRESS');
-  });
-
-  it('round-trips with completeSet', () => {
-    const before = state({
-      homeScore: 25, awayScore: 22,
-      homeSetsWon: 1, awaySetsWon: 1,
-      setScores: [{ set: 1, home: 25, away: 20 }, { set: 2, home: 20, away: 25 }],
-    });
-    const after = undoLastSet(completeSet(before, 'home'))!;
-    assert.equal(after.homeScore, before.homeScore, 'score restored');
-    assert.equal(after.awayScore, before.awayScore);
-    assert.equal(after.homeSetsWon, before.homeSetsWon, 'sets restored');
-    assert.equal(after.awaySetsWon, before.awaySetsWon);
-    assert.deepEqual(after.setScores, before.setScores, 'history restored');
-  });
-
-  it('never drives a set count below zero', () => {
-    // Defensive: inconsistent legacy row claiming a set win it never banked.
-    const next = undoLastSet(state({
-      homeSetsWon: 0, awaySetsWon: 0,
-      setScores: [{ set: 1, home: 25, away: 20 }],
-    }))!;
-    assert.equal(next.homeSetsWon, 0);
-    assert.equal(next.awaySetsWon, 0);
   });
 });
 
