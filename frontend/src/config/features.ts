@@ -26,6 +26,9 @@ export const features = {
 
   // Match momentum timeline charts.
   momentum: false,
+
+  // Team chat — one shared channel per team (polled).
+  teamChat: true,
 } as const;
 
 export type FeatureFlag = keyof typeof features;

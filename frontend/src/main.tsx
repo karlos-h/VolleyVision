@@ -35,6 +35,7 @@ import ResultsPage from './pages/ResultsPage';
 import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 import LeagueSeasonRankingsPage from './pages/LeagueSeasonRankingsPage';
 import MatchCentrePage from './pages/MatchCentrePage';
+import TeamChatPage from './pages/TeamChatPage';
 
 // Backward-compat redirect: live tracking moved under the shared match shell at
 // /matches/:matchId/track. Old bookmarks to /track/:matchId land here.
@@ -89,6 +90,9 @@ function App() {
               <Route path="/teams/:teamId" element={<TeamDetailPage />} />
               <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
               <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
+              {features.teamChat && (
+                <Route path="/teams/:teamId/chat" element={<TeamChatPage />} />
+              )}
               <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
               <Route path="/matches/:matchId/events" element={<MatchEventsPage />} />
               <Route path="/matches/:matchId/track" element={<TrackingPage />} />

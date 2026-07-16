@@ -235,6 +235,22 @@ export const videosApi = {
   deleteTimestamp: (timestampId: string) => api.delete(`/timestamps/${timestampId}`),
 };
 
+// ─── Team Chat (foundation) ───────────────────────────────────────────────────
+import type { ChatChannel, ChatMessage } from '../types';
+
+export const chatApi = {
+  getChannel: (teamId: string) =>
+    api.get<ChatChannel>(`/teams/${teamId}/channel`).then((r) => r.data),
+  listMessages: (channelId: string, params?: { limit?: number; before?: string; after?: string }) =>
+    api.get<ChatMessage[]>(`/channels/${channelId}/messages`, { params }).then((r) => r.data),
+  postMessage: (channelId: string, body: string) =>
+    api.post<ChatMessage>(`/channels/${channelId}/messages`, { body }).then((r) => r.data),
+  editMessage: (messageId: string, body: string) =>
+    api.patch<ChatMessage>(`/messages/${messageId}`, { body }).then((r) => r.data),
+  deleteMessage: (messageId: string) =>
+    api.delete<ChatMessage>(`/messages/${messageId}`).then((r) => r.data),
+};
+
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────
 export const membershipsApi = {
   listByTeam: (teamId: string) =>

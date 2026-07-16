@@ -212,6 +212,49 @@ export interface AuthResponse {
   user: User;
 }
 
+// ─── Team Chat (foundation) ───────────────────────────────────────────────────
+
+export interface ChatChannel {
+  id: string;
+  type: 'TEAM' | 'DIRECT';
+  teamId: string;
+  name: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatSender {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profileImage: string | null;
+}
+
+export interface ChatAttachment {
+  id: string;
+  kind: 'IMAGE' | 'FILE';
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  signedUrl?: string; // minted per read (slice 4)
+}
+
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  senderId: string | null; // null = former member
+  sender: ChatSender | null;
+  body: string | null; // null = tombstone ("message deleted")
+  attachments: ChatAttachment[];
+  editedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  /** Client-only delivery state for optimistic sends; absent on server messages. */
+  sendState?: 'sending' | 'failed';
+}
+
 export type Position =
   | 'SETTER'
   | 'OUTSIDE_HITTER'
