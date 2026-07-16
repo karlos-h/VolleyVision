@@ -23,6 +23,8 @@ export enum Permission {
   VIEW_ANALYTICS  = 'VIEW_ANALYTICS',
   VIEW_REPORTS    = 'VIEW_REPORTS',
   VIEW_TEAM       = 'VIEW_TEAM',
+  // Team Chat — post to the team channel. Every role except VIEWER (read-only).
+  POST_MESSAGE    = 'POST_MESSAGE',
 }
 
 // ─── Role → permission map ────────────────────────────────────────────────────
@@ -40,6 +42,7 @@ const HEAD_COACH_PERMISSIONS = [
   Permission.VIEW_ANALYTICS,
   Permission.VIEW_REPORTS,
   Permission.VIEW_TEAM,
+  Permission.POST_MESSAGE,
 ];
 
 const ROLE_PERMISSIONS: Record<string, Set<Permission>> = {
@@ -55,17 +58,20 @@ const ROLE_PERMISSIONS: Record<string, Set<Permission>> = {
     Permission.VIEW_ANALYTICS,
     Permission.VIEW_REPORTS,
     Permission.VIEW_TEAM,
+    Permission.POST_MESSAGE,
   ]),
   STATISTICIAN: new Set([
     Permission.TRACK_MATCH,
     Permission.VIEW_ANALYTICS,
     Permission.VIEW_REPORTS,
     Permission.VIEW_TEAM,
+    Permission.POST_MESSAGE,
   ]),
   PLAYER: new Set([
     Permission.VIEW_ANALYTICS,
     Permission.VIEW_REPORTS,
     Permission.VIEW_TEAM,
+    Permission.POST_MESSAGE,
   ]),
   VIEWER: new Set([
     Permission.VIEW_ANALYTICS,
@@ -119,6 +125,17 @@ export async function hasTeamPermission(
 export async function isApprovalAuthority(userId: string, teamId: string): Promise<boolean> {
   const { role, isOwner } = await getUserTeamRole(userId, teamId);
   return isOwner || role === 'HEAD_COACH' || role === 'MANAGER';
+}
+
+/**
+ * Chat moderation — who may soft-delete ANY message in a team channel (authors
+ * can always delete their own). Approval authorities (owner / HEAD_COACH /
+ * MANAGER) plus global ADMIN.
+ */
+export async function canModerateChannel(userId: string, teamId: string): Promise<boolean> {
+  if (await isApprovalAuthority(userId, teamId)) return true;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  return user?.role === 'ADMIN';
 }
 
 // ─── Per-member access tiers (Iteration 3) ────────────────────────────────────

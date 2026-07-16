@@ -83,6 +83,27 @@ export function requireMatchAccess(category: AccessCategory) {
   };
 }
 
+// ─── Channel-context middleware (Team Chat) ───────────────────────────────────
+
+/**
+ * Looks up the channel by `req.params.channelId`, resolves its teamId, then
+ * checks the team permission. TEAM-channel membership is implicit (= the
+ * caller's TeamMembership) — no ChannelMember row is required.
+ */
+export function requireChannelPermission(permission: Permission) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) { res.status(401).json({ error: 'Authentication required.' }); return; }
+    const channel = await prisma.channel.findUnique({
+      where: { id: req.params.channelId },
+      select: { teamId: true },
+    });
+    if (!channel) { res.status(404).json({ error: 'Channel not found.' }); return; }
+    const allowed = await hasTeamPermission(req.user.userId, channel.teamId, permission);
+    if (!allowed) { res.status(403).json(FORBIDDEN); return; }
+    next();
+  };
+}
+
 // ─── Match-context middleware ─────────────────────────────────────────────────
 
 /**
