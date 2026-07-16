@@ -96,8 +96,17 @@ export async function createTeam(req: Request, res: Response, next: NextFunction
 
     // The creator owns the team. This is what makes Team.ownerId safe to be
     // non-nullable — every team has an owner from the moment it exists.
+    // The nested create gives every team its single TEAM chat channel in the
+    // same transaction (getOrCreateTeamChannel self-heals if it's ever missing).
     const team = await prisma.team.create({
-      data: { name, division, season, ownerId: req.user.userId, leagueSeasonId: leagueSeasonId || null },
+      data: {
+        name,
+        division,
+        season,
+        ownerId: req.user.userId,
+        leagueSeasonId: leagueSeasonId || null,
+        channels: { create: { type: 'TEAM' } },
+      },
       include: { owner: { select: ownerSelect }, leagueSeason: leagueSeasonInclude },
     });
     // Give the owner a HEAD_COACH membership so team-scoped reads and the

@@ -117,6 +117,30 @@ enum InvitationStatus {
   EXPIRED
 }
 
+// ─── Team Chat (FOUNDATION) ───────────────────────────────────────────────────
+//
+// FOUNDATION ONLY (2026-07). One shared TEAM channel per team; text + image/file
+// attachments; polled (no realtime yet). Schema is deliberately shaped so the
+// later work — direct messages, multiple channels, reactions, threads — is
+// additive, not a rewrite:
+//   - Channel.type distinguishes TEAM from a future DIRECT channel.
+//   - ChannelMember exists so DMs/private channels have an explicit membership
+//     list; for a TEAM channel, membership is implicit (= TeamMembership) and
+//     ChannelMember rows are NOT created. Read code must treat "TEAM channel +
+//     caller is a team member" as authorized without needing a ChannelMember row.
+//   - Messages are SOFT-deleted (deletedAt) — never hard-deleted — so moderation
+//     leaves an audit trail and the timeline stays stable.
+
+enum ChannelType {
+  TEAM     // the single shared team channel (foundation)
+  DIRECT   // reserved: 1:1 / small-group DM (not built yet)
+}
+
+enum AttachmentKind {
+  IMAGE    // jpg/png/webp/gif — gets a thumbnail
+  FILE     // pdf/doc/etc. — generic, no thumbnail
+}
+
 // Stabilization Pass 2 — Head-coach approval queue
 enum ApprovalAction {
   PLAYER_CREATE
@@ -188,6 +212,10 @@ model User {
   // Phase 5 Sprint 5 — Player link
   playerRecords Player[]
 
+  // Team Chat foundation
+  sentMessages   Message[]       @relation("MessageSender")
+  channelMembers ChannelMember[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -231,6 +259,9 @@ model Team {
 
   // Stabilization Pass 2 — Approval queue
   approvalRequests ApprovalRequest[]
+
+  // Team Chat foundation
+  channels    Channel[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -544,6 +575,110 @@ model Event {
   @@index([recordedAt])
 
   @@map("events")
+}
+
+// ─── Team Chat (FOUNDATION) — models ────────────────────────────────────────────
+
+model Channel {
+  id        String      @id @default(cuid())
+  type      ChannelType @default(TEAM)
+
+  // TEAM channels belong to exactly one team. (A future DIRECT channel may set
+  // teamId when scoped to a team, or leave conventions to the DM work.)
+  teamId    String      @map("team_id")
+  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  name      String?     // null for the implicit team channel; used once multiple channels exist
+
+  messages  Message[]
+  members   ChannelMember[]  // unused for TEAM channels (implicit membership)
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // One TEAM channel per team. NOTE: this also means at most one DIRECT channel
+  // per (teamId, type) — the DM work will need a different uniqueness strategy
+  // (e.g. keyed by member pair) and should replace this constraint then.
+  @@unique([teamId, type])
+  @@index([teamId])
+  @@map("channels")
+}
+
+// Reserved for DIRECT channels / private sub-channels. NOT populated for the
+// foundation's TEAM channel — do not require a row here to authorize team chat.
+model ChannelMember {
+  id        String   @id @default(cuid())
+  channelId String   @map("channel_id")
+  userId    String   @map("user_id")
+
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Reserved for future unread badges — updated when the user opens the channel.
+  lastReadAt DateTime? @map("last_read_at")
+
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@map("channel_members")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  channelId String   @map("channel_id")
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // Author. Kept even if the user later leaves the team (SetNull) so history is
+  // preserved; render as "former member" when null.
+  senderId  String?  @map("sender_id")
+  sender    User?    @relation("MessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  // Body is nullable so an attachment-only message is valid. API must reject a
+  // message that has neither body text nor at least one attachment.
+  body      String?
+
+  attachments MessageAttachment[]
+
+  // Edit + soft-delete audit trail.
+  editedAt        DateTime? @map("edited_at")
+  deletedAt       DateTime? @map("deleted_at")
+  deletedByUserId String?   @map("deleted_by_user_id")  // author OR a moderator
+
+  createdAt DateTime @default(now())
+
+  // Timeline + pagination: order by (createdAt, id). createdAt is server-set
+  // (default now()), so it is monotonic per server; id breaks ties. If a future
+  // phase needs a strict total order under heavy concurrent writes, add an
+  // autoincrement seq column and paginate on that instead.
+  @@index([channelId, createdAt])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id        String         @id @default(cuid())
+  messageId String         @map("message_id")
+  message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  kind      AttachmentKind
+
+  // Supabase Storage object path (NOT a public URL). Signed URLs are minted on
+  // read. Mirrors the existing Video model's filePath/mimeType convention.
+  storagePath String       @map("storage_path")
+  fileName    String       @map("file_name")   // original filename for display/download
+  mimeType    String       @map("mime_type")
+  sizeBytes   Int          @map("size_bytes")
+
+  // Populated for IMAGE only.
+  width       Int?
+  height      Int?
+
+  uploadedByUserId String   @map("uploaded_by_user_id")
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@map("message_attachments")
 }
 
 // ─── Iteration 3 — Training sessions (foundation only) ─────────────────────────
