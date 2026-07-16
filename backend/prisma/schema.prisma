@@ -408,6 +408,13 @@ model Match {
   homeSetsWon  Int         @default(0) @map("home_sets_won")
   awaySetsWon  Int         @default(0) @map("away_sets_won")
 
+  // Set to true by a manual set operation (End Set / Undo Set / Reset Match).
+  // Those declare set boundaries that the event timeline cannot reproduce, so
+  // once set, recalculateMatchState stops rebuilding set state from a replay —
+  // otherwise the next Undo Event would silently erase the override. See
+  // services/matchState.service.ts.
+  manualScoreOverride Boolean @default(false) @map("manual_score_override")
+
   team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId      String      @map("team_id")
 

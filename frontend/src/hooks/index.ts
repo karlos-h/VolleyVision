@@ -220,6 +220,33 @@ export function useResetSetScore(matchId: string) {
   });
 }
 
+// Manual set overrides. Unlike a plain score tap, these can complete or reopen
+// the match and rewrite its set history, so they also refresh the analytics and
+// match-list caches the way useUpdateMatch does.
+function useSetOverride(matchId: string, mutationFn: () => Promise<Match>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['match', matchId] });
+      qc.invalidateQueries({ queryKey: ['analytics', 'match', matchId] });
+      qc.invalidateQueries({ queryKey: ['matches'] });
+    },
+  });
+}
+
+export function useEndSet(matchId: string) {
+  return useSetOverride(matchId, () => matchesApi.endSet(matchId));
+}
+
+export function useUndoSet(matchId: string) {
+  return useSetOverride(matchId, () => matchesApi.undoSet(matchId));
+}
+
+export function useResetMatch(matchId: string) {
+  return useSetOverride(matchId, () => matchesApi.resetMatch(matchId));
+}
+
 // ─── Events ───────────────────────────────────────────────────────────────────
 export function useEvents(matchId: string, setNumber?: number) {
   return useQuery({

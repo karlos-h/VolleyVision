@@ -7,6 +7,9 @@ import {
   deleteMatch,
   updateScore,
   resetSetScore,
+  endSet,
+  undoSet,
+  resetMatch,
 } from '../controllers/matches';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { requireMatchPermission, requireMatchAccess } from '../middleware/permissions';
@@ -39,6 +42,11 @@ router.post('/', requireAuth, requireCreateMatch, createMatch);
 router.patch('/:id', requireAuth, requireMatchAccess('match'), updateMatch);
 router.patch('/:id/score', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), updateScore);
 router.post('/:id/score/reset', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), resetSetScore);
+// Manual set overrides — same untiered live-tracking permission as the score
+// updates above, since they're all real-time courtside actions.
+router.post('/:id/score/end-set', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), endSet);
+router.post('/:id/score/undo-set', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), undoSet);
+router.post('/:id/score/reset-match', requireAuth, requireMatchPermission(Permission.TRACK_MATCH), resetMatch);
 router.delete('/:id', requireAuth, requireMatchAccess('match'), deleteMatch);
 
 export default router;

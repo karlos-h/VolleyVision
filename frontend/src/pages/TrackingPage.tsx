@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useHasPermission } from '../hooks';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useEndSet, useUndoSet, useResetMatch, useHasPermission } from '../hooks';
 import type { EventType, Player, Position } from '../types';
 import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
 import type { EventMeta } from '../types';
 import clsx from 'clsx';
 import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
 import MatchPageHeader from '../components/ui/MatchPageHeader';
+import LiveScoreboard from '../components/scoreboard/LiveScoreboard';
+import type { ScoreSide } from '../components/scoreboard/LiveScoreboard';
 
 // Event buttons grouped by category for the tablet layout
 const CATEGORIES = [
@@ -72,6 +74,9 @@ export default function TrackingPage() {
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
+  const endSet = useEndSet(matchId!);
+  const undoSet = useUndoSet(matchId!);
+  const resetMatch = useResetMatch(matchId!);
   // Track is offered only to those who can track a live match (players never
   // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
   const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
@@ -163,6 +168,44 @@ export default function TrackingPage() {
     }
   }
 
+  // The scoreboard reports a delta; the score API takes absolutes.
+  function handleScore(side: ScoreSide, delta: number) {
+    const current = (side === 'home' ? match?.homeScore : match?.awayScore) ?? 0;
+    const next = Math.max(0, current + delta);
+    updateScore.mutate(side === 'home' ? { homeScore: next } : { awayScore: next });
+  }
+
+  async function handleEndSet() {
+    try {
+      await endSet.mutateAsync();
+      showFlash('Set ended', true);
+    } catch {
+      showFlash("Couldn't end the set", false);
+    }
+  }
+
+  async function handleUndoSet() {
+    try {
+      await undoSet.mutateAsync();
+      showFlash('Set undone', true);
+    } catch {
+      showFlash('No set to undo', false);
+    }
+  }
+
+  // The most destructive action on this screen — wipes every set and the whole
+  // score history, not just the current set. Same confirm pattern as above.
+  async function handleResetMatch() {
+    if (!confirm('Reset the ENTIRE match? Every set score and set won will be cleared. This cannot be undone.')) return;
+    try {
+      await resetMatch.mutateAsync();
+      setCurrentSet(1);
+      showFlash('Match reset', true);
+    } catch {
+      showFlash("Couldn't reset the match", false);
+    }
+  }
+
   if (isLoading) return <p className="text-grey-600">Loading match…</p>;
 
   if (!match) {
@@ -180,6 +223,16 @@ export default function TrackingPage() {
 
   const recentEvents = [...(events ?? [])].reverse().slice(0, 6);
   const players = match.team?.players ?? [];
+
+  // One in-flight score mutation is enough to freeze the board's controls —
+  // double-tapping End Set or Reset Match while a request lands would apply twice.
+  const scoreboardBusy =
+    updateScore.isPending ||
+    resetSetScore.isPending ||
+    endSet.isPending ||
+    undoSet.isPending ||
+    resetMatch.isPending ||
+    undoEvent.isPending;
 
   // Focus mode re-sorts the roster so the most relevant positions surface first
   // (stable — everyone else keeps their original order and stays tappable) and
@@ -223,132 +276,27 @@ export default function TrackingPage() {
       />
 
       {/* ── Live Scoreboard + controls ── */}
-      <div className="card p-4 space-y-3">
-        {/* Control row: set selector + finish-match quick action + undo. The
-            match title/date/status now live in the shared MatchPageHeader. */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Set selector */}
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                onClick={() => setCurrentSet(s)}
-                className={clsx(
-                  'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
-                  currentSet === s
-                    ? 'bg-gold-500 border-gold-500 text-navy-900'
-                    : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200'
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Finish match — a natural real-time action while tracking
-                (IN_PROGRESS → COMPLETED). Completing redirects to Events. */}
-            <button
-              onClick={handleStatusToggle}
-              className={clsx(
-                'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
-                match.status === 'IN_PROGRESS'
-                  ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
-                  : 'bg-grey-50 text-grey-600 border border-grey-200'
-              )}
-            >
-              {match.status === 'IN_PROGRESS' ? '● LIVE' : match.status}
-            </button>
-
-            {/* Undo */}
-            <button
-              onClick={handleUndo}
-              disabled={undoEvent.isPending || !events?.length}
-              className="bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-xs font-medium px-3 py-1.5 rounded-lg border border-grey-200 transition-colors"
-            >
-              ↩ Undo
-            </button>
-          </div>
-        </div>
-
-        {/* A completed match redirects to the Events changelog (Task 6), so the
-            tracker only ever renders a live, in-progress match here. */}
-          <div className="flex items-center justify-between gap-4">
-            {/* Home team */}
-            <div className="flex-1 text-right">
-              <div className="text-sm font-semibold text-grey-900 truncate">{match.team?.name ?? 'Home'}</div>
-              <div className="tabular-nums text-4xl font-bold text-grey-900 leading-none mt-1">{match.homeScore ?? 0}</div>
-              {/* Stacked on narrow viewports so the enlarged buttons don't force
-                  the name/score blocks to wrap; side-by-side from sm up. */}
-              <div className="flex flex-col sm:flex-row items-end sm:items-stretch gap-2 mt-2 justify-end">
-                <button
-                  onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Home −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Home +1"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Centre — sets won + reset (not tied to one side, so it stays centred) */}
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="tabular-nums text-xl font-bold text-navy-700">{match.homeSetsWon ?? 0}</span>
-                <span className="text-grey-600 text-xs font-semibold">Sets</span>
-                <span className="tabular-nums text-xl font-bold text-grey-600">{match.awaySetsWon ?? 0}</span>
-              </div>
-              <div className="text-xs text-grey-600">Set {currentSet}</div>
-
-              {/* Per-set score history */}
-              {Array.isArray(match.setScores) && (match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
-                <div className="flex gap-1 mt-0.5">
-                  {(match.setScores as {set:number;home:number;away:number}[]).map((s) => (
-                    <span key={s.set} className="text-[10px] tabular-nums text-grey-600 bg-grey-50 px-1.5 py-0.5 rounded border border-grey-200">
-                      {s.home}–{s.away}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={handleResetSetScore}
-                className="mt-1 px-3 h-7 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-medium border border-grey-200 transition-colors"
-                title="Reset set score"
-              >
-                Reset Set
-              </button>
-            </div>
-
-            {/* Away team */}
-            <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-grey-900 truncate">{match.opponent}</div>
-              <div className="tabular-nums text-4xl font-bold text-grey-600 leading-none mt-1">{match.awayScore ?? 0}</div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-stretch gap-2 mt-2 justify-start">
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Away −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Away +1"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-      </div>
+      <LiveScoreboard
+        homeName={match.team?.name ?? 'Home'}
+        awayName={match.opponent}
+        homeScore={match.homeScore ?? 0}
+        awayScore={match.awayScore ?? 0}
+        homeSetsWon={match.homeSetsWon ?? 0}
+        awaySetsWon={match.awaySetsWon ?? 0}
+        setScores={Array.isArray(match.setScores) ? match.setScores : []}
+        status={match.status}
+        currentSet={currentSet}
+        onSelectSet={setCurrentSet}
+        onScore={handleScore}
+        onEndSet={handleEndSet}
+        onUndoSet={handleUndoSet}
+        onResetSet={handleResetSetScore}
+        onResetMatch={handleResetMatch}
+        onToggleStatus={handleStatusToggle}
+        onUndoEvent={handleUndo}
+        canUndoEvent={!!events?.length}
+        busy={scoreboardBusy}
+      />
 
       {/* ── Main ── */}
       <div className="space-y-4">

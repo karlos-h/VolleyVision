@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion } from '../lib/scoring';
 import { scoringTeam } from '../lib/scoringRules';
-import { recalculateMatchState } from '../services/matchState.service';
+import { applyEventRemoval } from '../services/matchState.service';
 
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
@@ -104,7 +104,7 @@ export async function deleteLastEvent(req: Request, res: Response, next: NextFun
     if (!latest) throw new AppError(404, 'No events to undo.');
     await prisma.event.delete({ where: { id: latest.id } });
     // matchId is guaranteed here (queried by matchId); guard for the nullable type.
-    if (latest.matchId) await recalculateMatchState(latest.matchId);
+    if (latest.matchId) await applyEventRemoval(latest.matchId, latest);
     res.json({ deleted: latest.id });
   } catch (err) {
     next(err);
@@ -118,7 +118,7 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
     if (!event) throw new AppError(404, 'Event not found.');
     await prisma.event.delete({ where: { id: event.id } });
     // Only match events affect match state; training events (matchId null) don't.
-    if (event.matchId) await recalculateMatchState(event.matchId);
+    if (event.matchId) await applyEventRemoval(event.matchId, event);
     res.status(204).send();
   } catch (err) {
     next(err);
