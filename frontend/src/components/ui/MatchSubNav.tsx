@@ -6,7 +6,7 @@ import { NavLink } from 'react-router-dom';
 // can (Iteration 3 Task 6).
 export default function MatchSubNav({ matchId, trackable = false }: { matchId: string; trackable?: boolean }) {
   const tabs = [
-    { to: `/matches/${matchId}/dashboard`, label: 'Match Stats' },
+    { to: `/matches/${matchId}/dashboard`, label: 'Stats' },
     { to: `/matches/${matchId}/events`, label: 'Events' },
     ...(trackable ? [{ to: `/matches/${matchId}/track`, label: 'Track' }] : []),
   ];

@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useTeam, useMatches, useCreateMatch, useUpdateMatch, useDeleteMatch, useHasPermission } from '../hooks';
 import { isPendingApproval, leagueLabel, type Match, type MatchStatus } from '../types';
 import TeamSubNav from '../components/ui/TeamSubNav';
-import { PencilIcon, TrashIcon } from '../components/ui/icons';
+import { PencilIcon } from '../components/ui/icons';
 
 const STATUS_STYLES = {
   SCHEDULED: 'badge-info',
@@ -116,7 +116,7 @@ export default function MatchesPage() {
           <p className="text-grey-600 text-sm mt-0.5">{team?.name}</p>
         </div>
         {canManageMatches && (
-          <button className={showForm ? 'btn-secondary' : 'btn-primary'} onClick={() => (showForm ? setShowForm(false) : openForm())}>
+          <button className={showForm ? 'btn-ghost' : 'btn-primary'} onClick={() => (showForm ? setShowForm(false) : openForm())}>
             {showForm ? 'Cancel' : '+ New match'}
           </button>
         )}
@@ -224,19 +224,20 @@ export default function MatchesPage() {
                 </p>
               </div>
 
-              <div className="text-right shrink-0" onClick={(e) => e.stopPropagation()}>
-                <div className="text-xs text-grey-500 tabular-nums">{match._count?.events ?? 0} events</div>
-                <div className="flex gap-2 mt-1 justify-end">
-                  <Link to={`/matches/${match.id}/dashboard`} className="btn-secondary text-sm py-1.5 px-3">Match Stats</Link>
-                  <Link to={`/matches/${match.id}/events`} className="btn-secondary text-sm py-1.5 px-3">Events</Link>
+              {/* Every control here is an explicit h-9 so the text buttons and the
+                  icon button resolve to the same 36px height and sit level. */}
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="flex gap-2 justify-end">
+                  <Link to={`/matches/${match.id}/dashboard`} className="btn-ghost text-sm px-3 h-9 inline-flex items-center">Stats</Link>
+                  <Link to={`/matches/${match.id}/events`} className="btn-ghost text-sm px-3 h-9 inline-flex items-center">Events</Link>
 
                   {/* Live tracking: coaches/staff only, and only for a live or startable match. */}
                   {canTrack && match.status === 'IN_PROGRESS' && (
-                    <Link to={`/matches/${match.id}/track`} className="btn-primary text-sm py-1.5 px-3">Track</Link>
+                    <Link to={`/matches/${match.id}/track`} className="btn-primary text-sm px-3 h-9 inline-flex items-center">Track</Link>
                   )}
                   {canTrack && match.status === 'SCHEDULED' && (
                     <button
-                      className="btn-primary text-sm py-1.5 px-3"
+                      className="btn-primary text-sm px-3 h-9 inline-flex items-center"
                       disabled={updateMatch.isPending}
                       onClick={() => startAndTrack(match.id)}
                     >
@@ -252,21 +253,6 @@ export default function MatchesPage() {
                       onClick={() => (editingId === match.id ? setEditingId(null) : openEdit(match))}
                     >
                       <PencilIcon className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {canDeleteMatches && (
-                    <button
-                      className="btn-icon-danger"
-                      title="Delete match"
-                      aria-label={`Delete match vs ${match.opponent}`}
-                      onClick={() => {
-                        if (confirm(`Delete match vs ${match.opponent}? This cannot be undone.`)) {
-                          deleteMatch.mutate({ id: match.id, teamId: teamId! });
-                        }
-                      }}
-                    >
-                      <TrashIcon className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -301,11 +287,29 @@ export default function MatchesPage() {
                       {MATCH_STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
                     </select>
                   </div>
-                  <div className="sm:col-span-2 flex gap-2">
-                    <button type="submit" className="btn-primary" disabled={updateMatch.isPending}>
-                      {updateMatch.isPending ? 'Saving…' : 'Save changes'}
-                    </button>
-                    <button type="button" className="btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
+                  {/* Delete sits opposite Save/Cancel — destructive and less
+                      frequent, so it shouldn't read as equally weighted. */}
+                  <div className="sm:col-span-2 flex items-center justify-between gap-2">
+                    <div className="flex gap-2">
+                      <button type="submit" className="btn-primary" disabled={updateMatch.isPending}>
+                        {updateMatch.isPending ? 'Saving…' : 'Save changes'}
+                      </button>
+                      <button type="button" className="btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
+                    </div>
+                    {canDeleteMatches && (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        aria-label={`Delete match vs ${match.opponent}`}
+                        onClick={() => {
+                          if (confirm(`Delete match vs ${match.opponent}? This cannot be undone.`)) {
+                            deleteMatch.mutate({ id: match.id, teamId: teamId! });
+                          }
+                        }}
+                      >
+                        Delete match
+                      </button>
+                    )}
                   </div>
                 </form>
               </div>

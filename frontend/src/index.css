@@ -116,6 +116,18 @@
            px-5 py-2.5 rounded-xl border border-navy-700 transition-colors;
   }
 
+  /* Tertiary/ghost — quiet nav-style actions that shouldn't compete with the
+     one true CTA in a view (per Brand Guidelines: gold ≤10% of any screen,
+     one gold CTA per view). Text-navy on transparent, subtle border, light
+     fill on hover — for repeated links like per-card Stats/Events, and for
+     Cancel actions that shouldn't visually outweigh the Save/primary button
+     next to them. */
+  .btn-ghost {
+    @apply bg-transparent hover:bg-grey-200 text-navy-700 font-medium
+           px-5 py-2.5 rounded-xl border border-grey-200 transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
+  }
+
   /* Danger button */
   .btn-danger {
     @apply bg-error hover:brightness-90 text-white font-medium

@@ -104,6 +104,12 @@ export default function MatchEventsPage() {
         canTrack={canTrack}
       />
 
+      {/* Total count — moved here off the match card (it's detail, not something
+          the matches list needs to carry on every row). */}
+      {!eventsLoading && totalEventCount > 0 && (
+        <p className="text-xs text-grey-500 tabular-nums text-right">{totalEventCount} events total</p>
+      )}
+
       {/* Filter + sort toolbar — only worth showing once there's something to sift through. */}
       {!eventsLoading && totalEventCount > 0 && (
         <div className="card p-4 flex flex-wrap items-end gap-3">
@@ -167,7 +173,7 @@ export default function MatchEventsPage() {
                   type="button"
                   onClick={() => toggleSet(setNo)}
                   aria-expanded={open}
-                  className="w-full px-5 py-2.5 border-b border-grey-200 bg-grey-50 flex items-center justify-between hover:bg-grey-100 transition-colors"
+                  className="w-full px-5 py-2.5 border-b border-grey-200 bg-grey-50 flex items-center justify-between hover:bg-grey-200 transition-colors"
                 >
                   <h2 className="font-display font-semibold text-grey-900">Set {setNo}</h2>
                   <span className="flex items-center gap-2">
