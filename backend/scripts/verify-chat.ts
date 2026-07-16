@@ -14,18 +14,21 @@ const PASSWORD = 'chat-verify-pass-1';
 
 const prisma = new PrismaClient();
 
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 interface TestUser {
   email: string;
   token: string;
   userId: string;
 }
 
-async function req(method: string, path: string, token?: string, body?: unknown) {
+async function req(method: string, path: string, token?: string, body?: unknown, headers?: Record<string, string>) {
   const res = await fetch(`${API}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -127,10 +130,12 @@ async function main() {
     assert.deepEqual(deleted.attachments, [], 'tombstone attachments empty');
 
     // ── Pagination ───────────────────────────────────────────────────────────
+    // Paced under the per-user rate limit (burst 10, ~2/s sustained).
     const posted: string[] = [];
     for (let i = 1; i <= 8; i++) {
+      await pause(600);
       const r = await req('POST', `/channels/${channelId}/messages`, player.token, { body: `Verify: page ${i}` });
-      assert.equal(r.status, 201);
+      assert.equal(r.status, 201, `pagination post ${i} → ${r.status}`);
       posted.push(r.json.id);
     }
 
@@ -144,11 +149,50 @@ async function main() {
     const delta = await req('GET', `/channels/${channelId}/messages?after=${posted[5]}`, player.token);
     assert.deepEqual(delta.json.map((m: any) => m.id), posted.slice(6), 'after= returns only newer (poll delta)');
 
-    console.log('\n✅ Slice 2 verification passed — all endpoint + permission checks green.');
+    // ── Idempotency (slice 5) ────────────────────────────────────────────────
+    const idemKey = `verify-idem-${Date.now()}`;
+    const idemHeaders = { 'Idempotency-Key': idemKey };
+    const first = await req('POST', `/channels/${channelId}/messages`, coach.token, { body: 'Verify: idempotent send' }, idemHeaders);
+    assert.equal(first.status, 201);
+    const second = await req('POST', `/channels/${channelId}/messages`, coach.token, { body: 'Verify: idempotent send' }, idemHeaders);
+    assert.equal(second.status, 201);
+    assert.equal(second.json.id, first.json.id, 'resend with same key returns the SAME message');
+
+    const raceKey = `verify-race-${Date.now()}`;
+    const [r1, r2] = await Promise.all([
+      req('POST', `/channels/${channelId}/messages`, coach.token, { body: 'Verify: double submit' }, { 'Idempotency-Key': raceKey }),
+      req('POST', `/channels/${channelId}/messages`, coach.token, { body: 'Verify: double submit' }, { 'Idempotency-Key': raceKey }),
+    ]);
+    assert.equal(r1.json.id, r2.json.id, 'concurrent double-submit collapses to one message');
+    const dupes = await prisma.message.count({ where: { channelId, clientKey: raceKey } });
+    assert.equal(dupes, 1, 'exactly one row for the raced key');
+
+    // ── Moderation audit trail (slice 5) ─────────────────────────────────────
+    const modAudit = await prisma.auditLog.findFirst({
+      where: { action: 'message.delete', resourceId: playerMsg2.json.id, userId: coach.userId },
+    });
+    assert.ok(modAudit, 'moderator delete is audit-logged');
+    assert.equal((modAudit!.meta as any).moderator, true, 'audit meta marks moderator');
+    const selfAudit = await prisma.auditLog.findFirst({
+      where: { action: 'message.delete', resourceId: playerMsg.json.id },
+    });
+    assert.equal(selfAudit, null, 'author self-delete is NOT audited');
+
+    // ── Rate limiting (slice 5) ──────────────────────────────────────────────
+    const flood = await Promise.all(
+      Array.from({ length: 15 }, (_, i) =>
+        req('POST', `/channels/${channelId}/messages`, coach.token, { body: `Verify: flood ${i}` }),
+      ),
+    );
+    const tooMany = flood.filter((r) => r.status === 429).length;
+    assert.ok(tooMany >= 1, `flood of 15 should trip the limiter (got ${tooMany} × 429)`);
+
+    console.log('\n✅ Chat verification passed — endpoints, permissions, pagination, idempotency, audit, rate limit.');
   } finally {
     // ── Cleanup: everything this script created ──────────────────────────────
     const ids = users.map((u) => u.userId);
     await prisma.message.deleteMany({ where: { senderId: { in: ids } } });
+    await prisma.auditLog.deleteMany({ where: { userId: { in: ids } } });
     await prisma.teamMembership.deleteMany({ where: { userId: { in: ids }, teamId: TEAM_ID } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     console.log('🧹 Cleaned up verification users, memberships, and messages.');

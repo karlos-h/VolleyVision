@@ -127,13 +127,42 @@ export async function listMessages(channelId: string, opts: ListMessagesOptions 
   return withSignedUrls(rows.map(serializeMessage));
 }
 
-export async function postMessage(channelId: string, senderId: string, rawBody: unknown) {
-  const body = requireValidBody(rawBody);
-  const message = await prisma.message.create({
-    data: { channelId, senderId, body },
+/** Resend with a known Idempotency-Key → the existing message, not a duplicate. */
+async function findByClientKey(channelId: string, clientKey: string) {
+  const existing = await prisma.message.findUnique({
+    where: { channelId_clientKey: { channelId, clientKey } },
     include: messageInclude,
   });
-  return serializeMessage(message);
+  if (!existing) return null;
+  const [dto] = await withSignedUrls([serializeMessage(existing)]);
+  return dto;
+}
+
+export async function postMessage(
+  channelId: string,
+  senderId: string,
+  rawBody: unknown,
+  clientKey?: string | null,
+) {
+  const body = requireValidBody(rawBody);
+  if (clientKey) {
+    const existing = await findByClientKey(channelId, clientKey);
+    if (existing) return existing;
+  }
+  try {
+    const message = await prisma.message.create({
+      data: { channelId, senderId, body, clientKey: clientKey ?? null },
+      include: messageInclude,
+    });
+    return serializeMessage(message);
+  } catch (err) {
+    // Two racing sends with the same key: the loser reads the winner's row.
+    if (clientKey && err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const existing = await findByClientKey(channelId, clientKey);
+      if (existing) return existing;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -148,6 +177,7 @@ export async function postMessageWithAttachments(
   senderId: string,
   rawBody: unknown,
   files: Express.Multer.File[],
+  clientKey?: string | null,
 ) {
   // Body is optional on an upload — but when present it obeys the text rules.
   let body: string | null = null;
@@ -159,6 +189,12 @@ export async function postMessageWithAttachments(
   }
   if (files.length > MAX_ATTACHMENTS_PER_MESSAGE) {
     throw new AppError(400, `A message can have at most ${MAX_ATTACHMENTS_PER_MESSAGE} attachments.`);
+  }
+
+  // Idempotent retry: bail out BEFORE re-uploading any bytes.
+  if (clientKey) {
+    const existing = await findByClientKey(channelId, clientKey);
+    if (existing) return existing;
   }
 
   const channel = await prisma.channel.findUnique({
@@ -200,6 +236,7 @@ export async function postMessageWithAttachments(
         channelId,
         senderId,
         body,
+        clientKey: clientKey ?? null,
         attachments: {
           create: uploaded.map(({ p, storagePath }) => ({
             kind: p.kind,
@@ -219,6 +256,11 @@ export async function postMessageWithAttachments(
     return dto;
   } catch (err) {
     await deleteObjects(uploaded.map((u) => u.storagePath));
+    // A concurrent retry with the same key won the race — return its message.
+    if (clientKey && err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const existing = await findByClientKey(channelId, clientKey);
+      if (existing) return existing;
+    }
     throw err;
   }
 }
@@ -247,6 +289,8 @@ export async function editMessage(messageId: string, userId: string, rawBody: un
 /**
  * Soft delete — author or moderator. Idempotent: deleting an already-deleted
  * message returns its tombstone unchanged (the original deleter is preserved).
+ * `didDelete` is true only when THIS call performed the delete, so the caller
+ * can audit moderation exactly once.
  */
 export async function softDeleteMessage(messageId: string, userId: string, isModerator: boolean) {
   const existing = await prisma.message.findUnique({
@@ -254,7 +298,7 @@ export async function softDeleteMessage(messageId: string, userId: string, isMod
     include: messageInclude,
   });
   if (!existing) throw new AppError(404, 'Message not found.');
-  if (existing.deletedAt) return serializeMessage(existing);
+  if (existing.deletedAt) return { tombstone: serializeMessage(existing), didDelete: false };
   if (!canDeleteMessage(existing, userId, isModerator)) {
     throw new AppError(403, 'You can only delete your own messages.');
   }
@@ -264,5 +308,5 @@ export async function softDeleteMessage(messageId: string, userId: string, isMod
     data: { deletedAt: new Date(), deletedByUserId: userId },
     include: messageInclude,
   });
-  return serializeMessage(message);
+  return { tombstone: serializeMessage(message), didDelete: true };
 }

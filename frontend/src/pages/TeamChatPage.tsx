@@ -43,6 +43,7 @@ export default function TeamChatPage() {
     loadOlder,
     isLoadingOlder,
     hasMoreOlder,
+    refreshLatest,
   } = useMessages(channel?.id);
   const { send, retry, discardFailed } = usePostMessage(channel?.id);
   const { sendWithFiles, retryUpload, discardUpload, ownsTempId } = useUploadMessage(channel?.id);
@@ -88,6 +89,7 @@ export default function TeamChatPage() {
             // Failed sends route back to whichever hook created them.
             onRetry={(tempId) => (ownsTempId(tempId) ? retryUpload(tempId) : retry(tempId))}
             onDiscardFailed={(tempId) => (ownsTempId(tempId) ? discardUpload(tempId) : discardFailed(tempId))}
+            onStaleAttachment={refreshLatest}
           />
         )}
 

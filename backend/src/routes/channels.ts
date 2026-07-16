@@ -6,6 +6,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
+import { chatPostRateLimit } from '../middleware/chatRateLimit';
 import { requireChannelPermission, requireTeamPermission } from '../middleware/permissions';
 import { Permission } from '../services/permission.service';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_FILE_BYTES } from '../services/chatStorage.service';
@@ -60,12 +61,14 @@ router.get(
 router.post(
   '/channels/:channelId/messages',
   requireAuth,
+  chatPostRateLimit,
   requireChannelPermission(Permission.POST_MESSAGE),
   postChannelMessage,
 );
 router.post(
   '/channels/:channelId/messages/upload',
   requireAuth,
+  chatPostRateLimit,
   requireChannelPermission(Permission.POST_MESSAGE),
   upload.array('files', MAX_ATTACHMENTS_PER_MESSAGE),
   handleMulterError,

@@ -257,6 +257,8 @@ export interface ChatMessage {
   sendState?: 'sending' | 'failed';
   /** Client-only upload progress (0–100) while an attachment message sends. */
   uploadProgress?: number;
+  /** Client-only server rejection message for a failed send (e.g. rate limit). */
+  sendError?: string;
 }
 
 export type Position =

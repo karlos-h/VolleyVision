@@ -19,6 +19,15 @@ import {
   canModerateChannel,
   hasTeamPermission,
 } from '../services/permission.service';
+import { logAudit } from '../lib/audit';
+
+/** Optional duplicate-send protection: sanitized Idempotency-Key header or null. */
+function idempotencyKey(req: Request): string | null {
+  const raw = req.get('Idempotency-Key');
+  if (!raw) return null;
+  const key = raw.trim();
+  return key.length > 0 && key.length <= 128 ? key : null;
+}
 
 export async function getTeamChannel(req: Request, res: Response, next: NextFunction) {
   try {
@@ -46,7 +55,12 @@ export async function listChannelMessages(req: Request, res: Response, next: Nex
 export async function postChannelMessage(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new AppError(401, 'Authentication required.');
-    const message = await postMessage(req.params.channelId, req.user.userId, req.body?.body);
+    const message = await postMessage(
+      req.params.channelId,
+      req.user.userId,
+      req.body?.body,
+      idempotencyKey(req),
+    );
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -63,6 +77,7 @@ export async function uploadChannelMessage(req: Request, res: Response, next: Ne
       req.user.userId,
       req.body?.body,
       files,
+      idempotencyKey(req),
     );
     res.status(201).json(message);
   } catch (err) {
@@ -105,7 +120,18 @@ export async function deleteMessage(req: Request, res: Response, next: NextFunct
       const member = await hasTeamPermission(req.user.userId, teamId, Permission.VIEW_TEAM);
       if (!member) throw new AppError(403, 'You do not have permission to perform this action.');
     }
-    const tombstone = await softDeleteMessage(req.params.messageId, req.user.userId, isModerator);
+    const { tombstone, didDelete } = await softDeleteMessage(
+      req.params.messageId,
+      req.user.userId,
+      isModerator,
+    );
+    // Moderation leaves an audit trail; author self-deletes don't.
+    if (didDelete && isModerator && tombstone.senderId !== req.user.userId) {
+      logAudit(req.user.userId, 'message.delete', 'message', tombstone.id, {
+        channelId: tombstone.channelId,
+        moderator: true,
+      });
+    }
     res.json(tombstone);
   } catch (err) {
     next(err);

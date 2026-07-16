@@ -17,7 +17,13 @@ export function formatMessageTime(iso: string): string {
   return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-function AttachmentView({ attachment }: { attachment: ChatAttachment }) {
+function AttachmentView({
+  attachment,
+  onImageError,
+}: {
+  attachment: ChatAttachment;
+  onImageError?: () => void;
+}) {
   if (attachment.kind === 'IMAGE') {
     if (!attachment.signedUrl) {
       return (
@@ -32,6 +38,9 @@ function AttachmentView({ attachment }: { attachment: ChatAttachment }) {
           src={attachment.signedUrl}
           alt={attachment.fileName}
           loading="lazy"
+          // A 403 here usually means the signed URL expired in a long-idle
+          // tab — the handler refetches the page for fresh URLs.
+          onError={onImageError}
           // Stored dimensions reserve the box before the bytes arrive — no layout shift.
           style={
             attachment.width && attachment.height
@@ -88,6 +97,8 @@ interface MessageItemProps {
   onDelete: (messageId: string) => void;
   onRetry: (tempId: string) => void;
   onDiscardFailed: (tempId: string) => void;
+  /** An <img> failed to load — likely an expired signed URL; refetch fresh ones. */
+  onStaleAttachment?: () => void;
 }
 
 export default function MessageItem({
@@ -99,6 +110,7 @@ export default function MessageItem({
   onDelete,
   onRetry,
   onDiscardFailed,
+  onStaleAttachment,
 }: MessageItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -176,7 +188,11 @@ export default function MessageItem({
             {message.attachments.length > 0 && (
               <div className={`flex flex-wrap gap-2 mt-1.5 ${isSending ? 'opacity-70' : ''}`}>
                 {message.attachments.map((a) => (
-                  <AttachmentView key={a.id} attachment={a} />
+                  <AttachmentView
+                    key={a.id}
+                    attachment={a}
+                    onImageError={message.sendState ? undefined : onStaleAttachment}
+                  />
                 ))}
               </div>
             )}
@@ -196,7 +212,9 @@ export default function MessageItem({
 
         {isFailed && (
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-error font-medium">Failed to send</span>
+            <span className="text-xs text-error font-medium">
+              {message.sendError ? `Couldn't send — ${message.sendError}` : 'Failed to send'}
+            </span>
             <button className="text-xs font-semibold text-navy-700 hover:underline" onClick={() => onRetry(message.id)}>
               Retry
             </button>

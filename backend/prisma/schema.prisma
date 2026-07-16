@@ -645,12 +645,19 @@ model Message {
   deletedAt       DateTime? @map("deleted_at")
   deletedByUserId String?   @map("deleted_by_user_id")  // author OR a moderator
 
+  // Duplicate-send protection (slice 5). The client mints a key per composed
+  // message and reuses it on retry; a resend with a known key returns the
+  // existing message instead of creating a duplicate. Null for non-idempotent
+  // sends (nulls don't collide in the unique index).
+  clientKey String? @map("client_key")
+
   createdAt DateTime @default(now())
 
   // Timeline + pagination: order by (createdAt, id). createdAt is server-set
   // (default now()), so it is monotonic per server; id breaks ties. If a future
   // phase needs a strict total order under heavy concurrent writes, add an
   // autoincrement seq column and paginate on that instead.
+  @@unique([channelId, clientKey])
   @@index([channelId, createdAt])
   @@map("messages")
 }

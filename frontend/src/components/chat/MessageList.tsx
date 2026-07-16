@@ -14,6 +14,7 @@ interface MessageListProps {
   onDelete: (messageId: string) => void;
   onRetry: (tempId: string) => void;
   onDiscardFailed: (tempId: string) => void;
+  onStaleAttachment?: () => void;
 }
 
 export default function MessageList({
@@ -28,6 +29,7 @@ export default function MessageList({
   onDelete,
   onRetry,
   onDiscardFailed,
+  onStaleAttachment,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
@@ -118,6 +120,7 @@ export default function MessageList({
           onDelete={onDelete}
           onRetry={onRetry}
           onDiscardFailed={onDiscardFailed}
+          onStaleAttachment={onStaleAttachment}
         />
       ))}
     </div>

@@ -90,6 +90,18 @@ export function useMessages(channelId: string | undefined) {
     },
   });
 
+  // Signed attachment URLs expire (~1h). When an image 403s in a long-idle
+  // tab, refetch the newest page (debounced) to mint fresh URLs.
+  const lastUrlRefresh = useRef(0);
+  const refreshLatest = useCallback(async () => {
+    if (!channelId) return;
+    const now = Date.now();
+    if (now - lastUrlRefresh.current < 5000) return;
+    lastUrlRefresh.current = now;
+    const latest = await chatApi.listMessages(channelId, { limit: PAGE_SIZE });
+    qc.setQueryData<ChatMessage[]>(messagesKey(channelId), (cur = []) => mergeServer(cur, latest));
+  }, [channelId, qc]);
+
   /** Page older history in (scroll-up / "load older"). */
   const loadOlder = useCallback(async () => {
     if (!channelId || isLoadingOlder) return;
@@ -108,7 +120,12 @@ export function useMessages(channelId: string | undefined) {
     }
   }, [channelId, isLoadingOlder, qc]);
 
-  return { ...query, loadOlder, isLoadingOlder, hasMoreOlder };
+  return { ...query, loadOlder, isLoadingOlder, hasMoreOlder, refreshLatest };
+}
+
+/** User-facing message from an axios error, if the server sent one. */
+function serverErrorMessage(err: unknown): string | undefined {
+  return (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
 }
 
 // ─── Send (optimistic) ────────────────────────────────────────────────────────
@@ -118,7 +135,10 @@ export function usePostMessage(channelId: string | undefined) {
   const { user } = useAuth();
 
   const mutation = useMutation({
-    mutationFn: (vars: { body: string; tempId: string }) => chatApi.postMessage(channelId!, vars.body),
+    // The tempId doubles as the Idempotency-Key: a retry reuses it, so the
+    // server returns the original message if the first attempt actually landed.
+    mutationFn: (vars: { body: string; tempId: string }) =>
+      chatApi.postMessage(channelId!, vars.body, vars.tempId),
     onMutate: ({ body, tempId }) => {
       const optimistic: ChatMessage = {
         id: tempId,
@@ -145,9 +165,13 @@ export function usePostMessage(channelId: string | undefined) {
         mergeServer(cur.filter((m) => m.id !== tempId), [serverMessage]),
       );
     },
-    onError: (_err, { tempId }) => {
+    onError: (err, { tempId }) => {
       qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) =>
-        cur.map((m) => (m.id === tempId ? { ...m, sendState: 'failed' as const } : m)),
+        cur.map((m) =>
+          m.id === tempId
+            ? { ...m, sendState: 'failed' as const, sendError: serverErrorMessage(err) }
+            : m,
+        ),
       );
     },
   });
@@ -212,6 +236,7 @@ export function useUploadMessage(channelId: string | undefined) {
       return chatApi.uploadMessage(channelId!, {
         body: entry.body,
         files: entry.files,
+        idempotencyKey: tempId, // reused on retry → no duplicate message
         onProgress: (percent) => {
           qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) =>
             cur.map((m) => (m.id === tempId ? { ...m, uploadProgress: percent } : m)),
@@ -247,10 +272,12 @@ export function useUploadMessage(channelId: string | undefined) {
         mergeServer(cur.filter((m) => m.id !== tempId), [serverMessage]),
       );
     },
-    onError: (_err, { tempId }) => {
+    onError: (err, { tempId }) => {
       qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) =>
         cur.map((m) =>
-          m.id === tempId ? { ...m, sendState: 'failed' as const, uploadProgress: undefined } : m,
+          m.id === tempId
+            ? { ...m, sendState: 'failed' as const, uploadProgress: undefined, sendError: serverErrorMessage(err) }
+            : m,
         ),
       );
     },

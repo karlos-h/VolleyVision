@@ -243,18 +243,27 @@ export const chatApi = {
     api.get<ChatChannel>(`/teams/${teamId}/channel`).then((r) => r.data),
   listMessages: (channelId: string, params?: { limit?: number; before?: string; after?: string }) =>
     api.get<ChatMessage[]>(`/channels/${channelId}/messages`, { params }).then((r) => r.data),
-  postMessage: (channelId: string, body: string) =>
-    api.post<ChatMessage>(`/channels/${channelId}/messages`, { body }).then((r) => r.data),
+  // idempotencyKey: reused verbatim on retry so a resend after a network blip
+  // returns the already-created message instead of a duplicate.
+  postMessage: (channelId: string, body: string, idempotencyKey?: string) =>
+    api
+      .post<ChatMessage>(`/channels/${channelId}/messages`, { body }, {
+        headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      })
+      .then((r) => r.data),
   uploadMessage: (
     channelId: string,
-    data: { body?: string; files: File[]; onProgress?: (percent: number) => void },
+    data: { body?: string; files: File[]; idempotencyKey?: string; onProgress?: (percent: number) => void },
   ) => {
     const fd = new FormData();
     if (data.body) fd.append('body', data.body);
     for (const file of data.files) fd.append('files', file);
     return api
       .post<ChatMessage>(`/channels/${channelId}/messages/upload`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(data.idempotencyKey ? { 'Idempotency-Key': data.idempotencyKey } : {}),
+        },
         onUploadProgress: (e) => {
           if (data.onProgress && e.total) data.onProgress(Math.round((e.loaded / e.total) * 100));
         },
