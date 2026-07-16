@@ -151,11 +151,13 @@ export async function updateScore(req: Request, res: Response, next: NextFunctio
     const homeDelta = homeScore != null ? Number(homeScore) - existing.homeScore : 0;
     const awayDelta = awayScore != null ? Number(awayScore) - existing.awayScore : 0;
 
+    let adjustmentId: string | null = null;
     if (homeDelta !== 0 || awayDelta !== 0) {
       const currentSet = existing.homeSetsWon + existing.awaySetsWon + 1;
-      await prisma.scoreAdjustment.create({
+      const adjustment = await prisma.scoreAdjustment.create({
         data: { matchId: req.params.id, homeDelta, awayDelta, setNumber: currentSet },
       });
+      adjustmentId = adjustment.id;
     }
 
     const match = await prisma.match.update({
@@ -167,8 +169,15 @@ export async function updateScore(req: Request, res: Response, next: NextFunctio
         ...(awaySetsWon != null ? { awaySetsWon: Number(awaySetsWon) } : {}),
       },
     });
-    // Check if the manual update completed a set
-    await checkSetCompletion(req.params.id);
+
+    // Check if the manual update completed a set. If it did, mark the very
+    // adjustment that caused it — completion zeroes the running score, so undo
+    // can't work this out later and needs the flag to find the right baseline.
+    const completedSet = await checkSetCompletion(req.params.id);
+    if (completedSet && adjustmentId) {
+      await prisma.scoreAdjustment.update({ where: { id: adjustmentId }, data: { completedSet: true } });
+    }
+
     res.json(match);
   } catch (err) {
     next(err);

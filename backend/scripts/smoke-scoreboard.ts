@@ -228,6 +228,104 @@ async function main() {
     'clearedHomeSetsWon' in meta && 'clearedAwaySetsWon' in meta && 'clearedSetScores' in meta);
   check('audit meta records adjustments deleted', typeof meta.scoreAdjustmentsDeleted === 'number');
 
+  // ── Undoing the point that CLOSED a set ──
+  // checkSetCompletion runs in the same request as the closing point and zeroes
+  // the running score, so reversing against the current score used to give
+  // 0 - 1 → 0 and leave the set banked: the set-winning tap silently no-opped.
+  console.log('\n── Undo the tap that completed a set ──');
+  await req('POST', `/matches/${match.id}/score/reset-match`, token);
+  await setScore(24, 20);
+  const preClose = await read();
+  check('set up at 24-20, nothing banked',
+    preClose.homeScore === 24 && (preClose.setScores as SetScore[]).length === 0);
+
+  await setScore(25, 20); // the closing tap
+  const closed = await read();
+  check('25-20 completes the set', closed.homeSetsWon === 1, `got ${closed.homeSetsWon}`);
+  check('completion zeroed the running score', closed.homeScore === 0 && closed.awayScore === 0);
+  check('the set is banked', (closed.setScores as SetScore[]).length === 1);
+
+  const undoClose = await req('DELETE', `/events/undo/${match.id}`, token);
+  check('undo → 200', undoClose.status === 200, `got ${undoClose.status}`);
+  check('undo reports it un-completed a set', undoClose.json?.uncompletedSet === true,
+    JSON.stringify(undoClose.json));
+  const reopened = await read();
+  check('score restored to 24-20 (NOT clamped to 0)',
+    reopened.homeScore === 24 && reopened.awayScore === 20,
+    `expected 24-20, got ${reopened.homeScore}-${reopened.awayScore}`);
+  check('the set is un-banked', (reopened.setScores as SetScore[]).length === 0,
+    JSON.stringify(reopened.setScores));
+  check('the set is handed back', reopened.homeSetsWon === 0, `got ${reopened.homeSetsWon}`);
+
+  // ── …and when that set also won the MATCH ──
+  console.log('\n── Undo the tap that won the match ──');
+  await prisma.match.update({
+    where: { id: match.id },
+    data: {
+      homeSetsWon: 2, awaySetsWon: 0, homeScore: 0, awayScore: 0, status: 'IN_PROGRESS',
+      setScores: [{ set: 1, home: 25, away: 20 }, { set: 2, home: 25, away: 21 }],
+    },
+  });
+  await setScore(24, 22);
+  await setScore(25, 22); // match point
+  const won = await read();
+  check('third set completes the match', won.status === 'COMPLETED', `got ${won.status}`);
+  check('sets won 3-0', won.homeSetsWon === 3);
+
+  const undoWin = await req('DELETE', `/events/undo/${match.id}`, token);
+  check('undo → 200', undoWin.status === 200, `got ${undoWin.status}`);
+  const afterUndoWin = await read();
+  check('match reopened to IN_PROGRESS', afterUndoWin.status === 'IN_PROGRESS', `got ${afterUndoWin.status}`);
+  check('sets won back to 2-0', afterUndoWin.homeSetsWon === 2, `got ${afterUndoWin.homeSetsWon}`);
+  check('play resumes at match point 24-22',
+    afterUndoWin.homeScore === 24 && afterUndoWin.awayScore === 22,
+    `got ${afterUndoWin.homeScore}-${afterUndoWin.awayScore}`);
+  check('earlier sets survive', (afterUndoWin.setScores as SetScore[]).length === 2);
+
+  // ── A tap that does NOT complete a set is unaffected ──
+  console.log('\n── Undo a non-completing tap (unchanged behaviour) ──');
+  await setScore(10, 8);
+  const plainBefore = await read();
+  await setScore(9, 8); // a plain − tap
+  const undoPlain = await req('DELETE', `/events/undo/${match.id}`, token);
+  check('undo → 200', undoPlain.status === 200);
+  check('does not report un-completing a set', undoPlain.json?.uncompletedSet === undefined);
+  const plainAfter = await read();
+  check('plain − reverses UP to 10 as before', plainAfter.homeScore === 10, `got ${plainAfter.homeScore}`);
+  check('set state untouched', plainAfter.homeSetsWon === plainBefore.homeSetsWon);
+
+  // ── Event side: same bug, same fix, on an overridden match ──
+  // manualScoreOverride is true here (Reset Match set it), so event undo can't
+  // replay the timeline and reverses the event directly — the same trap.
+  console.log('\n── Undo the EVENT that completed a set (overridden match) ──');
+  const overridden = await prisma.match.findUnique({
+    where: { id: match.id }, select: { manualScoreOverride: true },
+  });
+  check('match is under manualScoreOverride (so undo cannot replay)',
+    overridden?.manualScoreOverride === true);
+
+  await prisma.match.update({
+    where: { id: match.id },
+    data: { homeSetsWon: 0, awaySetsWon: 0, homeScore: 0, awayScore: 0, status: 'IN_PROGRESS', setScores: [] },
+  });
+  await prisma.scoreAdjustment.deleteMany({ where: { matchId: match.id } });
+  await setScore(24, 20);
+  await prisma.scoreAdjustment.deleteMany({ where: { matchId: match.id } }); // leave the event as the last action
+  await kill(1); // the closing KILL: 25-20
+  const eventClosed = await read();
+  check('the kill completes the set', eventClosed.homeSetsWon === 1, `got ${eventClosed.homeSetsWon}`);
+  check('completion zeroed the running score', eventClosed.homeScore === 0);
+
+  const undoEventClose = await req('DELETE', `/events/undo/${match.id}`, token);
+  check('undo → 200', undoEventClose.status === 200, `got ${undoEventClose.status}`);
+  check('undo targeted the event', undoEventClose.json?.kind === 'event', `got ${undoEventClose.json?.kind}`);
+  const eventReopened = await read();
+  check('score restored to 24-20 (NOT clamped to 0)',
+    eventReopened.homeScore === 24 && eventReopened.awayScore === 20,
+    `expected 24-20, got ${eventReopened.homeScore}-${eventReopened.awayScore}`);
+  check('the set is un-banked', (eventReopened.setScores as SetScore[]).length === 0);
+  check('the set is handed back', eventReopened.homeSetsWon === 0, `got ${eventReopened.homeSetsWon}`);
+
   // ── Cleanup ──
   await prisma.auditLog.deleteMany({ where: { resourceId: match.id } });
   await prisma.team.delete({ where: { id: team.id } }); // cascades match/players/events

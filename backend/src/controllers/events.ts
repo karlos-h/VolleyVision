@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import { MatchStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { checkSetCompletion } from '../lib/scoring';
+import { checkSetCompletion, loadScoreState } from '../lib/scoring';
 import { scoringTeam } from '../lib/scoringRules';
 import { applyEventRemoval } from '../services/matchState.service';
-import { resolveUndoTarget, reverseAdjustmentScore } from '../lib/undo';
+import { resolveUndoTarget, reverseAdjustmentScore, reverseCompletingAction } from '../lib/undo';
 
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
@@ -62,12 +63,20 @@ export async function recordEvent(req: Request, res: Response, next: NextFunctio
     });
 
     const team = scoringTeam(eventType, isOpponent);
-    if (team === 'home') {
-      await prisma.match.update({ where: { id: matchId }, data: { homeScore: { increment: 1 } } });
-      await checkSetCompletion(matchId);
-    } else if (team === 'away') {
-      await prisma.match.update({ where: { id: matchId }, data: { awayScore: { increment: 1 } } });
-      await checkSetCompletion(matchId);
+    if (team === 'home' || team === 'away') {
+      await prisma.match.update({
+        where: { id: matchId },
+        data: team === 'home' ? { homeScore: { increment: 1 } } : { awayScore: { increment: 1 } },
+      });
+
+      // Mark the event that closed the set, for the same reason updateScore
+      // marks the adjustment: completion zeroes the running score, so an undo
+      // under manualScoreOverride (which can't replay) would otherwise reverse
+      // against the wrong baseline. See lib/undo.ts.
+      const completedSet = await checkSetCompletion(matchId);
+      if (completedSet) {
+        await prisma.event.update({ where: { id: event.id }, data: { completedSet: true } });
+      }
     }
 
     res.status(201).json(event);
@@ -116,16 +125,39 @@ export async function deleteLastEvent(req: Request, res: Response, next: NextFun
 
     if (target === 'adjustment') {
       const adjustment = latestAdjustment!;
-      const match = await prisma.match.findUnique({
-        where: { id: matchId },
-        select: { homeScore: true, awayScore: true },
-      });
-      if (!match) throw new AppError(404, 'Match not found.');
+      const state = await loadScoreState(matchId);
+      if (!state) throw new AppError(404, 'Match not found.');
+
+      // The tap that closed a set can't be reversed against the current score —
+      // completion already zeroed it. Rebuild from the banked setScores entry
+      // instead, and undo the completion along with the point.
+      const uncompleted = adjustment.completedSet ? reverseCompletingAction(state, adjustment) : null;
+
+      if (uncompleted) {
+        await prisma.$transaction([
+          prisma.match.update({
+            where: { id: matchId },
+            data: {
+              homeScore: uncompleted.homeScore,
+              awayScore: uncompleted.awayScore,
+              homeSetsWon: uncompleted.homeSetsWon,
+              awaySetsWon: uncompleted.awaySetsWon,
+              setScores: uncompleted.setScores,
+              status: uncompleted.status as MatchStatus,
+            },
+          }),
+          prisma.scoreAdjustment.delete({ where: { id: adjustment.id } }),
+        ]);
+        // Deliberately no checkSetCompletion here: we just un-completed this
+        // set on purpose, and the restored score is pre-threshold by definition.
+        res.json({ deleted: adjustment.id, kind: 'adjustment', uncompletedSet: true });
+        return;
+      }
 
       // A direct, symmetrical reversal — not applyEventRemoval, which is
       // event-specific. Both writes go in one transaction so the score and the
       // adjustment log can't disagree if one of them fails.
-      const reversed = reverseAdjustmentScore(match, adjustment);
+      const reversed = reverseAdjustmentScore(state, adjustment);
       await prisma.$transaction([
         prisma.match.update({
           where: { id: matchId },

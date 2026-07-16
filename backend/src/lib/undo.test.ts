@@ -1,11 +1,43 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { resolveUndoTarget, reverseAdjustmentScore } from './undo';
+import {
+  resolveUndoTarget,
+  reverseAdjustmentScore,
+  reverseCompletingAction,
+  scoringSideDelta,
+} from './undo';
+import type { MatchScoreState } from './setOperations';
+import { checkMatchIntegrity } from './matchIntegrity';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const evt = (ms: number) => ({ recordedAt: new Date(ms) });
 const adj = (ms: number) => ({ createdAt: new Date(ms) });
+
+function state(overrides: Partial<MatchScoreState> = {}): MatchScoreState {
+  return {
+    homeScore: 0,
+    awayScore: 0,
+    homeSetsWon: 0,
+    awaySetsWon: 0,
+    setScores: [],
+    status: 'IN_PROGRESS',
+    ...overrides,
+  };
+}
+
+/** Every reversal must leave the match in a state matchIntegrity accepts. */
+function assertIntegrity(s: MatchScoreState, label: string) {
+  const result = checkMatchIntegrity({
+    homeScore: s.homeScore,
+    awayScore: s.awayScore,
+    homeSetsWon: s.homeSetsWon,
+    awaySetsWon: s.awaySetsWon,
+    status: s.status,
+    setScores: s.setScores,
+  });
+  assert.ok(result.ok, `${label} violated match integrity: ${result.violations.join('; ')}`);
+}
 
 // ─── resolveUndoTarget ────────────────────────────────────────────────────────
 
@@ -112,8 +144,184 @@ describe('reverseAdjustmentScore', () => {
   });
 
   it('does not mutate the state it is given', () => {
-    const state = { homeScore: 4, awayScore: 2 };
-    reverseAdjustmentScore(state, { homeDelta: -1, awayDelta: 0 });
-    assert.deepEqual(state, { homeScore: 4, awayScore: 2 });
+    const before = { homeScore: 4, awayScore: 2 };
+    reverseAdjustmentScore(before, { homeDelta: -1, awayDelta: 0 });
+    assert.deepEqual(before, { homeScore: 4, awayScore: 2 });
+  });
+});
+
+// ─── scoringSideDelta ─────────────────────────────────────────────────────────
+
+describe('scoringSideDelta', () => {
+  it('expresses each scoring side as a delta', () => {
+    assert.deepEqual(scoringSideDelta('home'), { homeDelta: 1, awayDelta: 0 });
+    assert.deepEqual(scoringSideDelta('away'), { homeDelta: 0, awayDelta: 1 });
+  });
+
+  it('is a no-op delta for non-scoring events', () => {
+    // Digs/passes/assists score nothing, so they can never complete a set.
+    assert.deepEqual(scoringSideDelta(null), { homeDelta: 0, awayDelta: 0 });
+  });
+});
+
+// ─── reverseCompletingAction — undoing the point that closed a set ────────────
+
+describe('reverseCompletingAction', () => {
+  // The shape the bug produced: a tap took home 24 → 25, checkSetCompletion
+  // fired, zeroed the running score and banked {set 1, 25-20}. Undoing against
+  // that zeroed score gave 0 - 1 → 0 and left the set banked.
+  const afterCompletingTap = () =>
+    state({
+      homeScore: 0,
+      awayScore: 0,
+      homeSetsWon: 1,
+      awaySetsWon: 0,
+      setScores: [{ set: 1, home: 25, away: 20 }],
+    });
+
+  it('restores the score to just BEFORE the closing point', () => {
+    const next = reverseCompletingAction(afterCompletingTap(), { homeDelta: 1, awayDelta: 0 })!;
+    assert.equal(next.homeScore, 24, 'banked 25 minus the point that earned it');
+    assert.equal(next.awayScore, 20, 'the other side is untouched');
+  });
+
+  it('un-banks the set and takes it back off the winner', () => {
+    const next = reverseCompletingAction(afterCompletingTap(), { homeDelta: 1, awayDelta: 0 })!;
+    assert.equal(next.homeSetsWon, 0, 'the set is handed back');
+    assert.equal(next.awaySetsWon, 0);
+    assert.deepEqual(next.setScores, [], 'the banked entry is popped');
+    assertIntegrity(next, 'reverseCompletingAction');
+  });
+
+  it('does NOT clamp to zero the way a plain reversal does', () => {
+    // Regression guard for the exact defect: reversing against the current
+    // (zeroed) score gives 0; the banked entry is the right baseline.
+    const plain = reverseAdjustmentScore(afterCompletingTap(), { homeDelta: 1, awayDelta: 0 });
+    assert.equal(plain.homeScore, 0, 'the plain path really does land on 0');
+    const fixed = reverseCompletingAction(afterCompletingTap(), { homeDelta: 1, awayDelta: 0 })!;
+    assert.equal(fixed.homeScore, 24, 'the fixed path lands on the real pre-point score');
+  });
+
+  it('hands the set back to away when away won it', () => {
+    const next = reverseCompletingAction(
+      state({ homeSetsWon: 0, awaySetsWon: 1, setScores: [{ set: 1, home: 23, away: 25 }] }),
+      { homeDelta: 0, awayDelta: 1 },
+    )!;
+    assert.equal(next.awaySetsWon, 0);
+    assert.equal(next.homeSetsWon, 0);
+    assert.equal(next.homeScore, 23);
+    assert.equal(next.awayScore, 24, 'away 25 minus the point that earned it');
+    assertIntegrity(next, 'reverseCompletingAction away');
+  });
+
+  it('keeps earlier sets and only pops the one just completed', () => {
+    const next = reverseCompletingAction(
+      state({
+        homeSetsWon: 2, awaySetsWon: 1,
+        setScores: [
+          { set: 1, home: 25, away: 20 },
+          { set: 2, home: 20, away: 25 },
+          { set: 3, home: 25, away: 18 },
+        ],
+      }),
+      { homeDelta: 1, awayDelta: 0 },
+    )!;
+    assert.equal(next.setScores.length, 2, 'only the last entry is popped');
+    assert.deepEqual(next.setScores.map((s) => s.set), [1, 2]);
+    assert.equal(next.homeSetsWon, 1);
+    assert.equal(next.awaySetsWon, 1, 'away keeps the set it won');
+    assert.equal(next.homeScore, 24);
+    assert.equal(next.awayScore, 18);
+    assertIntegrity(next, 'reverseCompletingAction mid-match');
+  });
+
+  it('reopens the match when the undone set is the one that won it', () => {
+    const next = reverseCompletingAction(
+      state({
+        homeSetsWon: 3, awaySetsWon: 1,
+        status: 'COMPLETED',
+        setScores: [
+          { set: 1, home: 25, away: 20 },
+          { set: 2, home: 20, away: 25 },
+          { set: 3, home: 25, away: 18 },
+          { set: 4, home: 25, away: 22 },
+        ],
+      }),
+      { homeDelta: 1, awayDelta: 0 },
+    )!;
+    assert.equal(next.homeSetsWon, 2);
+    assert.equal(next.status, 'IN_PROGRESS', 'the match reopens');
+    assert.equal(next.homeScore, 24, 'play resumes at match point');
+    assert.equal(next.awayScore, 22);
+    assertIntegrity(next, 'reverseCompletingAction match point');
+  });
+
+  it('leaves an in-progress match in progress', () => {
+    const next = reverseCompletingAction(afterCompletingTap(), { homeDelta: 1, awayDelta: 0 })!;
+    assert.equal(next.status, 'IN_PROGRESS');
+  });
+
+  it('handles a deciding set won at 15', () => {
+    const next = reverseCompletingAction(
+      state({
+        homeSetsWon: 3, awaySetsWon: 2,
+        status: 'COMPLETED',
+        setScores: [
+          { set: 1, home: 25, away: 20 }, { set: 2, home: 20, away: 25 },
+          { set: 3, home: 25, away: 18 }, { set: 4, home: 20, away: 25 },
+          { set: 5, home: 15, away: 12 },
+        ],
+      }),
+      { homeDelta: 1, awayDelta: 0 },
+    )!;
+    assert.equal(next.homeScore, 14, 'deciding set resumes at 14-12');
+    assert.equal(next.awayScore, 12);
+    assert.equal(next.homeSetsWon, 2);
+    assert.equal(next.status, 'IN_PROGRESS');
+    assertIntegrity(next, 'reverseCompletingAction deciding set');
+  });
+
+  it('reverses a multi-point tap that jumped straight to the win', () => {
+    // updateScore takes absolutes: 21 → 25 stores +4 and completes the set.
+    const next = reverseCompletingAction(
+      state({ homeSetsWon: 1, setScores: [{ set: 1, home: 25, away: 20 }] }),
+      { homeDelta: 4, awayDelta: 0 },
+    )!;
+    assert.equal(next.homeScore, 21, 'restores the score from before the whole jump');
+    assert.equal(next.homeSetsWon, 0);
+  });
+
+  it('returns null when there is no banked entry to rebuild from', () => {
+    // Defensive: the flag says it completed a set but the history disagrees.
+    // The caller falls back to a plain reversal rather than corrupt set state.
+    assert.equal(reverseCompletingAction(state({ homeSetsWon: 1 }), { homeDelta: 1, awayDelta: 0 }), null);
+  });
+
+  it('returns null on a level banked entry, which has no winner', () => {
+    assert.equal(
+      reverseCompletingAction(
+        state({ homeSetsWon: 1, setScores: [{ set: 1, home: 25, away: 25 }] }),
+        { homeDelta: 1, awayDelta: 0 },
+      ),
+      null,
+    );
+  });
+
+  it('round-trips a completion: complete then undo restores the prior state', () => {
+    // 24-20, home scores → set completes → undo → back to 24-20, nothing banked.
+    const beforePoint = state({ homeScore: 24, awayScore: 20 });
+    const undone = reverseCompletingAction(afterCompletingTap(), { homeDelta: 1, awayDelta: 0 })!;
+    assert.equal(undone.homeScore, beforePoint.homeScore);
+    assert.equal(undone.awayScore, beforePoint.awayScore);
+    assert.equal(undone.homeSetsWon, beforePoint.homeSetsWon);
+    assert.deepEqual(undone.setScores, beforePoint.setScores);
+    assert.equal(undone.status, beforePoint.status);
+  });
+
+  it('does not mutate the state or setScores it is given', () => {
+    const s = afterCompletingTap();
+    reverseCompletingAction(s, { homeDelta: 1, awayDelta: 0 });
+    assert.equal(s.homeSetsWon, 1);
+    assert.deepEqual(s.setScores, [{ set: 1, home: 25, away: 20 }]);
   });
 });

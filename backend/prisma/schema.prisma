@@ -441,6 +441,13 @@ model ScoreAdjustment {
   homeDelta Int      @map("home_delta")
   awayDelta Int      @map("away_delta")
   setNumber Int      @map("set_number")
+
+  // True when checkSetCompletion completed a set as a direct result of this
+  // adjustment, recorded at creation time because it cannot be inferred later:
+  // completion zeroes the running score, so undoing against the current score
+  // has lost the baseline it needs. See lib/undo.ts reverseCompletingAction.
+  completedSet Boolean @default(false) @map("completed_set")
+
   createdAt DateTime @default(now())
 
   match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
@@ -512,6 +519,12 @@ model Event {
   // Phase 6 Sprint 3 — opponent scouting fields
   isOpponentEvent    Boolean @default(false) @map("is_opponent_event")
   opponentJerseyNumber Int?  @map("opponent_jersey_number")
+
+  // True when checkSetCompletion completed a set as a direct result of this
+  // event. Only consulted when the match is under manualScoreOverride, where
+  // undo can't replay the timeline and reverses this event directly instead —
+  // the same lost-baseline problem as ScoreAdjustment.completedSet.
+  completedSet Boolean @default(false) @map("completed_set")
 
   videoTimestamps VideoTimestamp[]
 

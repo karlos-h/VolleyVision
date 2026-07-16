@@ -1,6 +1,10 @@
+import { MatchStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { buildTimeline, replayTimeline } from '../lib/scoreReplay';
 import { reverseEventScore } from '../lib/setOperations';
+import type { MatchScoreState, SetScoreEntry } from '../lib/setOperations';
+import { scoringTeam } from '../lib/scoringRules';
+import { reverseCompletingAction, scoringSideDelta } from '../lib/undo';
 
 /**
  * Replays all remaining events AND manual score adjustments for a match and
@@ -71,10 +75,15 @@ export async function recalculateMatchState(matchId: string): Promise<void> {
  * So for an overridden match we reverse just the removed event's own point and
  * leave set state alone. The stat is still corrected and the running score
  * still moves; only the (no-longer-derivable) set boundaries are protected.
+ *
+ * The exception is an event carrying `completedSet`: that one DID move set
+ * state, and reversing it against the (already zeroed) running score would undo
+ * nothing while leaving the set banked. It gets the same banked-entry treatment
+ * as the adjustment path — see lib/undo.ts reverseCompletingAction.
  */
 export async function applyEventRemoval(
   matchId: string,
-  event: { eventType: string; isOpponentEvent: boolean },
+  event: { eventType: string; isOpponentEvent: boolean; completedSet?: boolean },
 ): Promise<void> {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
@@ -91,22 +100,44 @@ export async function applyEventRemoval(
   if (!match) return;
 
   if (!match.manualScoreOverride) {
+    // A replay rebuilds set boundaries from scratch, so it already handles a
+    // set-completing event correctly — completedSet is not needed here.
     await recalculateMatchState(matchId);
     return;
   }
 
-  const next = reverseEventScore(
-    {
-      homeScore: match.homeScore,
-      awayScore: match.awayScore,
-      homeSetsWon: match.homeSetsWon,
-      awaySetsWon: match.awaySetsWon,
-      setScores: [],
-      status: match.status,
-    },
-    event.eventType,
-    event.isOpponentEvent,
-  );
+  const state: MatchScoreState = {
+    homeScore: match.homeScore,
+    awayScore: match.awayScore,
+    homeSetsWon: match.homeSetsWon,
+    awaySetsWon: match.awaySetsWon,
+    setScores: Array.isArray(match.setScores) ? (match.setScores as unknown as SetScoreEntry[]) : [],
+    status: match.status,
+  };
+
+  if (event.completedSet) {
+    const delta = scoringSideDelta(scoringTeam(event.eventType, event.isOpponentEvent));
+    const uncompleted = reverseCompletingAction(state, delta);
+    if (uncompleted) {
+      await prisma.match.update({
+        where: { id: matchId },
+        data: {
+          homeScore: uncompleted.homeScore,
+          awayScore: uncompleted.awayScore,
+          homeSetsWon: uncompleted.homeSetsWon,
+          awaySetsWon: uncompleted.awaySetsWon,
+          setScores: uncompleted.setScores,
+          status: uncompleted.status as MatchStatus,
+        },
+      });
+      return;
+    }
+    // No banked entry to rebuild from — fall through to the plain reversal
+    // rather than corrupt set state.
+  }
+
+  // Set state is deliberately left alone here: this event didn't move it.
+  const next = reverseEventScore(state, event.eventType, event.isOpponentEvent);
 
   await prisma.match.update({
     where: { id: matchId },

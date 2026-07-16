@@ -48,16 +48,22 @@ export async function loadScoreState(matchId: string): Promise<MatchScoreState |
  * This is the only set-completion path in use. The manual End Set override that
  * also called completeSet is currently disabled (see controllers/matches.ts) —
  * that does not affect this path.
+ *
+ * Returns true when it actually completed a set. Callers run this immediately
+ * after their own score-affecting write, so a true return identifies THEIR
+ * write as the one that closed the set — which they record on the row
+ * (`completedSet`) because it can't be worked out afterwards: completion zeroes
+ * the running score that undo would otherwise reverse against. See lib/undo.ts.
  */
-export async function checkSetCompletion(matchId: string): Promise<void> {
+export async function checkSetCompletion(matchId: string): Promise<boolean> {
   const state = await loadScoreState(matchId);
-  if (!state || state.status === 'COMPLETED') return;
+  if (!state || state.status === 'COMPLETED') return false;
 
   const setNumber = currentSetNumber(state);
   const homeWinsSet = hasWonSet(state.homeScore, state.awayScore, setNumber);
   const awayWinsSet = hasWonSet(state.awayScore, state.homeScore, setNumber);
 
-  if (!homeWinsSet && !awayWinsSet) return;
+  if (!homeWinsSet && !awayWinsSet) return false;
 
   const next = completeSet(state, homeWinsSet ? 'home' : 'away');
 
@@ -72,4 +78,6 @@ export async function checkSetCompletion(matchId: string): Promise<void> {
       ...(next.status === 'COMPLETED' ? { status: 'COMPLETED' as const } : {}),
     },
   });
+
+  return true;
 }
