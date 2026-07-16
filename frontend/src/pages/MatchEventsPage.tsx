@@ -84,9 +84,11 @@ export default function MatchEventsPage() {
   // results are visible without extra clicks.
   const isOpen = (setNo: number) => hasActiveFilter || (openSets[setNo] ?? false);
   const toggleSet = (setNo: number) => setOpenSets((prev) => ({ ...prev, [setNo]: !isOpen(setNo) }));
-  // Every event row goes to this match's stats, not to a per-player page —
-  // the changelog is a way into the match's numbers.
-  const goToMatchStats = () => navigate(`/matches/${matchId}/dashboard`);
+  // Mirrors PlayerStatsTable: clicking a player's row goes to that player's
+  // game-day stats for this match. Opponent events have no player page, so
+  // those fall back to the match dashboard.
+  const goToEventTarget = (e: Event) =>
+    navigate(e.playerId ? `/players/${e.playerId}/dashboard?matchId=${matchId}` : `/matches/${matchId}/dashboard`);
 
   return (
     <div className="space-y-6">
@@ -192,8 +194,8 @@ export default function MatchEventsPage() {
                             <tr
                               key={e.id}
                               tabIndex={0}
-                              onClick={goToMatchStats}
-                              onKeyDown={(ev) => { if (ev.key === 'Enter') goToMatchStats(); }}
+                              onClick={() => goToEventTarget(e)}
+                              onKeyDown={(ev) => { if (ev.key === 'Enter') goToEventTarget(e); }}
                               className="hover:bg-grey-50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                             >
                               <td className="px-4 py-4">
