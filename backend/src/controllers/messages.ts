@@ -10,6 +10,7 @@ import { getOrCreateTeamChannel } from '../services/teamChannel.service';
 import {
   listMessages,
   postMessage,
+  postMessageWithAttachments,
   editMessage,
   softDeleteMessage,
 } from '../services/message.service';
@@ -46,6 +47,23 @@ export async function postChannelMessage(req: Request, res: Response, next: Next
   try {
     if (!req.user) throw new AppError(401, 'Authentication required.');
     const message = await postMessage(req.params.channelId, req.user.userId, req.body?.body);
+    res.status(201).json(message);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Multipart: optional `body` field + `files[]` (slice 4). */
+export async function uploadChannelMessage(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw new AppError(401, 'Authentication required.');
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const message = await postMessageWithAttachments(
+      req.params.channelId,
+      req.user.userId,
+      req.body?.body,
+      files,
+    );
     res.status(201).json(message);
   } catch (err) {
     next(err);

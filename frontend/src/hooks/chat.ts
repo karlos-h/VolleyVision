@@ -10,7 +10,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import type { ChatMessage } from '../types';
+import type { ChatAttachment, ChatMessage } from '../types';
 
 const PAGE_SIZE = 30;
 export const POLL_INTERVAL_MS = 5000;
@@ -180,6 +180,126 @@ export function usePostMessage(channelId: string | undefined) {
   );
 
   return { send, retry, discardFailed, isPending: mutation.isPending };
+}
+
+// ─── Upload (attachments, optimistic with progress) ──────────────────────────
+
+interface PendingUpload {
+  body?: string;
+  files: File[];
+  /** Object-URL previews, created once and revoked on success/discard. */
+  attachments: ChatAttachment[];
+}
+
+export function useUploadMessage(channelId: string | undefined) {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  // Failed payloads keep their File objects so retry can re-send them.
+  const pending = useRef(new Map<string, PendingUpload>());
+
+  const revokePreviews = useCallback((tempId: string) => {
+    const entry = pending.current.get(tempId);
+    entry?.attachments.forEach((a) => {
+      if (a.signedUrl?.startsWith('blob:')) URL.revokeObjectURL(a.signedUrl);
+    });
+    pending.current.delete(tempId);
+  }, []);
+
+  const mutation = useMutation({
+    mutationFn: ({ tempId }: { tempId: string }) => {
+      const entry = pending.current.get(tempId);
+      if (!entry) throw new Error('Upload payload missing.');
+      return chatApi.uploadMessage(channelId!, {
+        body: entry.body,
+        files: entry.files,
+        onProgress: (percent) => {
+          qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) =>
+            cur.map((m) => (m.id === tempId ? { ...m, uploadProgress: percent } : m)),
+          );
+        },
+      });
+    },
+    onMutate: ({ tempId }) => {
+      const entry = pending.current.get(tempId);
+      const optimistic: ChatMessage = {
+        id: tempId,
+        channelId: channelId!,
+        senderId: user?.id ?? null,
+        sender: user
+          ? { id: user.id, firstName: user.firstName, lastName: user.lastName, profileImage: user.profileImage }
+          : null,
+        body: entry?.body ?? null,
+        attachments: entry?.attachments ?? [],
+        editedAt: null,
+        deletedAt: null,
+        createdAt: new Date().toISOString(),
+        sendState: 'sending',
+        uploadProgress: 0,
+      };
+      qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) => [
+        ...cur.filter((m) => m.id !== tempId),
+        optimistic,
+      ]);
+    },
+    onSuccess: (serverMessage, { tempId }) => {
+      revokePreviews(tempId);
+      qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) =>
+        mergeServer(cur.filter((m) => m.id !== tempId), [serverMessage]),
+      );
+    },
+    onError: (_err, { tempId }) => {
+      qc.setQueryData<ChatMessage[]>(messagesKey(channelId!), (cur = []) =>
+        cur.map((m) =>
+          m.id === tempId ? { ...m, sendState: 'failed' as const, uploadProgress: undefined } : m,
+        ),
+      );
+    },
+  });
+
+  const sendWithFiles = useCallback(
+    (body: string | undefined, files: File[]) => {
+      const tempId = `temp-${crypto.randomUUID()}`;
+      pending.current.set(tempId, {
+        body,
+        files,
+        attachments: files.map((file, i) => ({
+          id: `${tempId}-att-${i}`,
+          kind: file.type.startsWith('image/') ? 'IMAGE' : 'FILE',
+          fileName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          width: null,
+          height: null,
+          signedUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+        })),
+      });
+      mutation.mutate({ tempId });
+    },
+    [mutation],
+  );
+
+  const retryUpload = useCallback(
+    (tempId: string) => {
+      if (pending.current.has(tempId)) mutation.mutate({ tempId });
+    },
+    [mutation],
+  );
+
+  const discardUpload = useCallback(
+    (tempId: string) => {
+      if (!channelId) return;
+      revokePreviews(tempId);
+      qc.setQueryData<ChatMessage[]>(messagesKey(channelId), (cur = []) =>
+        cur.filter((m) => m.id !== tempId),
+      );
+    },
+    [channelId, qc, revokePreviews],
+  );
+
+  /** True when the tempId belongs to an upload (vs a plain text send). */
+  const ownsTempId = useCallback((tempId: string) => pending.current.has(tempId), []);
+
+  return { sendWithFiles, retryUpload, discardUpload, ownsTempId, isUploading: mutation.isPending };
 }
 
 // ─── Edit / delete (optimistic with rollback) ────────────────────────────────

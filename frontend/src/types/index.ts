@@ -238,7 +238,9 @@ export interface ChatAttachment {
   sizeBytes: number;
   width: number | null;
   height: number | null;
-  signedUrl?: string; // minted per read (slice 4)
+  /** Short-lived download URL minted per read; null = signing failed. On an
+   *  optimistic (uploading) message this is a local object URL preview. */
+  signedUrl: string | null;
 }
 
 export interface ChatMessage {
@@ -253,6 +255,8 @@ export interface ChatMessage {
   createdAt: string;
   /** Client-only delivery state for optimistic sends; absent on server messages. */
   sendState?: 'sending' | 'failed';
+  /** Client-only upload progress (0–100) while an attachment message sends. */
+  uploadProgress?: number;
 }
 
 export type Position =

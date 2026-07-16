@@ -107,6 +107,26 @@ export async function uploadAttachment(opts: { key: string; buffer: Buffer; mime
   return opts.key;
 }
 
+/**
+ * Batch-sign a page of attachments in one Storage call. Returns
+ * storagePath → signedUrl, with null for any path that failed to sign —
+ * a page of messages must never 500 because one attachment couldn't sign.
+ */
+export async function signAttachmentUrls(paths: string[], ttlSeconds = 3600): Promise<Map<string, string | null>> {
+  if (paths.length === 0) return new Map();
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, ttlSeconds);
+  if (error || !data) {
+    console.error(`Supabase batch signing failed for ${paths.length} path(s):`, error?.message);
+    return new Map(paths.map((p) => [p, null]));
+  }
+  const map = new Map<string, string | null>();
+  for (const entry of data) {
+    if (entry.path) map.set(entry.path, entry.error ? null : entry.signedUrl);
+  }
+  for (const p of paths) if (!map.has(p)) map.set(p, null);
+  return map;
+}
+
 /** Short-lived signed URL — the storagePath itself is never sent to clients. */
 export async function signAttachmentUrl(storagePath: string, ttlSeconds = 3600): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, ttlSeconds);

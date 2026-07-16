@@ -245,6 +245,22 @@ export const chatApi = {
     api.get<ChatMessage[]>(`/channels/${channelId}/messages`, { params }).then((r) => r.data),
   postMessage: (channelId: string, body: string) =>
     api.post<ChatMessage>(`/channels/${channelId}/messages`, { body }).then((r) => r.data),
+  uploadMessage: (
+    channelId: string,
+    data: { body?: string; files: File[]; onProgress?: (percent: number) => void },
+  ) => {
+    const fd = new FormData();
+    if (data.body) fd.append('body', data.body);
+    for (const file of data.files) fd.append('files', file);
+    return api
+      .post<ChatMessage>(`/channels/${channelId}/messages/upload`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (data.onProgress && e.total) data.onProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      })
+      .then((r) => r.data);
+  },
   editMessage: (messageId: string, body: string) =>
     api.patch<ChatMessage>(`/messages/${messageId}`, { body }).then((r) => r.data),
   deleteMessage: (messageId: string) =>

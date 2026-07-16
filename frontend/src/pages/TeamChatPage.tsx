@@ -4,6 +4,7 @@ import {
   useTeamChannel,
   useMessages,
   usePostMessage,
+  useUploadMessage,
   useEditMessage,
   useDeleteMessage,
 } from '../hooks/chat';
@@ -44,6 +45,7 @@ export default function TeamChatPage() {
     hasMoreOlder,
   } = useMessages(channel?.id);
   const { send, retry, discardFailed } = usePostMessage(channel?.id);
+  const { sendWithFiles, retryUpload, discardUpload, ownsTempId } = useUploadMessage(channel?.id);
   const editMessage = useEditMessage(channel?.id);
   const deleteMessage = useDeleteMessage(channel?.id);
 
@@ -83,13 +85,18 @@ export default function TeamChatPage() {
             onLoadOlder={loadOlder}
             onEdit={(messageId, body) => editMessage.mutate({ messageId, body })}
             onDelete={(messageId) => deleteMessage.mutate(messageId)}
-            onRetry={retry}
-            onDiscardFailed={discardFailed}
+            // Failed sends route back to whichever hook created them.
+            onRetry={(tempId) => (ownsTempId(tempId) ? retryUpload(tempId) : retry(tempId))}
+            onDiscardFailed={(tempId) => (ownsTempId(tempId) ? discardUpload(tempId) : discardFailed(tempId))}
           />
         )}
 
         {canPost ? (
-          <MessageComposer onSend={send} disabled={!channel || !!channelError} />
+          <MessageComposer
+            onSend={send}
+            onSendWithFiles={sendWithFiles}
+            disabled={!channel || !!channelError}
+          />
         ) : isViewer ? (
           <div className="border-t border-grey-200 px-4 py-3">
             <p className="text-xs text-grey-600">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { ChatMessage } from '../../types';
+import type { ChatAttachment, ChatMessage } from '../../types';
+import { formatBytes } from './format';
 
 /** "just now" → "5m" → "3h" → "Tue 14:02" → "12 Jun" — courtside-glance sizes. */
 export function formatMessageTime(iso: string): string {
@@ -14,6 +15,67 @@ export function formatMessageTime(iso: string): string {
     return `${then.toLocaleDateString(undefined, { weekday: 'short' })} ${then.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
   }
   return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+function AttachmentView({ attachment }: { attachment: ChatAttachment }) {
+  if (attachment.kind === 'IMAGE') {
+    if (!attachment.signedUrl) {
+      return (
+        <div className="w-40 h-24 rounded-lg border border-grey-200 bg-grey-100 flex items-center justify-center">
+          <span className="text-xs text-grey-600">Image unavailable</span>
+        </div>
+      );
+    }
+    return (
+      <a href={attachment.signedUrl} target="_blank" rel="noreferrer" title={attachment.fileName}>
+        <img
+          src={attachment.signedUrl}
+          alt={attachment.fileName}
+          loading="lazy"
+          // Stored dimensions reserve the box before the bytes arrive — no layout shift.
+          style={
+            attachment.width && attachment.height
+              ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
+              : undefined
+          }
+          className="max-h-64 max-w-full w-auto rounded-lg border border-grey-200 bg-grey-100 object-contain"
+        />
+      </a>
+    );
+  }
+
+  const chipInner = (
+    <>
+      <span className="w-8 h-8 rounded bg-navy-100 text-navy-700 text-[10px] font-bold flex items-center justify-center shrink-0 uppercase">
+        {attachment.fileName.split('.').pop()?.slice(0, 4) || 'file'}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-xs font-medium text-grey-900 truncate">{attachment.fileName}</span>
+        <span className="block text-[10px] text-grey-600">
+          {attachment.signedUrl ? formatBytes(attachment.sizeBytes) : 'unavailable'}
+        </span>
+      </span>
+    </>
+  );
+
+  if (!attachment.signedUrl) {
+    return (
+      <div className="flex items-center gap-2 bg-grey-100 border border-grey-200 rounded-lg pl-1.5 pr-3 py-1.5 max-w-60 opacity-60">
+        {chipInner}
+      </div>
+    );
+  }
+  return (
+    <a
+      href={attachment.signedUrl}
+      target="_blank"
+      rel="noreferrer"
+      download={attachment.fileName}
+      className="flex items-center gap-2 bg-grey-100 border border-grey-200 rounded-lg pl-1.5 pr-3 py-1.5 max-w-60 hover:border-gold-500 transition-colors"
+    >
+      {chipInner}
+    </a>
+  );
 }
 
 interface MessageItemProps {
@@ -105,9 +167,31 @@ export default function MessageItem({
             </div>
           </div>
         ) : (
-          <p className={`text-sm whitespace-pre-wrap break-words mt-0.5 ${isSending ? 'text-grey-600' : 'text-grey-900'}`}>
-            {message.body}
-          </p>
+          <>
+            {message.body && (
+              <p className={`text-sm whitespace-pre-wrap break-words mt-0.5 ${isSending ? 'text-grey-600' : 'text-grey-900'}`}>
+                {message.body}
+              </p>
+            )}
+            {message.attachments.length > 0 && (
+              <div className={`flex flex-wrap gap-2 mt-1.5 ${isSending ? 'opacity-70' : ''}`}>
+                {message.attachments.map((a) => (
+                  <AttachmentView key={a.id} attachment={a} />
+                ))}
+              </div>
+            )}
+            {isSending && message.uploadProgress !== undefined && (
+              <div className="flex items-center gap-2 mt-1.5 max-w-60" aria-label="Upload progress">
+                <div className="flex-1 h-1.5 rounded-full bg-grey-200 overflow-hidden">
+                  <div
+                    className="h-full bg-gold-500 transition-all"
+                    style={{ width: `${message.uploadProgress}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-grey-600 tabular-nums">{message.uploadProgress}%</span>
+              </div>
+            )}
+          </>
         )}
 
         {isFailed && (
