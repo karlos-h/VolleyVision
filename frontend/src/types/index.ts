@@ -348,7 +348,9 @@ export interface Match {
   awaySetsWon?: number;
   createdAt: string;
   updatedAt: string;
-  _count?: { events: number };
+  // scoreAdjustments (manual score taps) only comes back from GET /matches/:id;
+  // list endpoints count events alone.
+  _count?: { events: number; scoreAdjustments?: number };
 }
 
 export interface SetScore {

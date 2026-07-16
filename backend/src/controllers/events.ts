@@ -4,6 +4,7 @@ import { AppError } from '../middleware/errorHandler';
 import { checkSetCompletion } from '../lib/scoring';
 import { scoringTeam } from '../lib/scoringRules';
 import { applyEventRemoval } from '../services/matchState.service';
+import { resolveUndoTarget, reverseAdjustmentScore } from '../lib/undo';
 
 export async function recordEvent(req: Request, res: Response, next: NextFunction) {
   try {
@@ -94,18 +95,57 @@ export async function getEventsByMatch(req: Request, res: Response, next: NextFu
   }
 }
 
-// Delete the most recent event for a match (undo last entry).
+// Undo the last thing that happened on a match.
+//
+// A manual score tap (+1 / −) does NOT create an Event — updateScore writes a
+// ScoreAdjustment instead. Looking only at the Event table therefore skipped
+// straight past a score tap and reversed the older stat event behind it, which
+// read as "undo minuses the score again". So compare both logs and undo
+// whichever actually happened last.
 export async function deleteLastEvent(req: Request, res: Response, next: NextFunction) {
   try {
-    const latest = await prisma.event.findFirst({
-      where: { matchId: req.params.matchId },
-      orderBy: { recordedAt: 'desc' },
-    });
-    if (!latest) throw new AppError(404, 'No events to undo.');
-    await prisma.event.delete({ where: { id: latest.id } });
+    const matchId = req.params.matchId;
+
+    const [latestEvent, latestAdjustment] = await Promise.all([
+      prisma.event.findFirst({ where: { matchId }, orderBy: { recordedAt: 'desc' } }),
+      prisma.scoreAdjustment.findFirst({ where: { matchId }, orderBy: { createdAt: 'desc' } }),
+    ]);
+
+    const target = resolveUndoTarget(latestEvent, latestAdjustment);
+    if (!target) throw new AppError(404, 'No events to undo.');
+
+    if (target === 'adjustment') {
+      const adjustment = latestAdjustment!;
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        select: { homeScore: true, awayScore: true },
+      });
+      if (!match) throw new AppError(404, 'Match not found.');
+
+      // A direct, symmetrical reversal — not applyEventRemoval, which is
+      // event-specific. Both writes go in one transaction so the score and the
+      // adjustment log can't disagree if one of them fails.
+      const reversed = reverseAdjustmentScore(match, adjustment);
+      await prisma.$transaction([
+        prisma.match.update({
+          where: { id: matchId },
+          data: { homeScore: reversed.homeScore, awayScore: reversed.awayScore },
+        }),
+        prisma.scoreAdjustment.delete({ where: { id: adjustment.id } }),
+      ]);
+
+      // Mirrors updateScore, which checks after every manual score change:
+      // reversing a negative adjustment raises the score and could carry a set.
+      await checkSetCompletion(matchId);
+      res.json({ deleted: adjustment.id, kind: 'adjustment' });
+      return;
+    }
+
+    const event = latestEvent!;
+    await prisma.event.delete({ where: { id: event.id } });
     // matchId is guaranteed here (queried by matchId); guard for the nullable type.
-    if (latest.matchId) await applyEventRemoval(latest.matchId, latest);
-    res.json({ deleted: latest.id });
+    if (event.matchId) await applyEventRemoval(event.matchId, event);
+    res.json({ deleted: event.id, kind: 'event' });
   } catch (err) {
     next(err);
   }

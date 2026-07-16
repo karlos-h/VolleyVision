@@ -6,7 +6,10 @@
  * gone). What's left to protect is:
  *   - automatic set completion at 25 / 15 win-by-2 still fires,
  *   - Undo Event undoes the last stat event and nothing more,
- *   - Reset Match still clears sets won and the whole history,
+ *   - Undo Event reverses a manual score tap when THAT is the last action,
+ *     in the right direction, instead of reaching past it to an older event,
+ *   - Reset Match still clears sets won and the whole history but keeps the
+ *     recorded stat events, and writes an audit row saying what it wiped,
  *   - Reset Match's manualScoreOverride still shields set state from the
  *     replay that Undo Event would otherwise trigger.
  *
@@ -155,7 +158,78 @@ async function main() {
   check('undo does NOT resurrect the reset set history',
     (afterUndo.setScores as SetScore[]).length === 0, JSON.stringify(afterUndo.setScores));
 
+  // ── Bug 1: Undo must reverse a score tap, not the stat event behind it ──
+  // A score tap writes a ScoreAdjustment, not an Event. Undo used to look only
+  // at Events, so it skipped the tap and silently reversed the older kill.
+  console.log('\n── Undo after a score tap (stat event → − tap → undo) ──');
+  await setScore(10, 10);
+  await kill(1);                                   // stat event: home 11-10
+  const beforeTap = await read();
+  check('kill recorded → 11-10', beforeTap.homeScore === 11, `got ${beforeTap.homeScore}`);
+  const eventsBeforeTap = await eventCount();
+
+  // The − button: an absolute update that stores a -1 delta.
+  await setScore(beforeTap.homeScore - 1, beforeTap.awayScore); // tap −: 10-10
+  const tapped = await read();
+  check('− tap → 10-10', tapped.homeScore === 10, `got ${tapped.homeScore}`);
+
+  const undoTap = await req('DELETE', `/events/undo/${match.id}`, token);
+  check('undo → 200', undoTap.status === 200, `got ${undoTap.status}`);
+  check('undo targeted the ADJUSTMENT, not the event', undoTap.json?.kind === 'adjustment',
+    `got kind=${undoTap.json?.kind}`);
+  const afterUndoTap = await read();
+  check('undo reverses the − UP to 11, not down to 9',
+    afterUndoTap.homeScore === 11, `expected 11, got ${afterUndoTap.homeScore}`);
+  check('the stat event behind the tap is untouched',
+    (await eventCount()) === eventsBeforeTap, `expected ${eventsBeforeTap} events`);
+
+  // ── Bug 1 regression guard: undo with no adjustments still undoes the event ──
+  console.log('\n── Undo with no adjustments in between (original behaviour) ──');
+  const beforeEventUndo = await read();
+  const eventsBeforeUndo = await eventCount();
+  const undoEvt2 = await req('DELETE', `/events/undo/${match.id}`, token);
+  check('undo → 200', undoEvt2.status === 200, `got ${undoEvt2.status}`);
+  check('undo targeted the EVENT', undoEvt2.json?.kind === 'event', `got kind=${undoEvt2.json?.kind}`);
+  check('event removed', (await eventCount()) === eventsBeforeUndo - 1);
+  check('its point came back off',
+    (await read()).homeScore === beforeEventUndo.homeScore - 1,
+    `expected ${beforeEventUndo.homeScore - 1}`);
+
+  // ── Bug 2: Reset Match keeps stat events and audits what it wiped ──
+  console.log('\n── Reset Match keeps recorded stats + writes an audit row ──');
+  await kill(1);
+  await req('POST', '/events', token, { matchId: match.id, playerId: player.id, eventType: 'DIG', setNumber: 1 });
+  const eventsBeforeReset = await eventCount();
+  check('events exist before the reset', eventsBeforeReset >= 2, `got ${eventsBeforeReset}`);
+
+  const auditBefore = await prisma.auditLog.count({ where: { action: 'RESET_MATCH', resourceId: match.id } });
+  const reset2 = await req('POST', `/matches/${match.id}/score/reset-match`, token);
+  check('reset-match → 200', reset2.status === 200, `got ${reset2.status}`);
+
+  check('recorded stat events SURVIVE the reset', (await eventCount()) === eventsBeforeReset,
+    `expected ${eventsBeforeReset}, got ${await eventCount()}`);
+  check('events are still visible in the match event log',
+    (await req('GET', `/events/by-match/${match.id}`, token)).json.length === eventsBeforeReset);
+
+  const auditRow = await prisma.auditLog.findFirst({
+    where: { action: 'RESET_MATCH', resourceId: match.id },
+    orderBy: { createdAt: 'desc' },
+  });
+  check('an audit row was written for the reset',
+    (await prisma.auditLog.count({ where: { action: 'RESET_MATCH', resourceId: match.id } })) === auditBefore + 1);
+  check('audit row records the acting user', auditRow?.userId === owner.id);
+  check('audit row is scoped to the match resource',
+    auditRow?.resource === 'match' && auditRow?.resourceId === match.id);
+  const meta = (auditRow?.meta ?? {}) as Record<string, unknown>;
+  check('audit meta records how many events were kept', meta.eventsKept === eventsBeforeReset,
+    `got ${JSON.stringify(meta)}`);
+  check('audit meta records the cleared score', 'clearedHomeScore' in meta && 'clearedAwayScore' in meta);
+  check('audit meta records the cleared sets/history',
+    'clearedHomeSetsWon' in meta && 'clearedAwaySetsWon' in meta && 'clearedSetScores' in meta);
+  check('audit meta records adjustments deleted', typeof meta.scoreAdjustmentsDeleted === 'number');
+
   // ── Cleanup ──
+  await prisma.auditLog.deleteMany({ where: { resourceId: match.id } });
   await prisma.team.delete({ where: { id: team.id } }); // cascades match/players/events
   await prisma.user.delete({ where: { email: EMAIL } });
 

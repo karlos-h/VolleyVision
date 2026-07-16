@@ -47,7 +47,9 @@ export async function getMatch(req: Request, res: Response, next: NextFunction) 
       where: { id: req.params.id },
       include: {
         team: { include: { players: { orderBy: { jerseyNumber: 'asc' } } } },
-        _count: { select: { events: true } },
+        // scoreAdjustments counts toward "is there anything to undo" — a manual
+        // score tap is undoable but records no Event. See deleteLastEvent.
+        _count: { select: { events: true, scoreAdjustments: true } },
       },
     });
     if (!match) throw new AppError(404, 'Match not found.');
@@ -259,15 +261,35 @@ async function writeOverriddenState(matchId: string, next: MatchScoreState) {
 // Reset the whole match: zero the running score and sets won, clear the set
 // history, and reopen a completed match. Broader than resetSetScore, which
 // only zeroes the current set. Gated behind a confirm() on the client.
+//
+// Recorded stat events are deliberately KEPT. This is an analytics app — who
+// dug or killed what shouldn't silently disappear because the scoreboard was
+// reset. That leaves those events as the only thing predating the reset, so we
+// write an audit entry recording what the reset actually wiped.
 export async function resetMatch(req: Request, res: Response, next: NextFunction) {
   try {
     const state = await loadScoreState(req.params.id);
     if (!state) throw new AppError(404, 'Match not found.');
 
     // Every adjustment belonged to a set that no longer exists.
-    await prisma.scoreAdjustment.deleteMany({ where: { matchId: req.params.id } });
+    const { count: scoreAdjustmentsDeleted } = await prisma.scoreAdjustment.deleteMany({
+      where: { matchId: req.params.id },
+    });
+    const eventsKept = await prisma.event.count({ where: { matchId: req.params.id } });
 
     const match = await writeOverriddenState(req.params.id, resetMatchScore(state));
+
+    logAudit(req.user!.userId, 'RESET_MATCH', 'match', req.params.id, {
+      clearedHomeScore: state.homeScore,
+      clearedAwayScore: state.awayScore,
+      clearedHomeSetsWon: state.homeSetsWon,
+      clearedAwaySetsWon: state.awaySetsWon,
+      clearedSetScores: state.setScores,
+      clearedStatus: state.status,
+      scoreAdjustmentsDeleted,
+      eventsKept,
+    });
+
     res.json(match);
   } catch (err) {
     next(err);

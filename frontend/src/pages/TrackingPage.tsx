@@ -176,7 +176,7 @@ export default function TrackingPage() {
   // The most destructive action on this screen — wipes every set and the whole
   // score history, not just the current set. Same confirm pattern as above.
   async function handleResetMatch() {
-    if (!confirm('Reset the ENTIRE match? Every set score and set won will be cleared. This cannot be undone.')) return;
+    if (!confirm('Reset the ENTIRE match? Every set score and set won will be cleared. Recorded stats are kept. This cannot be undone.')) return;
     try {
       await resetMatch.mutateAsync();
       setCurrentSet(1);
@@ -211,6 +211,12 @@ export default function TrackingPage() {
     resetSetScore.isPending ||
     resetMatch.isPending ||
     undoEvent.isPending;
+
+  // Undo reaches into both action logs, so the button has to account for both:
+  // a manual score tap writes a ScoreAdjustment, not an Event, and a match can
+  // have adjustments with no stat events recorded yet.
+  const canUndo =
+    (events?.length ?? 0) > 0 || (match._count?.scoreAdjustments ?? 0) > 0;
 
   // Focus mode re-sorts the roster so the most relevant positions surface first
   // (stable — everyone else keeps their original order and stays tappable) and
@@ -270,7 +276,7 @@ export default function TrackingPage() {
         onResetMatch={handleResetMatch}
         onToggleStatus={handleStatusToggle}
         onUndoEvent={handleUndo}
-        canUndoEvent={!!events?.length}
+        canUndoEvent={canUndo}
         busy={scoreboardBusy}
       />
 
