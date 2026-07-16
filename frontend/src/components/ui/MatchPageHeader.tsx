@@ -19,6 +19,15 @@ const STATUS_STYLES: Record<MatchStatus, string> = {
 
 const MATCH_STATUSES: MatchStatus[] = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
+// Small color hint shown next to each row in the status menu — a subtle nod to
+// what the badge becomes, without painting the whole row (see STATUS_STYLES).
+const STATUS_DOT: Record<MatchStatus, string> = {
+  SCHEDULED: 'bg-info',
+  IN_PROGRESS: 'bg-gold-500',
+  COMPLETED: 'bg-success',
+  CANCELLED: 'bg-error',
+};
+
 interface MatchPageHeaderProps {
   matchId: string;
   teamId: string;
@@ -47,13 +56,15 @@ export default function MatchPageHeader({
   const canManageMatches = useHasPermission(teamId, 'CREATE_MATCH');
   const updateMatch = useUpdateMatch();
   const [pendingNotice, setPendingNotice] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleStatusChange(next: MatchStatus) {
+    setMenuOpen(false);
     const result = await updateMatch.mutateAsync({ id: matchId, data: { status: next } });
     if (isPendingApproval(result)) {
-      // Applied optimistically by the <select>'s own value binding — since we
+      // Applied optimistically by the trigger's own prop binding — since we
       // read `status` from props (server state), a no-op mutation naturally
-      // leaves the select showing the prior value once queries settle.
+      // leaves the trigger showing the prior value once queries settle.
       setPendingNotice(`Status change submitted for the head coach's approval.`);
     }
   }
@@ -81,18 +92,40 @@ export default function MatchPageHeader({
           </div>
           {canManageMatches ? (
             <div className="relative shrink-0">
-              <select
-                value={status}
+              <button
+                type="button"
                 disabled={updateMatch.isPending}
-                onChange={(e) => handleStatusChange(e.target.value as MatchStatus)}
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="listbox"
+                aria-expanded={menuOpen}
                 aria-label="Match status"
-                className={`badge ${STATUS_STYLES[status]} appearance-none pr-6 pl-2 cursor-pointer disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500`}
+                className={`badge ${STATUS_STYLES[status]} pr-6 pl-2 cursor-pointer disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 relative`}
               >
-                {MATCH_STATUSES.map((s) => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                ))}
-              </select>
-              <ChevronIcon className="w-3 h-3 rotate-90 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {status.replace('_', ' ')}
+                <ChevronIcon className="w-3 h-3 rotate-90 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </button>
+
+              {menuOpen && (
+                <>
+                  {/* Outside-click backdrop — no headless-ui/Radix in this codebase, keep it that way */}
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div role="listbox" className="card absolute right-0 mt-1 z-20 py-1 min-w-[9rem] shadow-lg">
+                    {MATCH_STATUSES.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        role="option"
+                        aria-selected={s === status}
+                        onClick={() => handleStatusChange(s)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-grey-900 hover:bg-grey-100 transition-colors text-left"
+                      >
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[s]}`} aria-hidden />
+                        {s.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <span className={`badge ${STATUS_STYLES[status]} shrink-0`}>{status.replace('_', ' ')}</span>

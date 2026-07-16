@@ -129,7 +129,7 @@ export function StatsCards({ stats, trends }: { stats: StatLine; trends?: StatTr
   );
 }
 
-export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
+export function PlayerStatsTable({ rows, matchId }: { rows: PlayerStatLine[]; matchId?: string }) {
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
@@ -154,7 +154,7 @@ export function PlayerStatsTable({ rows }: { rows: PlayerStatLine[] }) {
               <td className="px-4 py-3">
                 <span className="tabular-nums text-grey-600 mr-2">#{row.player.jerseyNumber}</span>
                 <Link
-                  to={`/players/${row.player.id}/dashboard`}
+                  to={matchId ? `/players/${row.player.id}/dashboard?matchId=${matchId}` : `/players/${row.player.id}/dashboard`}
                   className="font-medium text-grey-900 hover:text-navy-700 transition-colors"
                 >
                   {row.player.firstName} {row.player.lastName}

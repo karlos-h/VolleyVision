@@ -206,7 +206,7 @@ export default function MatchDashboardPage() {
 
       <section>
         <h2 className="text-lg font-semibold text-grey-900 mb-3">Player Statistics</h2>
-        <PlayerStatsTable rows={data.playerStats} />
+        <PlayerStatsTable rows={data.playerStats} matchId={matchId} />
       </section>
 
       {/* Phase 6 Sprint 3 — Opponent Scouting */}

@@ -1,5 +1,5 @@
-import { Link, useParams } from 'react-router-dom';
-import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport } from '../hooks';
+import { Link, NavLink, useParams, useSearchParams } from 'react-router-dom';
+import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport, useMatchAnalytics } from '../hooks';
 import { StatsCards } from '../components/analytics/StatsOverview';
 import { POSITION_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
@@ -7,12 +7,19 @@ import HeatMapCourt from '../components/court/HeatMapCourt';
 import PlayerDevelopmentCard from '../components/analytics/PlayerDevelopmentCard';
 import { features } from '../config/features';
 import type { StatLine } from '../types';
+import { ArrowLeftIcon } from '../components/ui/icons';
 
 export default function PlayerDashboardPage() {
   const { playerId } = useParams<{ playerId: string }>();
+  const [searchParams] = useSearchParams();
+  // Present only when arriving from a match's Player Statistics table — keeps
+  // the coach inside that match's context (back button + player tab bar)
+  // instead of the generic career-wide profile view.
+  const matchId = searchParams.get('matchId') ?? undefined;
   const { data, isLoading, isError } = usePlayerAnalytics(playerId!);
   const { data: heatmapData } = usePlayerHeatmap(playerId!);
   const { data: developmentData } = usePlayerDevelopmentReport(playerId!);
+  const { data: matchData } = useMatchAnalytics(matchId ?? '');
 
   if (isLoading) return <p className="text-navy-300">Loading analytics…</p>;
   if (isError || !data) return <p className="text-error">Couldn't load player analytics.</p>;
@@ -20,12 +27,22 @@ export default function PlayerDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          to={`/teams/${data.player.teamId}`}
-          className="text-sm text-navy-300 hover:text-navy-700"
-        >
-          ← Back to Roster
-        </Link>
+        {matchId ? (
+          <Link
+            to={`/matches/${matchId}/dashboard`}
+            className="btn-secondary inline-flex items-center gap-1.5 text-sm py-1.5 px-3"
+          >
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Match Stats
+          </Link>
+        ) : (
+          <Link
+            to={`/teams/${data.player.teamId}`}
+            className="text-sm text-navy-300 hover:text-navy-700"
+          >
+            ← Back to Roster
+          </Link>
+        )}
 
         <h1 className="text-2xl font-bold text-grey-900 mt-2">
           #{data.player.jerseyNumber} {data.player.firstName} {data.player.lastName}
@@ -34,6 +51,28 @@ export default function PlayerDashboardPage() {
           {POSITION_LABELS[data.player.position]}
         </p>
       </div>
+
+      {/* Player tab bar — only in match context, listing every player with
+          stats in that match (not the full roster), so the coach can compare
+          players while staying inside the same match. */}
+      {matchId && matchData && matchData.playerStats.length > 0 && (
+        <div className="flex items-center gap-1 border-b border-grey-200 pb-px overflow-x-auto">
+          {matchData.playerStats.map((row) => (
+            <NavLink
+              key={row.player.id}
+              to={`/players/${row.player.id}/dashboard?matchId=${matchId}`}
+              className={({ isActive }) =>
+                `px-3.5 py-2 -mb-px text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'border-gold-500 text-navy-700 font-semibold'
+                    : 'border-transparent text-grey-600 hover:text-navy-700'
+                }`}
+            >
+              #{row.player.jerseyNumber} {row.player.lastName}
+            </NavLink>
+          ))}
+        </div>
+      )}
 
       <StatsCards stats={data.stats} />
       <PlayerRadarChart stats={data.stats} />

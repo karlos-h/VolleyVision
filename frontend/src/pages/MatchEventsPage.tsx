@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMatch, useEvents, useHasPermission } from '../hooks';
 import { EVENT_META, type Event } from '../types';
 import MatchPageHeader from '../components/ui/MatchPageHeader';
+import { ChevronIcon } from '../components/ui/icons';
 
 // Light-mode, read-only changelog of a match's recorded events (Task 6).
 // Available for a match in any status — unlike Track, which is live-only.
@@ -26,6 +28,7 @@ export default function MatchEventsPage() {
   const { data: match, isLoading: matchLoading } = useMatch(matchId!);
   const { data: events, isLoading: eventsLoading } = useEvents(matchId!);
   const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
+  const [openSets, setOpenSets] = useState<Record<number, boolean>>({});
 
   if (matchLoading) return <p className="text-grey-600">Loading…</p>;
   if (!match) return <p className="text-error">Match not found.</p>;
@@ -37,6 +40,10 @@ export default function MatchEventsPage() {
     bySet.get(e.setNumber)!.push(e);
   }
   const setNumbers = [...bySet.keys()].sort((a, b) => a - b);
+  // Only the most recent set starts expanded — the one just played or in
+  // progress — so the changelog doesn't open as a wall of history.
+  const isOpen = (setNo: number) => openSets[setNo] ?? (setNo === setNumbers[setNumbers.length - 1]);
+  const toggleSet = (setNo: number) => setOpenSets((prev) => ({ ...prev, [setNo]: !isOpen(setNo) }));
 
   return (
     <div className="space-y-6">
@@ -61,35 +68,48 @@ export default function MatchEventsPage() {
         </div>
       ) : (
         <div className="space-y-5">
-          {setNumbers.map((setNo) => (
-            <div key={setNo} className="card overflow-hidden">
-              <div className="px-5 py-2.5 border-b border-grey-200 bg-grey-50 flex items-center justify-between">
-                <h2 className="font-display font-semibold text-grey-900">Set {setNo}</h2>
-                <span className="text-xs text-grey-600 tabular-nums">{bySet.get(setNo)!.length} events</span>
+          {setNumbers.map((setNo) => {
+            const open = isOpen(setNo);
+            return (
+              <div key={setNo} className="card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSet(setNo)}
+                  aria-expanded={open}
+                  className="w-full px-5 py-2.5 border-b border-grey-200 bg-grey-50 flex items-center justify-between hover:bg-grey-100 transition-colors"
+                >
+                  <h2 className="font-display font-semibold text-grey-900">Set {setNo}</h2>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs text-grey-600 tabular-nums">{bySet.get(setNo)!.length} events</span>
+                    <ChevronIcon className={`w-4 h-4 text-grey-600 transition-transform ${open ? 'rotate-90' : ''}`} />
+                  </span>
+                </button>
+                {open && (
+                  <div className="divide-y divide-grey-200">
+                    {bySet.get(setNo)!.map((e) => {
+                      const meta = META.get(e.eventType);
+                      const outcome = meta?.outcome ?? 'neutral';
+                      return (
+                        <div key={e.id} className="flex items-center gap-3 px-5 py-2.5">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${OUTCOME_DOT[outcome]}`} aria-hidden />
+                          <span className="text-[13px] font-semibold text-grey-900 w-24 shrink-0">
+                            {meta?.label ?? e.eventType}
+                          </span>
+                          <span className="text-[13px] text-grey-700 flex-1 min-w-0 truncate">{actorLabel(e)}</span>
+                          {e.rallyNumber != null && (
+                            <span className="text-[11px] text-grey-400 tabular-nums shrink-0">rally {e.rallyNumber}</span>
+                          )}
+                          <span className="text-[11px] text-grey-500 tabular-nums shrink-0 w-14 text-right">
+                            {format(new Date(e.recordedAt), 'HH:mm')}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div className="divide-y divide-grey-200">
-                {bySet.get(setNo)!.map((e) => {
-                  const meta = META.get(e.eventType);
-                  const outcome = meta?.outcome ?? 'neutral';
-                  return (
-                    <div key={e.id} className="flex items-center gap-3 px-5 py-2.5">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${OUTCOME_DOT[outcome]}`} aria-hidden />
-                      <span className="text-[13px] font-semibold text-grey-900 w-24 shrink-0">
-                        {meta?.label ?? e.eventType}
-                      </span>
-                      <span className="text-[13px] text-grey-700 flex-1 min-w-0 truncate">{actorLabel(e)}</span>
-                      {e.rallyNumber != null && (
-                        <span className="text-[11px] text-grey-400 tabular-nums shrink-0">rally {e.rallyNumber}</span>
-                      )}
-                      <span className="text-[11px] text-grey-500 tabular-nums shrink-0 w-14 text-right">
-                        {format(new Date(e.recordedAt), 'HH:mm')}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
