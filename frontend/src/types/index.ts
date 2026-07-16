@@ -691,7 +691,7 @@ export interface EventMeta {
 export const EVENT_META: EventMeta[] = [
   // Attacking
   { type: 'KILL', label: 'Kill', category: 'attack', outcome: 'positive' },
-  { type: 'ATTACK_ERROR', label: 'Att. Error', category: 'attack', outcome: 'negative' },
+  { type: 'ATTACK_ERROR', label: 'Attack Error', category: 'attack', outcome: 'negative' },
   { type: 'ATTACK_ATTEMPT', label: 'Attempt', category: 'attack', outcome: 'neutral' },
   { type: 'TIP', label: 'Tip', category: 'attack', outcome: 'neutral' },
   { type: 'FREE_BALL', label: 'Free Ball', category: 'attack', outcome: 'neutral' },
@@ -706,8 +706,8 @@ export const EVENT_META: EventMeta[] = [
   { type: 'PASS_0', label: 'Pass 0', category: 'pass', outcome: 'negative' },
   // Blocking
   { type: 'SOLO_BLOCK', label: 'Solo Block', category: 'block', outcome: 'positive' },
-  { type: 'BLOCK_ASSIST', label: 'Blk Assist', category: 'block', outcome: 'positive' },
-  { type: 'BLOCK_ERROR', label: 'Blk Error', category: 'block', outcome: 'negative' },
+  { type: 'BLOCK_ASSIST', label: 'Block Assist', category: 'block', outcome: 'positive' },
+  { type: 'BLOCK_ERROR', label: 'Block Error', category: 'block', outcome: 'negative' },
   // Defence
   { type: 'DIG', label: 'Dig', category: 'defence', outcome: 'positive' },
   { type: 'DIG_ERROR', label: 'Dig Error', category: 'defence', outcome: 'negative' },

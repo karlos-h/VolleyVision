@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useHasPermission } from '../hooks';
-import type { EventType, Player } from '../types';
+import type { EventType, Player, Position } from '../types';
 import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
+import type { EventMeta } from '../types';
 import clsx from 'clsx';
 import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
 import MatchPageHeader from '../components/ui/MatchPageHeader';
@@ -40,6 +41,24 @@ function getMeta(type: EventType) {
   return EVENT_META.find((m) => m.type === type)!;
 }
 
+// Focus mode filters which event-button groups render (roster/score/zone stay
+// put). Categories are matched against EVENT_META[].category so the lists stay
+// in sync with the data rather than being hardcoded event-by-event.
+type FocusMode = 'all' | 'attack' | 'defense';
+
+const FOCUS_CATEGORIES: Record<Exclude<FocusMode, 'all'>, EventMeta['category'][]> = {
+  attack: ['attack', 'serve', 'set'],
+  defense: ['pass', 'block', 'defence'],
+};
+
+// Positions surfaced first (in this order) when a focus mode is active — a
+// convenience re-sort of the roster, never a filter (any player can dig, pass,
+// set, or attack, so all stay tappable).
+const FOCUS_POSITION_PRIORITY: Record<Exclude<FocusMode, 'all'>, Position[]> = {
+  attack: ['OUTSIDE_HITTER', 'OPPOSITE', 'MIDDLE_BLOCKER'],
+  defense: ['LIBERO', 'DEFENSIVE_SPECIALIST'],
+};
+
 // Flash feedback state
 type FlashState = { text: string; ok: boolean } | null;
 
@@ -66,6 +85,11 @@ export default function TrackingPage() {
   const [justRecorded, setJustRecorded] = useState<string | null>(null);
   const [isOpponentMode, setIsOpponentMode] = useState(false);
   const [opponentJerseyNumber, setOpponentJerseyNumber] = useState('');
+  // Local-only, like keepZone/selectedRotation — never persisted.
+  const [focusMode, setFocusMode] = useState<FocusMode>('all');
+  // Distinct player IDs from the last few own-team events, most-recent-first,
+  // capped at 3 — powers the quick-switch strip above the roster.
+  const [recentPlayerIds, setRecentPlayerIds] = useState<string[]>([]);
 
   // Auto-select first player when roster loads
   useEffect(() => {
@@ -102,6 +126,9 @@ export default function TrackingPage() {
       if (isOpponentMode) {
         showFlash(`OPP: ${meta.label}${jerseyNum != null ? ` #${jerseyNum}` : ''}`, true);
       } else {
+        // Push onto the recently-used history (dedupe, most-recent-first, cap 3).
+        const usedId = selectedPlayer!.id;
+        setRecentPlayerIds((prev) => [usedId, ...prev.filter((id) => id !== usedId)].slice(0, 3));
         showFlash(`${meta.label} → #${selectedPlayer!.jerseyNumber}`, true);
       }
       setTimeout(() => setJustRecorded(null), 300);
@@ -153,6 +180,33 @@ export default function TrackingPage() {
 
   const recentEvents = [...(events ?? [])].reverse().slice(0, 6);
   const players = match.team?.players ?? [];
+
+  // Focus mode re-sorts the roster so the most relevant positions surface first
+  // (stable — everyone else keeps their original order and stays tappable) and
+  // filters which event-button groups render.
+  const orderedPlayers =
+    focusMode === 'all'
+      ? players
+      : [...players].sort((a, b) => {
+          const priority = FOCUS_POSITION_PRIORITY[focusMode];
+          const ra = priority.indexOf(a.position);
+          const rb = priority.indexOf(b.position);
+          return (ra === -1 ? priority.length : ra) - (rb === -1 ? priority.length : rb);
+        });
+
+  const visibleCategories =
+    focusMode === 'all'
+      ? CATEGORIES
+      : CATEGORIES.filter((cat) =>
+          FOCUS_CATEGORIES[focusMode].includes(getMeta(cat.events[0]).category)
+        );
+
+  // Quick-switch chips: recent players minus the one already selected (shown as
+  // selected in the grid). Only meaningful in own-team recording mode.
+  const recentPlayers = recentPlayerIds
+    .filter((id) => id !== selectedPlayer?.id)
+    .map((id) => players.find((p) => p.id === id))
+    .filter((p): p is Player => p != null);
 
   return (
     <div className="space-y-6 select-none">
@@ -311,7 +365,7 @@ export default function TrackingPage() {
         )}
 
         {/* ── Recording mode toggle ── */}
-        <div className="flex items-center gap-3 card p-3">
+        <div className="flex items-center gap-3 flex-wrap card p-3">
           <span className="text-xs text-grey-600 font-medium shrink-0">Recording for:</span>
           <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
             <button
@@ -344,6 +398,28 @@ export default function TrackingPage() {
               className="input text-sm w-36"
             />
           )}
+
+          {/* Focus mode — filters which event groups render and re-sorts the
+              roster by relevant position. Roster/score/zone stay visible. */}
+          <span className="text-xs text-grey-600 font-medium shrink-0 ml-auto">Focus:</span>
+          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
+            {([
+              ['all', 'All'],
+              ['attack', 'Attack'],
+              ['defense', 'Defense'],
+            ] as [FocusMode, string][]).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setFocusMode(mode)}
+                className={clsx(
+                  'px-4 py-2 transition-colors',
+                  focusMode === mode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Player roster (hidden in opponent mode) ── */}
@@ -351,8 +427,32 @@ export default function TrackingPage() {
           <div className="text-xs text-grey-600 font-medium mb-2 px-1">
             Select Player — Set {currentSet}
           </div>
+
+          {/* Recently-used quick strip — fast switching between the 2–3 players
+              trading a stat, without hunting the full grid. Hidden until there
+              is history to show. */}
+          {recentPlayers.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto">
+              <span className="text-[10px] text-grey-600 font-medium shrink-0">Recent:</span>
+              {recentPlayers.map((player) => (
+                <button
+                  key={player.id}
+                  onClick={() => setSelectedPlayer(player)}
+                  className="flex items-center gap-1.5 shrink-0 rounded-lg py-1.5 px-2.5 border bg-grey-50 border-grey-200 text-grey-900 hover:border-navy-500 transition-colors"
+                >
+                  <span className="tabular-nums font-bold text-sm leading-none">
+                    #{player.jerseyNumber}
+                  </span>
+                  <span className="text-xs font-medium leading-none truncate max-w-[6rem]">
+                    {player.lastName}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-            {players.map((player) => (
+            {orderedPlayers.map((player) => (
               <button
                 key={player.id}
                 onClick={() => setSelectedPlayer(player)}
@@ -421,7 +521,7 @@ export default function TrackingPage() {
 
         {/* ── Event buttons ── */}
         <div className="space-y-3">
-          {CATEGORIES.map((cat) => (
+          {visibleCategories.map((cat) => (
             <div key={cat.label}>
               <div className="text-xs font-semibold text-grey-600 mb-2 px-1">
                 {cat.label}
@@ -438,7 +538,7 @@ export default function TrackingPage() {
                   return (
                     <button
                       key={eventType}
-                      className={clsx(cls, justRecorded === eventType && 'scale-95 brightness-150')}
+                      className={clsx(cls, justRecorded === eventType && 'scale-95 btn-event-just-recorded')}
                       onClick={() => handleRecord(eventType)}
                       disabled={recordEvent.isPending}
                     >

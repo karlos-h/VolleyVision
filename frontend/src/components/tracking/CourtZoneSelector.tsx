@@ -33,12 +33,14 @@ export default function CourtZoneSelector({ value, onChange }: Props) {
         )}
       </div>
 
-      <div className="relative border border-grey-200 rounded-xl overflow-hidden bg-grey-50 select-none">
-        {/* NET divider — a gold line spanning the court centre */}
-        <div className="absolute inset-x-0 top-1/2 h-px bg-gold-500/60 z-10 pointer-events-none" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20
-                        text-[9px] font-bold tracking-widest text-navy-700 bg-grey-50 px-1.5 pointer-events-none">
-          NET
+      <div className="border border-grey-200 rounded-xl overflow-hidden bg-grey-50 select-none">
+        {/* NET — the boundary at the top of the diagram, above the front row
+            (4 | 3 | 2). The grey borders between the two zone rows already
+            read as a divider, so the back row doesn't need its own marker. */}
+        <div className="flex items-center justify-center border-b-2 border-gold-500 py-1">
+          <span className="text-[9px] font-bold tracking-widest text-navy-700">
+            NET
+          </span>
         </div>
 
         {ZONE_LAYOUT.map((row, rowIdx) => (

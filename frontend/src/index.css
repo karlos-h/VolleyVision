@@ -39,19 +39,37 @@
   .btn-event {
     @apply no-select relative flex flex-col items-center justify-center rounded-xl
            font-semibold text-sm leading-tight transition-all duration-75
-           active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
+           active:scale-95 active:shadow-inner focus:outline-none
+           focus-visible:ring-2 focus-visible:ring-gold-500;
     min-height: 76px;
-    padding: 10px 8px;
+    /* Slightly tighter than the old 10px/8px so longer labels (e.g. "Attack
+       Error") have more room to wrap to a second line without ever pushing
+       past min-height — CSS Grid then stretches every button in the row to
+       match, so a wrapped neighbour never looks uneven next to a one-line one. */
+    padding: 8px 6px;
+  }
+
+  /* Post-tap pulse: reuse the same gold ring as focus-visible above, so
+     "this just happened" reads as the same accent as every other
+     active/highlight state in the app, instead of a plain brightness jump. */
+  .btn-event-just-recorded {
+    @apply ring-2 ring-gold-500;
   }
 
   /* Courtside usability: positive=green, negative=red, neutral=navy.
-     These stay semantic — never gold. */
+     These stay semantic — never gold. Every variant carries a subtle
+     border for a consistent, "designed" frame: neutral uses navy-600 (a
+     step darker than its navy-700 fill, already in the palette); positive/
+     negative use a translucent black since success/error only have DEFAULT/
+     dark/strong shades, none of which reads as "one step darker than fill" —
+     black/10 gets the same subtle-edge effect without inventing new hex
+     values outside the brand palette. */
   .btn-event-positive {
-    @apply btn-event bg-success hover:brightness-110 text-white;
+    @apply btn-event bg-success hover:brightness-110 text-white border border-black/10;
   }
 
   .btn-event-negative {
-    @apply btn-event bg-error hover:brightness-110 text-white;
+    @apply btn-event bg-error hover:brightness-110 text-white border border-black/10;
   }
 
   .btn-event-neutral {
