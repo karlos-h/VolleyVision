@@ -1,7 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi, feedbackApi } from '../lib/api';
 import type { CreateTeamInput } from '../lib/api';
 import type { Player, Match, TeamRole, TeamMember, ApprovalStatus } from '../types';
+import type { FeedbackStatus } from '../types/feedback';
+
+// ─── Feedback tab ─────────────────────────────────────────────────────────────
+
+export function useMyFeedback() {
+  return useQuery({ queryKey: ['feedback', 'mine'], queryFn: feedbackApi.listMine });
+}
+
+export function useCreateFeedback() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: feedbackApi.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['feedback', 'mine'] }),
+  });
+}
+
+/** Admin panel only — the endpoint 403s for non-admins. */
+export function useAllFeedback(filters: { status?: string; type?: string }, enabled = true) {
+  return useQuery({
+    queryKey: ['feedback', 'all', filters],
+    queryFn: () => feedbackApi.listAll(filters),
+    enabled,
+  });
+}
+
+export function useUpdateFeedbackStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { status?: FeedbackStatus; adminNotes?: string | null } }) =>
+      feedbackApi.updateStatus(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['feedback', 'all'] }),
+  });
+}
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
 export function useApprovalRequests(teamId: string, status?: ApprovalStatus, enabled = true) {

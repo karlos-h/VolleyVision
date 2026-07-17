@@ -141,6 +141,30 @@ enum AttachmentKind {
   FILE     // pdf/doc/etc. — generic, no thumbnail
 }
 
+// ─── Feedback (2026-07) ─────────────────────────────────────────────────────────
+// In-app bug reports / feature requests. Any user submits; only the global
+// ADMIN triages. Attachments reuse AttachmentKind + the chat Supabase bucket
+// (feedbackStorage.service.ts) under a `feedback/` key prefix.
+
+enum FeedbackType {
+  BUG
+  FEATURE_REQUEST
+  GENERAL
+}
+
+enum FeedbackSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FeedbackStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  WONT_FIX
+}
+
 // Stabilization Pass 2 — Head-coach approval queue
 enum ApprovalAction {
   PLAYER_CREATE
@@ -215,6 +239,9 @@ model User {
   // Team Chat foundation
   sentMessages   Message[]       @relation("MessageSender")
   channelMembers ChannelMember[]
+
+  // Feedback tab
+  feedback     Feedback[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -722,6 +749,59 @@ model TrainingSession {
 
   @@index([teamId])
   @@map("training_sessions")
+}
+
+// ─── Feedback tab (2026-07) ─────────────────────────────────────────────────────
+
+model Feedback {
+  id          String            @id @default(cuid())
+  userId      String            @map("user_id")
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        FeedbackType
+  // Only meaningful for BUG — null for feature requests / general feedback.
+  severity    FeedbackSeverity?
+  subject     String
+  description String
+
+  status      FeedbackStatus    @default(OPEN)
+  adminNotes  String?           @map("admin_notes")
+
+  // Route the user was on when they submitted — cheap debugging context.
+  pageContext String?           @map("page_context")
+
+  attachments FeedbackAttachment[]
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("feedback")
+}
+
+model FeedbackAttachment {
+  id           String         @id @default(cuid())
+  feedbackId   String         @map("feedback_id")
+  feedback     Feedback       @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  kind         AttachmentKind
+
+  // Supabase Storage object path (NOT a public URL) — same contract as
+  // MessageAttachment.storagePath; signed URLs are minted on read.
+  storagePath  String         @map("storage_path")
+  originalName String         @map("original_name")
+  mimeType     String         @map("mime_type")
+  sizeBytes    Int            @map("size_bytes")
+
+  // Populated for IMAGE only.
+  width        Int?
+  height       Int?
+
+  createdAt    DateTime       @default(now())
+
+  @@index([feedbackId])
+  @@map("feedback_attachments")
 }
 
 // ─── Phase 7 Sprint 1 — League Intelligence ───────────────────────────────────

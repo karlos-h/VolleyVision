@@ -276,6 +276,44 @@ export const chatApi = {
     api.delete<ChatMessage>(`/messages/${messageId}`).then((r) => r.data),
 };
 
+// ─── Feedback tab ─────────────────────────────────────────────────────────────
+import type { Feedback, FeedbackStatus } from '../types/feedback';
+
+export const feedbackApi = {
+  create: (data: {
+    type: string;
+    severity?: string;
+    subject: string;
+    description: string;
+    pageContext?: string;
+    files: File[];
+  }) => {
+    const fd = new FormData();
+    fd.append('type', data.type);
+    if (data.severity) fd.append('severity', data.severity);
+    fd.append('subject', data.subject);
+    fd.append('description', data.description);
+    if (data.pageContext) fd.append('pageContext', data.pageContext);
+    for (const file of data.files) fd.append('files', file);
+    return api
+      .post<Feedback>('/feedback', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data);
+  },
+  listMine: () => api.get<Feedback[]>('/feedback/mine').then((r) => r.data),
+  // Admin-only — 403 for everyone else.
+  listAll: (filters?: { status?: string; type?: string }) => {
+    const params: Record<string, string> = {};
+    if (filters?.status) params.status = filters.status;
+    if (filters?.type) params.type = filters.type;
+    return api.get<Feedback[]>('/feedback', { params }).then((r) => r.data);
+  },
+  updateStatus: (id: string, data: { status?: FeedbackStatus; adminNotes?: string | null }) =>
+    api.patch<Feedback>(`/feedback/${id}`, data).then((r) => r.data),
+  // Signed URL round-trip — owner or admin only.
+  getAttachmentUrl: (feedbackId: string, attachmentId: string) =>
+    api.get<{ url: string }>(`/feedback/${feedbackId}/attachments/${attachmentId}/url`).then((r) => r.data.url),
+};
+
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────
 export const membershipsApi = {
   listByTeam: (teamId: string) =>

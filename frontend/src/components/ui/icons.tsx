@@ -63,6 +63,16 @@ export function MailIcon({ className }: IconProps) {
   );
 }
 
+/** Speech bubble with an exclamation mark — the Feedback tab. */
+export function FeedbackIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H13l-4.2 3.4a.6.6 0 0 1-1-.5V17H6.5A2.5 2.5 0 0 1 4 14.5v-8Z" />
+      <path d="M12 8v3.4M12 13.9v.1" />
+    </svg>
+  );
+}
+
 export function UserIcon({ className }: IconProps) {
   return (
     <svg {...base(className)}>

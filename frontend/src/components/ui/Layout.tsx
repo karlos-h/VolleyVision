@@ -6,7 +6,7 @@ import { useMyInvitations } from '../../hooks';
 import { features } from '../../config/features';
 import {
   GridIcon, TeamIcon, SparkIcon, MailIcon, UserIcon,
-  BellIcon, ChevronIcon, MenuIcon, LogoutIcon,
+  BellIcon, ChevronIcon, MenuIcon, LogoutIcon, FeedbackIcon,
 } from './icons';
 
 type NavItem = {
@@ -22,6 +22,7 @@ const NAV_AUTH: NavItem[] = [
   { to: '/teams', label: 'Teams', icon: TeamIcon },
   ...(features.leagues ? [{ to: '/leagues', label: 'League Hub', icon: SparkIcon }] : []),
   { to: '/invitations', label: 'Invitations', icon: MailIcon, badge: true },
+  { to: '/feedback', label: 'Feedback', icon: FeedbackIcon },
   { to: '/profile', label: 'Profile', icon: UserIcon },
 ];
 

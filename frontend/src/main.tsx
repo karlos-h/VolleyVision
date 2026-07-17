@@ -36,6 +36,7 @@ import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 import LeagueSeasonRankingsPage from './pages/LeagueSeasonRankingsPage';
 import MatchCentrePage from './pages/MatchCentrePage';
 import TeamChatPage from './pages/TeamChatPage';
+import FeedbackPage from './pages/FeedbackPage';
 
 // Backward-compat redirect: live tracking moved under the shared match shell at
 // /matches/:matchId/track. Old bookmarks to /track/:matchId land here.
@@ -82,6 +83,7 @@ function App() {
                   there is no separate "browse all teams" list any more. */}
               <Route path="/my-teams" element={<Navigate to="/teams" replace />} />
               <Route path="/invitations" element={<InvitationsPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/track/:matchId" element={<LegacyTrackRedirect />} />
               {/* Team-scoped routes. Teams are private to their members, so
                   every one of these 404s for a non-member on the backend —
