@@ -194,7 +194,7 @@ export default function TrackingPage() {
     return <Navigate to={`/matches/${matchId}/events`} replace />;
   }
 
-  const recentEvents = [...(events ?? [])].reverse().slice(0, 6);
+  const recentEvents = [...(events ?? [])].reverse().slice(0, 5);
   const players = match.team?.players ?? [];
 
   // One in-flight score mutation is enough to freeze the board's controls —
@@ -286,27 +286,35 @@ export default function TrackingPage() {
         )}
 
         {/* ── Recording mode toggle ── */}
+        {/* Both toggles sit on a 36px (h-9) button height — courtside legibility,
+            and in line with the touch targets elsewhere on this screen. They read
+            as one banner, so Us/Opponent and Focus stay sized to match. */}
         <div className="flex items-center gap-3 flex-wrap card p-3">
-          <span className="text-xs text-grey-600 font-medium shrink-0">Recording for:</span>
-          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
-            <button
-              onClick={() => setIsOpponentMode(false)}
-              className={clsx(
-                'px-4 py-2 transition-colors',
-                !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
-              )}
-            >
-              Us
-            </button>
-            <button
-              onClick={() => setIsOpponentMode(true)}
-              className={clsx(
-                'px-4 py-2 transition-colors',
-                isOpponentMode ? 'bg-error text-white' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
-              )}
-            >
-              Opponent
-            </button>
+          {/* Each label is grouped with the toggle it labels, so when the row
+              wraps they travel together rather than the label being orphaned on
+              the line above its own buttons. */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-grey-600 font-medium shrink-0">Recording for:</span>
+            <div className="flex rounded-lg overflow-hidden border border-grey-200 text-sm font-semibold">
+              <button
+                onClick={() => setIsOpponentMode(false)}
+                className={clsx(
+                  'h-9 px-5 transition-colors',
+                  !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                Us
+              </button>
+              <button
+                onClick={() => setIsOpponentMode(true)}
+                className={clsx(
+                  'h-9 px-5 transition-colors',
+                  isOpponentMode ? 'bg-error text-white' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                Opponent
+              </button>
+            </div>
           </div>
           {isOpponentMode && (
             <input
@@ -316,30 +324,34 @@ export default function TrackingPage() {
               placeholder="Jersey # (opt.)"
               value={opponentJerseyNumber}
               onChange={(e) => setOpponentJerseyNumber(e.target.value)}
-              className="input text-sm w-36"
+              // .input's own py-2.5 would make this ~42px and leave it standing
+              // taller than the h-9 buttons beside it; py-0 lets h-9 win.
+              className="input h-9 py-0 text-sm w-36 shrink-0"
             />
           )}
 
           {/* Focus mode — filters which event groups render and re-sorts the
               roster by relevant position. Roster/score/zone stay visible. */}
-          <span className="text-xs text-grey-600 font-medium shrink-0 ml-auto">Focus:</span>
-          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
-            {([
-              ['all', 'All'],
-              ['attack', 'Attack'],
-              ['defense', 'Defense'],
-            ] as [FocusMode, string][]).map(([mode, label]) => (
-              <button
-                key={mode}
-                onClick={() => setFocusMode(mode)}
-                className={clsx(
-                  'px-4 py-2 transition-colors',
-                  focusMode === mode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-sm text-grey-600 font-medium shrink-0">Focus:</span>
+            <div className="flex rounded-lg overflow-hidden border border-grey-200 text-sm font-semibold">
+              {([
+                ['all', 'All'],
+                ['attack', 'Attack'],
+                ['defense', 'Defense'],
+              ] as [FocusMode, string][]).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => setFocusMode(mode)}
+                  className={clsx(
+                    'h-9 px-5 transition-colors',
+                    focusMode === mode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -516,13 +528,18 @@ export default function TrackingPage() {
         {/* ── Recent events feed ── */}
         {recentEvents.length > 0 && (
           <div className="card overflow-hidden mt-2">
-            {/* The feed is only the last handful — the Events tab is the full log. */}
+            {/* The feed is only the last handful — the Events tab is the full log.
+                Sized to the brand's h3 role (§3: 1.125rem / Inter 600, for
+                sub-sections), so it reads as a section header rather than a caption. */}
             <Link
               to={`/matches/${matchId}/events`}
-              className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-grey-200 text-xs font-medium text-grey-600 hover:text-navy-700 hover:bg-grey-50 transition-colors group"
+              className="flex items-center justify-between gap-2 px-4 py-3 border-b border-grey-200 text-grey-900 hover:bg-grey-50 transition-colors group"
             >
-              <span>Recent Events</span>
-              <span className="flex items-center gap-1 text-grey-400 group-hover:text-navy-700 transition-colors">
+              <span className="text-lg font-semibold group-hover:text-navy-700 transition-colors">
+                Recent Events
+              </span>
+              {/* Secondary to the label itself — smaller and quieter. */}
+              <span className="flex items-center gap-1 text-xs font-medium text-grey-400 group-hover:text-navy-700 transition-colors">
                 View all
                 <span aria-hidden="true">›</span>
               </span>
@@ -551,13 +568,25 @@ export default function TrackingPage() {
                     <span className="text-sm font-medium text-grey-900 flex-1 min-w-0 truncate">
                       {meta.label}
                     </span>
+                    {event.player && (
+                      // Same jersey-in-a-circle placeholder as the Player
+                      // Statistics table (StatsOverview.tsx), scaled down for a
+                      // list row — structured so a real photoUrl can drop an
+                      // <img> in here later without restructuring. It carries
+                      // the jersey number, so the name beside it doesn't repeat it.
+                      <div className="w-9 h-9 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center shrink-0">
+                        <span className="tabular-nums font-bold text-xs">
+                          {event.player.jerseyNumber}
+                        </span>
+                      </div>
+                    )}
                     {/* The two text spans give way first (min-w-0 lets a flex
                         item shrink past its content); the badges, time and
-                        avatar hold their size. Without this a long surname
+                        avatar hold their size. Without this a long full name
                         pushes the row wider than the card on narrow screens. */}
                     {event.player && (
-                      <span className="text-xs text-grey-600 tabular-nums min-w-0 truncate">
-                        #{event.player.jerseyNumber} {event.player.lastName}
+                      <span className="text-xs text-grey-600 min-w-0 truncate">
+                        {event.player.firstName} {event.player.lastName}
                       </span>
                     )}
                     {event.courtZone != null && (
@@ -573,17 +602,6 @@ export default function TrackingPage() {
                     <span className="text-xs text-grey-600 shrink-0">
                       {format(new Date(event.recordedAt), 'HH:mm:ss')}
                     </span>
-                    {event.player && (
-                      // Same jersey-in-a-circle placeholder as the Player
-                      // Statistics table (StatsOverview.tsx), scaled down for a
-                      // list row — structured so a real photoUrl can drop an
-                      // <img> in here later without restructuring.
-                      <div className="w-9 h-9 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center shrink-0">
-                        <span className="tabular-nums font-bold text-xs">
-                          {event.player.jerseyNumber}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 );
               })}
