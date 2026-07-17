@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import type { MatchStatus, SetScore } from '../../types';
+import type { MatchStatus } from '../../types';
 
 // Best-of-5 — mirrors SETS_TO_WIN_MATCH in backend/src/lib/setOperations.ts.
 const SETS_TO_WIN = 3;
@@ -8,12 +8,15 @@ export type ScoreSide = 'home' | 'away';
 
 /**
  * The live scoreboard: big tap-to-score digits, gold on our side, navy on
- * theirs, with the set number and set history.
+ * theirs, with the set number and sets won.
  *
  * Display data comes in as plain values rather than a Match, so this can back a
  * read-only match view later without dragging the tracker's data fetching with
  * it. Every handler is optional and independent — omit them all to render a
  * read-only board, or pass only the ones a given surface should offer.
+ *
+ * Per-set score history is deliberately not shown here: MatchDashboardPage's
+ * Match Stats tab already breaks it down, one tab away.
  */
 export interface LiveScoreboardProps {
   homeName: string;
@@ -22,7 +25,7 @@ export interface LiveScoreboardProps {
   awayScore: number;
   homeSetsWon: number;
   awaySetsWon: number;
-  setScores: SetScore[];
+  /** Display-only — MatchPageHeader's dropdown owns changing match status. */
   status: MatchStatus;
   /** The set the tracker is pointed at — not necessarily the set being played. */
   currentSet: number;
@@ -42,8 +45,6 @@ export interface LiveScoreboardProps {
   onResetSet?: () => void;
   /** Zero the entire match — sets won and history included. */
   onResetMatch?: () => void;
-  /** Start/finish the match (IN_PROGRESS ↔ COMPLETED). */
-  onToggleStatus?: () => void;
   /** Undo the last recorded stat event (kill, dig…) — never a whole set. */
   onUndoEvent?: () => void;
   canUndoEvent?: boolean;
@@ -171,7 +172,6 @@ export default function LiveScoreboard({
   awayScore,
   homeSetsWon,
   awaySetsWon,
-  setScores,
   status,
   currentSet,
   onSelectSet,
@@ -179,13 +179,11 @@ export default function LiveScoreboard({
   onEndSet,
   onResetSet,
   onResetMatch,
-  onToggleStatus,
   onUndoEvent,
   canUndoEvent = false,
   busy = false,
 }: LiveScoreboardProps) {
   const tied = homeScore === awayScore;
-  const hasSets = setScores.length > 0;
   const hasControlsRow = !!(onScore || onUndoEvent || onEndSet || onResetSet || onResetMatch);
 
   return (
@@ -193,45 +191,43 @@ export default function LiveScoreboard({
       {/* ── Set jump + match status ──
           Direct 1–5 jump (rather than prev/next stepping) so a mis-tap in an
           earlier set can be fixed without walking back through the others. */}
-      {(onSelectSet || onToggleStatus) && (
-        <div className="flex items-center justify-between gap-3 flex-wrap px-1.5 pt-1.5">
-          {onSelectSet && (
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => onSelectSet(s)}
-                  aria-pressed={currentSet === s}
-                  className={clsx(
-                    'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
-                    currentSet === s
-                      ? 'bg-gold-500 border-gold-500 text-navy-900'
-                      : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200',
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
+      <div className="flex items-center justify-between gap-3 flex-wrap px-1.5 pt-1.5">
+        {onSelectSet && (
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => onSelectSet(s)}
+                aria-pressed={currentSet === s}
+                className={clsx(
+                  'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
+                  currentSet === s
+                    ? 'bg-gold-500 border-gold-500 text-navy-900'
+                    : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200',
+                )}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
 
-          {onToggleStatus && (
-            <button
-              type="button"
-              onClick={onToggleStatus}
-              className={clsx(
-                'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
-                status === 'IN_PROGRESS'
-                  ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
-                  : 'bg-grey-50 text-grey-600 border border-grey-200',
-              )}
-            >
-              {status === 'IN_PROGRESS' ? '● LIVE' : status}
-            </button>
+        {/* Status is display-only: MatchPageHeader's dropdown owns changing it,
+            and it sits on this same page — two controls for one value invites
+            them to disagree. `ml-auto` keeps it right-aligned when there's no
+            set selector to sit opposite. */}
+        <span
+          className={clsx(
+            'ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg',
+            status === 'IN_PROGRESS'
+              ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
+              : 'bg-grey-50 text-grey-600 border border-grey-200',
           )}
-        </div>
-      )}
+        >
+          {status === 'IN_PROGRESS' ? '● LIVE' : status}
+        </span>
+      </div>
 
       {/* ── Scorebug ── */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-stretch rounded-2xl overflow-hidden">
@@ -306,18 +302,6 @@ export default function LiveScoreboard({
               </button>
             )}
 
-            {onResetSet && (
-              <button
-                type="button"
-                onClick={onResetSet}
-                disabled={busy}
-                title="Zero this set's score only"
-                className="text-sm font-medium text-grey-600 hover:text-navy-700 bg-grey-50 border border-grey-200 hover:border-grey-400 disabled:opacity-40 rounded-xl px-4 py-2.5 transition-colors"
-              >
-                Reset Set
-              </button>
-            )}
-
             {onResetMatch && (
               <button
                 type="button"
@@ -329,6 +313,18 @@ export default function LiveScoreboard({
                 Reset Match
               </button>
             )}
+
+            {onResetSet && (
+              <button
+                type="button"
+                onClick={onResetSet}
+                disabled={busy}
+                title="Zero this set's score only"
+                className="text-sm font-medium text-grey-600 hover:text-navy-700 bg-grey-50 border border-grey-200 hover:border-grey-400 disabled:opacity-40 rounded-xl px-4 py-2.5 transition-colors"
+              >
+                Reset Set
+              </button>
+            )}
           </div>
 
           <div>
@@ -338,39 +334,6 @@ export default function LiveScoreboard({
           </div>
         </div>
       )}
-
-      {/* ── Set results ── */}
-      <div className="border-t border-grey-200 px-3 pt-3 pb-1.5">
-        <div className="text-[11px] text-grey-600 font-semibold uppercase tracking-wider mb-2">
-          Set Results
-        </div>
-        {hasSets ? (
-          <div className="flex gap-2.5 flex-wrap">
-            {[...setScores]
-              .sort((a, b) => a.set - b.set)
-              .map((s) => {
-                const homeWon = s.home > s.away;
-                return (
-                  <div key={s.set} className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-grey-600 font-semibold">Set {s.set}</span>
-                    <span
-                      className={clsx(
-                        'tabular-nums text-[15px] font-bold px-3.5 py-1.5 rounded-lg border',
-                        homeWon
-                          ? 'bg-navy-100 border-navy-100 text-navy-700'
-                          : 'bg-grey-50 border-grey-200 text-grey-600',
-                      )}
-                    >
-                      {s.home}–{s.away}
-                    </span>
-                  </div>
-                );
-              })}
-          </div>
-        ) : (
-          <div className="text-sm text-grey-400">None yet</div>
-        )}
-      </div>
     </div>
   );
 }

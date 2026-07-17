@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useResetMatch, useHasPermission } from '../hooks';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateScore, useResetSetScore, useResetMatch, useHasPermission } from '../hooks';
 import type { EventType, Player, Position } from '../types';
 import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
 import type { EventMeta } from '../types';
@@ -70,7 +70,6 @@ export default function TrackingPage() {
   const { data: events } = useEvents(matchId!);
   const recordEvent = useRecordEvent(matchId!);
   const undoEvent = useUndoEvent(matchId!);
-  const updateMatch = useUpdateMatch();
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
@@ -149,12 +148,6 @@ export default function TrackingPage() {
     } catch {
       showFlash('Nothing to undo', false);
     }
-  }
-
-  async function handleStatusToggle() {
-    if (!match) return;
-    const next = match.status === 'IN_PROGRESS' ? 'COMPLETED' : 'IN_PROGRESS';
-    await updateMatch.mutateAsync({ id: matchId!, data: { status: next } });
   }
 
   // Destructive — zeroes the current set's score and clears its manual
@@ -267,14 +260,12 @@ export default function TrackingPage() {
         awayScore={match.awayScore ?? 0}
         homeSetsWon={match.homeSetsWon ?? 0}
         awaySetsWon={match.awaySetsWon ?? 0}
-        setScores={Array.isArray(match.setScores) ? match.setScores : []}
         status={match.status}
         currentSet={currentSet}
         onSelectSet={setCurrentSet}
         onScore={handleScore}
         onResetSet={handleResetSetScore}
         onResetMatch={handleResetMatch}
-        onToggleStatus={handleStatusToggle}
         onUndoEvent={handleUndo}
         canUndoEvent={canUndo}
         busy={scoreboardBusy}
@@ -525,14 +516,25 @@ export default function TrackingPage() {
         {/* ── Recent events feed ── */}
         {recentEvents.length > 0 && (
           <div className="card overflow-hidden mt-2">
-            <div className="px-4 py-2 border-b border-grey-200 text-xs text-grey-600 font-medium">
-              Recent Events
-            </div>
+            {/* The feed is only the last handful — the Events tab is the full log. */}
+            <Link
+              to={`/matches/${matchId}/events`}
+              className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-grey-200 text-xs font-medium text-grey-600 hover:text-navy-700 hover:bg-grey-50 transition-colors group"
+            >
+              <span>Recent Events</span>
+              <span className="flex items-center gap-1 text-grey-400 group-hover:text-navy-700 transition-colors">
+                View all
+                <span aria-hidden="true">›</span>
+              </span>
+            </Link>
             <div className="divide-y divide-grey-200">
               {recentEvents.map((event) => {
                 const meta = getMeta(event.eventType);
                 return (
-                  <div key={event.id} className="flex items-center gap-3 px-4 py-2.5">
+                  // min-h matches an avatar row's height so opponent events —
+                  // which have no player, and so no avatar — don't sit visibly
+                  // shorter than the rows around them.
+                  <div key={event.id} className="flex items-center gap-3 px-4 py-3 min-h-[60px]">
                     <span
                       className={clsx(
                         'w-2 h-2 rounded-full shrink-0',
@@ -546,22 +548,42 @@ export default function TrackingPage() {
                     <span className="tabular-nums text-xs text-grey-600 shrink-0">
                       S{event.setNumber}
                     </span>
-                    <span className="text-sm font-medium text-grey-900 flex-1">
+                    <span className="text-sm font-medium text-grey-900 flex-1 min-w-0 truncate">
                       {meta.label}
                     </span>
+                    {/* The two text spans give way first (min-w-0 lets a flex
+                        item shrink past its content); the badges, time and
+                        avatar hold their size. Without this a long surname
+                        pushes the row wider than the card on narrow screens. */}
                     {event.player && (
-                      <span className="text-xs text-grey-600 tabular-nums">
+                      <span className="text-xs text-grey-600 tabular-nums min-w-0 truncate">
                         #{event.player.jerseyNumber} {event.player.lastName}
                       </span>
                     )}
                     {event.courtZone != null && (
-                      <span className="badge bg-grey-50 text-navy-700 border border-grey-200">
+                      <span className="badge shrink-0 bg-grey-50 text-navy-700 border border-grey-200">
                         Z{event.courtZone}
                       </span>
                     )}
-                    <span className="text-xs text-grey-600">
+                    {event.rotationNumber != null && (
+                      <span className="badge shrink-0 bg-grey-50 text-navy-700 border border-grey-200">
+                        R{event.rotationNumber}
+                      </span>
+                    )}
+                    <span className="text-xs text-grey-600 shrink-0">
                       {format(new Date(event.recordedAt), 'HH:mm:ss')}
                     </span>
+                    {event.player && (
+                      // Same jersey-in-a-circle placeholder as the Player
+                      // Statistics table (StatsOverview.tsx), scaled down for a
+                      // list row — structured so a real photoUrl can drop an
+                      // <img> in here later without restructuring.
+                      <div className="w-9 h-9 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center shrink-0">
+                        <span className="tabular-nums font-bold text-xs">
+                          {event.player.jerseyNumber}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               })}

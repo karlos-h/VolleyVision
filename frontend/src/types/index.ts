@@ -554,6 +554,7 @@ export interface Event {
   setNumber: number;
   rallyNumber?: number;
   courtZone?: number | null;
+  rotationNumber?: number | null;
   notes?: string;
   matchId: string | null;
   playerId: string | null;
