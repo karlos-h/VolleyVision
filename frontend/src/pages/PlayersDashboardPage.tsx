@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, NavLink, useParams, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport, useMatchAnalytics } from '../hooks';
+import { usePlayerAnalytics, usePlayerHeatmap, usePlayerDevelopmentReport, useMatchAnalytics, useTeam } from '../hooks';
 import { StatsCards } from '../components/analytics/StatsOverview';
 import { POSITION_FULL_LABELS } from '../types';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
@@ -22,6 +22,9 @@ export default function PlayerDashboardPage() {
   const { data: heatmapData } = usePlayerHeatmap(playerId!);
   const { data: developmentData } = usePlayerDevelopmentReport(playerId!);
   const { data: matchData } = useMatchAnalytics(matchId ?? '');
+  // Roster context (no matchId) gets a full-team tab bar. Guarded by the hook's
+  // own `enabled: !!id`, so this stays above the early returns below.
+  const { data: team } = useTeam(data?.player.teamId ?? '');
 
   // Only when arriving in match context — restores the previous title on unmount.
   useEffect(() => {
@@ -48,9 +51,10 @@ export default function PlayerDashboardPage() {
         ) : (
           <Link
             to={`/teams/${data.player.teamId}`}
-            className="text-sm text-navy-300 hover:text-navy-700"
+            className="btn-secondary inline-flex items-center gap-1.5 text-sm py-1.5 px-3"
           >
-            ← Back to Roster
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Roster
           </Link>
         )}
 
@@ -92,6 +96,30 @@ export default function PlayerDashboardPage() {
               #{row.player.jerseyNumber} {row.player.lastName}
             </NavLink>
           ))}
+        </div>
+      )}
+
+      {/* Roster context — the whole team, so a coach arriving from the Roster
+          can move between players without going back. Mutually exclusive with
+          the match-scoped bar above. */}
+      {!matchId && team?.players && team.players.length > 0 && (
+        <div className="flex items-center gap-1 border-b border-grey-200 pb-px overflow-x-auto">
+          {[...team.players]
+            .sort((a, b) => a.jerseyNumber - b.jerseyNumber)
+            .map((p) => (
+              <NavLink
+                key={p.id}
+                to={`/players/${p.id}/dashboard`}
+                className={({ isActive }) =>
+                  `px-3.5 py-2 -mb-px text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    isActive
+                      ? 'border-gold-500 text-navy-700 font-semibold'
+                      : 'border-transparent text-grey-600 hover:text-navy-700'
+                  }`}
+              >
+                #{p.jerseyNumber} {p.lastName}
+              </NavLink>
+            ))}
         </div>
       )}
 

@@ -51,11 +51,11 @@ export default function PlayerTeamLinksCard({ playerId, homeTeamId, playerName }
     }
   }
 
-  if (isLoading) return <p className="text-xs text-chalk-500 py-1">Loading linked teams…</p>;
+  if (isLoading) return <p className="text-xs text-grey-600 py-1">Loading linked teams…</p>;
 
   return (
-    <div className="mt-2 pt-2 border-t border-court-800 space-y-2">
-      <p className="text-[10px]r text-chalk-500 font-semibold">
+    <div className="pt-3 border-t border-grey-200 space-y-2">
+      <p className="text-sm text-grey-600 font-semibold">
         {playerName}'s teams
       </p>
 
