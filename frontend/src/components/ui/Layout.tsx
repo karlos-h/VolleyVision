@@ -22,7 +22,6 @@ const NAV_AUTH: NavItem[] = [
   { to: '/teams', label: 'Teams', icon: TeamIcon },
   ...(features.leagues ? [{ to: '/leagues', label: 'League Hub', icon: SparkIcon }] : []),
   { to: '/invitations', label: 'Invitations', icon: MailIcon, badge: true },
-  { to: '/feedback', label: 'Feedback', icon: FeedbackIcon },
   { to: '/profile', label: 'Profile', icon: UserIcon },
 ];
 
@@ -152,6 +151,9 @@ function AvatarMenu({ user, onSignOut }: {
       <Dropdown open={open} onClose={() => setOpen(false)} className="right-0 w-44 py-1.5">
         <Link to="/profile" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-grey-700 hover:bg-grey-50 transition-colors">
           <UserIcon className="w-4 h-4" /> Profile
+        </Link>
+        <Link to="/feedback" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-grey-700 hover:bg-grey-50 transition-colors">
+          <FeedbackIcon className="w-4 h-4" /> Feedback
         </Link>
         <button
           type="button"

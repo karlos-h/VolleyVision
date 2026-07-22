@@ -404,15 +404,23 @@ export default function FeedbackPage() {
   const isAdmin = user?.role === 'ADMIN';
 
   return (
-    <div className="space-y-8 max-w-3xl">
-      <div>
-        <h1 className="font-display font-bold text-2xl text-grey-900">Feedback</h1>
-        <p className="text-grey-600 text-sm mt-0.5">Report a bug or share an idea — we read everything</p>
+    <div className="space-y-8">
+      <div className="max-w-3xl mx-auto space-y-5">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-grey-900">Feedback</h1>
+          <p className="text-grey-600 text-sm mt-0.5">Report a bug or share an idea — we read everything</p>
+        </div>
+
+        <SubmitFeedbackCard />
+        <MyFeedbackSection />
       </div>
 
-      <SubmitFeedbackCard />
-      <MyFeedbackSection />
-      {isAdmin && <AdminFeedbackSection />}
+      {/* Wider than the form/list above — the admin table wants more horizontal room. */}
+      {isAdmin && (
+        <div className="max-w-5xl mx-auto">
+          <AdminFeedbackSection />
+        </div>
+      )}
     </div>
   );
 }
