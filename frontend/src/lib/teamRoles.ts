@@ -33,7 +33,7 @@ export const ROLE_BADGE: Record<TeamRole, string> = {
   HEAD_COACH:      'badge-accent',
   MANAGER:         'badge-brand',
   ASSISTANT_COACH: 'badge-info',
-  STATISTICIAN:    'badge-neutral',
+  STATISTICIAN:    'badge-violet', // was neutral — collided with VIEWER
   PLAYER:          'badge-success',
   VIEWER:          'badge-neutral',
 };

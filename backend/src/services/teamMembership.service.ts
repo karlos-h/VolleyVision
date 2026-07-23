@@ -2,6 +2,7 @@ import { AccessTier, TeamRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { defaultAccessTiers } from './permission.service';
+import { applyCreatePlayer } from './teamActions.service';
 
 const memberSelect = {
   id: true,
@@ -58,6 +59,49 @@ export async function getUserTeams(userId: string) {
   });
 }
 
+/**
+ * Give a team member a roster row, so promoting someone to PLAYER actually puts
+ * them on the Roster instead of only changing their membership role.
+ *
+ * Idempotent: a member promoted → demoted → promoted again keeps the single
+ * original Player row (demotion deliberately never deletes it — the row owns
+ * their Event history; the Roster's Delete-player flow is the way off).
+ *
+ * Writes directly rather than queueing an approval request: the caller has
+ * already passed the MANAGE_MEMBERS check on the membership route, and this row
+ * is a side effect of that authorized action rather than a user-submitted "add
+ * player" — the same reasoning syncOwnerMembership() below applies.
+ */
+export async function ensurePlayerForMember(teamId: string, userId: string) {
+  const existing = await prisma.player.findFirst({ where: { teamId, userId } });
+  if (existing) return existing;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true, lastName: true },
+  });
+  if (!user) throw new AppError(404, 'User not found.');
+
+  // Smallest unused number, matching the Add Player form's own 0–99 range.
+  const taken = await prisma.player.findMany({ where: { teamId }, select: { jerseyNumber: true } });
+  const used = new Set(taken.map((p) => p.jerseyNumber));
+  const jerseyNumber = Array.from({ length: 100 }, (_, n) => n).find((n) => !used.has(n));
+  if (jerseyNumber === undefined) {
+    throw new AppError(409, 'Every jersey number from 0 to 99 is taken on this team. Free one up first.');
+  }
+
+  // Position is a placeholder — the coach sets the real one straight after via
+  // the Roster's edit panel. SETTER matches the Add Player form's own default.
+  return applyCreatePlayer({
+    firstName: user.firstName,
+    lastName: user.lastName,
+    jerseyNumber,
+    position: 'SETTER',
+    teamId,
+    userId,
+  });
+}
+
 /** Add a user to a team with a given role. */
 export async function addMember(teamId: string, userId: string, role: TeamRole) {
   const [team, user] = await Promise.all([
@@ -72,10 +116,13 @@ export async function addMember(teamId: string, userId: string, role: TeamRole) 
   });
   if (existing) throw new AppError(409, 'User is already a member of this team.');
 
-  return prisma.teamMembership.create({
+  const membership = await prisma.teamMembership.create({
     data: { teamId, userId, role, ...defaultAccessTiers(role) },
     select: memberSelect,
   });
+  // Added straight in as a player — put them on the roster too.
+  if (role === 'PLAYER') await ensurePlayerForMember(teamId, userId);
+  return membership;
 }
 
 /**
@@ -86,11 +133,15 @@ export async function addMember(teamId: string, userId: string, role: TeamRole) 
 export async function updateMemberRole(membershipId: string, role: TeamRole) {
   const membership = await prisma.teamMembership.findUnique({ where: { id: membershipId } });
   if (!membership) throw new AppError(404, 'Membership not found.');
-  return prisma.teamMembership.update({
+  const updated = await prisma.teamMembership.update({
     where: { id: membershipId },
     data: { role, ...defaultAccessTiers(role) },
     select: memberSelect,
   });
+  // Promoted to player — put them on the roster. Safe to call unconditionally
+  // for PLAYER updates since ensurePlayerForMember is idempotent.
+  if (role === 'PLAYER') await ensurePlayerForMember(membership.teamId, membership.userId);
+  return updated;
 }
 
 /** Update one or more of a member's access tiers, leaving role untouched. */

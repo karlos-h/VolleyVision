@@ -169,6 +169,19 @@
     @apply bg-info/15 text-info-strong;
   }
 
+  .badge-violet {
+    @apply bg-violet/15 text-violet-strong;
+  }
+
+  /* Steel deliberately breaks the /15-tint rule of its siblings: navy-500 at
+     15% with navy-700 text is perceptually identical to .badge-brand (measured
+     ΔE 2.6 on the tint, 0.0 on the text — the same text colour). The deeper
+     tint plus lighter same-hue text is what makes it a distinct chip while
+     staying inside the brand chart palette. 5.9:1 — clears WCAG AA. */
+  .badge-steel {
+    @apply bg-navy-500/25 text-navy-500;
+  }
+
   /* Row-level action button — a real tap target for Edit/Remove/Delete/Unlink,
      which were previously bare text-xs links with no padding. */
   .btn-icon {

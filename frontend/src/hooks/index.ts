@@ -558,7 +558,12 @@ export function useAddMember(teamId: string) {
   return useMutation({
     mutationFn: (data: { userId: string; role: TeamRole }) =>
       membershipsApi.add(teamId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', teamId] });
+      // Adding someone as PLAYER also creates their roster row server-side —
+      // refresh the team so the Roster card picks it up without a reload.
+      qc.invalidateQueries({ queryKey: ['teams', teamId] });
+    },
   });
 }
 
@@ -582,7 +587,11 @@ export function useUpdateMemberRole(teamId: string) {
   return useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: TeamRole }) =>
       membershipsApi.updateRole(teamId, memberId, role),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', teamId] });
+      // Promoting to PLAYER also creates their roster row server-side.
+      qc.invalidateQueries({ queryKey: ['teams', teamId] });
+    },
   });
 }
 

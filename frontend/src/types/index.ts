@@ -789,18 +789,21 @@ export const POSITION_FULL_LABELS: Record<Position, string> = {
 };
 
 /**
- * Categorical badge styling for positions, grouped by what the position
- * actually does on court (set / attack / defend). Deliberately does NOT reuse
- * success/error/info — those carry positive/negative meaning elsewhere in the
- * UI, and a position is not a judgement. The full label disambiguates within a
- * group, so three groups is enough.
+ * Categorical badge styling — one distinct colour per position, so a roster is
+ * scannable at a glance. Previously three groups shared by six positions, which
+ * made Opposite/Middle Blocker/Outside Hitter indistinguishable.
+ *
+ * A position is not a judgement, so success/error/warning stay out — those read
+ * as good/bad. `info` is used purely as the categorical blue from the brand
+ * doc's 6-colour chart sequence (§2), not with its semantic meaning; violet and
+ * steel come from that same sequence.
  */
 export const POSITION_BADGE: Record<Position, string> = {
   SETTER: 'badge-brand',
   OUTSIDE_HITTER: 'badge-accent',
-  OPPOSITE: 'badge-accent',
-  MIDDLE_BLOCKER: 'badge-accent',
-  LIBERO: 'badge-neutral',
+  OPPOSITE: 'badge-steel',
+  MIDDLE_BLOCKER: 'badge-violet',
+  LIBERO: 'badge-info',
   DEFENSIVE_SPECIALIST: 'badge-neutral',
 };
 

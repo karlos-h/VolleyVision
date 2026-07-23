@@ -20,6 +20,9 @@ export interface PlayerCreatePayload {
   jerseyNumber: number;
   position: string;
   teamId: string;
+  // Set when the roster row is created for an existing user account (e.g. a
+  // member promoted to PLAYER) — links the row to that user.
+  userId?: string;
 }
 export interface PlayerUpdatePayload {
   firstName?: string;
@@ -36,6 +39,7 @@ export function applyCreatePlayer(p: PlayerCreatePayload) {
       jerseyNumber: Number(p.jerseyNumber),
       position: p.position as any,
       teamId: p.teamId,
+      userId: p.userId ?? null,
     },
   });
 }
