@@ -63,6 +63,16 @@ export function MailIcon({ className }: IconProps) {
   );
 }
 
+/** Speech bubble with an exclamation mark — the Feedback tab. */
+export function FeedbackIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H13l-4.2 3.4a.6.6 0 0 1-1-.5V17H6.5A2.5 2.5 0 0 1 4 14.5v-8Z" />
+      <path d="M12 8v3.4M12 13.9v.1" />
+    </svg>
+  );
+}
+
 export function UserIcon({ className }: IconProps) {
   return (
     <svg {...base(className)}>
@@ -138,6 +148,24 @@ export function TrashIcon({ className }: IconProps) {
       <path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7" />
       <path d="M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4l.8-12" />
       <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M20 20l-4.5-4.5" />
+    </svg>
+  );
+}
+
+export function SortIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M7 4v16M7 20l-3.5-3.5M7 20l3.5-3.5" />
+      <path d="M17 20V4M17 4l-3.5 3.5M17 4l3.5 3.5" />
     </svg>
   );
 }

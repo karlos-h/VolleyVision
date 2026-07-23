@@ -1,7 +1,44 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, joinCodesApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi, feedbackApi } from '../lib/api';
+import type { TeamJoinCodeKind } from '../lib/api';
 import type { CreateTeamInput } from '../lib/api';
 import type { Player, Match, TeamRole, TeamMember, ApprovalStatus } from '../types';
+import type { FeedbackStatus } from '../types/feedback';
+import { useViewMode } from '../context/ViewModeContext';
+import { PLAYER_VIEW_PERMISSIONS } from '../lib/teamRoles';
+
+// ─── Feedback tab ─────────────────────────────────────────────────────────────
+
+export function useMyFeedback() {
+  return useQuery({ queryKey: ['feedback', 'mine'], queryFn: feedbackApi.listMine });
+}
+
+export function useCreateFeedback() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: feedbackApi.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['feedback', 'mine'] }),
+  });
+}
+
+/** Admin panel only — the endpoint 403s for non-admins. */
+export function useAllFeedback(filters: { status?: string; type?: string }, enabled = true) {
+  return useQuery({
+    queryKey: ['feedback', 'all', filters],
+    queryFn: () => feedbackApi.listAll(filters),
+    enabled,
+  });
+}
+
+export function useUpdateFeedbackStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { status?: FeedbackStatus; adminNotes?: string | null } }) =>
+      feedbackApi.updateStatus(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['feedback', 'all'] }),
+  });
+}
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
 export function useApprovalRequests(teamId: string, status?: ApprovalStatus, enabled = true) {
@@ -158,11 +195,12 @@ export function useMatches(teamId: string, filters?: { opponent?: string; status
   });
 }
 
-export function useMatch(id: string) {
+export function useMatch(id: string, options?: { live?: boolean }) {
   return useQuery({
     queryKey: ['match', id],
     queryFn: () => matchesApi.get(id),
     enabled: !!id,
+    ...(options?.live ? { refetchInterval: 5000 } : {}),
   });
 }
 
@@ -217,6 +255,21 @@ export function useResetSetScore(matchId: string) {
   return useMutation({
     mutationFn: () => matchesApi.resetSetScore(matchId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
+  });
+}
+
+// Unlike a plain score tap, a match reset reopens the match and wipes its set
+// history, so it also refreshes the analytics and match-list caches the way
+// useUpdateMatch does.
+export function useResetMatch(matchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => matchesApi.resetMatch(matchId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['match', matchId] });
+      qc.invalidateQueries({ queryKey: ['analytics', 'match', matchId] });
+      qc.invalidateQueries({ queryKey: ['matches'] });
+    },
   });
 }
 
@@ -505,7 +558,12 @@ export function useAddMember(teamId: string) {
   return useMutation({
     mutationFn: (data: { userId: string; role: TeamRole }) =>
       membershipsApi.add(teamId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', teamId] });
+      // Adding someone as PLAYER also creates their roster row server-side —
+      // refresh the team so the Roster card picks it up without a reload.
+      qc.invalidateQueries({ queryKey: ['teams', teamId] });
+    },
   });
 }
 
@@ -529,7 +587,11 @@ export function useUpdateMemberRole(teamId: string) {
   return useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: TeamRole }) =>
       membershipsApi.updateRole(teamId, memberId, role),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', teamId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', teamId] });
+      // Promoting to PLAYER also creates their roster row server-side.
+      qc.invalidateQueries({ queryKey: ['teams', teamId] });
+    },
   });
 }
 
@@ -600,6 +662,42 @@ export function useCreateInvitation(teamId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invitations', 'team', teamId] });
       qc.invalidateQueries({ queryKey: ['approvals', teamId] });
+    },
+  });
+}
+
+// ─── Team join codes — reusable player/staff codes ───────────────────────────
+
+export function useTeamJoinCodes(teamId: string) {
+  return useQuery({
+    queryKey: ['joinCodes', teamId],
+    queryFn: () => joinCodesApi.get(teamId),
+    enabled: !!teamId,
+  });
+}
+
+export function useRegenerateJoinCode(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (kind: TeamJoinCodeKind) => joinCodesApi.regenerate(teamId, kind),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['joinCodes', teamId] }),
+  });
+}
+
+export function useLookupCode() {
+  return useMutation({
+    mutationFn: (code: string) => joinCodesApi.lookup(code),
+  });
+}
+
+export function useRedeemTeamCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { code: string; role?: TeamRole }) => joinCodesApi.redeemTeamCode(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invitations', 'me'] });
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: ['memberships', 'me'] });
     },
   });
 }
@@ -685,12 +783,28 @@ export function useCoachDashboard() {
 // ─── Permissions (Phase 5 Sprint 6) ──────────────────────────────────────────
 
 export function useTeamRole(teamId: string) {
-  return useQuery({
+  const { viewMode } = useViewMode();
+  const query = useQuery({
     queryKey: ['permissions', 'team', teamId],
     queryFn: () => permissionsApi.myTeamRole(teamId),
     enabled: !!teamId,
     staleTime: 60_000, // role changes are infrequent
   });
+
+  // Presentation-only lens: while the Coach/Player toggle is set to "Player",
+  // clamp the permissions the UI offers to TeamRole.PLAYER's real set. Every
+  // gate (useHasPermission, PermissionGuard, TeamMembersCard) reads this hook,
+  // so they all go read-only from one place. This never grants a permission
+  // the user lacks — the backend remains the real authorization boundary.
+  const data = useMemo(() => {
+    if (!query.data || viewMode !== 'player') return query.data;
+    return {
+      ...query.data,
+      permissions: query.data.permissions.filter((p) => PLAYER_VIEW_PERMISSIONS.has(p)),
+    };
+  }, [query.data, viewMode]);
+
+  return { ...query, data };
 }
 
 /** Convenience: returns true if the user has the given permission on teamId */

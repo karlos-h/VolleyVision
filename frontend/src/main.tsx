@@ -23,6 +23,7 @@ import MatchesPage from './pages/MatchesPage';
 import TrackingPage from './pages/TrackingPage';
 import MatchDashboardPage from './pages/MatchDashboardPage';
 import MatchEventsPage from './pages/MatchEventsPage';
+import MatchWatchPage from './pages/MatchWatchPage';
 import TeamDashboardPage from './pages/TeamDashboardPage';
 import PlayersDashboardPage from './pages/PlayersDashboardPage';
 import OnboardingCoachPage from './pages/OnboardingCoachPage';
@@ -35,6 +36,8 @@ import ResultsPage from './pages/ResultsPage';
 import LeagueTeamProfilePage from './pages/LeagueTeamProfilePage';
 import LeagueSeasonRankingsPage from './pages/LeagueSeasonRankingsPage';
 import MatchCentrePage from './pages/MatchCentrePage';
+import TeamChatPage from './pages/TeamChatPage';
+import FeedbackPage from './pages/FeedbackPage';
 
 // Backward-compat redirect: live tracking moved under the shared match shell at
 // /matches/:matchId/track. Old bookmarks to /track/:matchId land here.
@@ -81,6 +84,7 @@ function App() {
                   there is no separate "browse all teams" list any more. */}
               <Route path="/my-teams" element={<Navigate to="/teams" replace />} />
               <Route path="/invitations" element={<InvitationsPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/track/:matchId" element={<LegacyTrackRedirect />} />
               {/* Team-scoped routes. Teams are private to their members, so
                   every one of these 404s for a non-member on the backend —
@@ -89,9 +93,13 @@ function App() {
               <Route path="/teams/:teamId" element={<TeamDetailPage />} />
               <Route path="/teams/:teamId/matches" element={<MatchesPage />} />
               <Route path="/teams/:teamId/dashboard" element={<TeamDashboardPage />} />
+              {features.teamChat && (
+                <Route path="/teams/:teamId/chat" element={<TeamChatPage />} />
+              )}
               <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
               <Route path="/matches/:matchId/events" element={<MatchEventsPage />} />
               <Route path="/matches/:matchId/track" element={<TrackingPage />} />
+              <Route path="/matches/:matchId/watch" element={<MatchWatchPage />} />
               <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
 
               {features.leagues && (

@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateMatch, useUpdateScore, useResetSetScore, useHasPermission } from '../hooks';
+import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateScore, useResetSetScore, useResetMatch, useHasPermission } from '../hooks';
+import { useSyncTrackWatchRoute } from '../hooks/useSyncTrackWatchRoute';
 import type { EventType, Player, Position } from '../types';
 import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
 import type { EventMeta } from '../types';
 import clsx from 'clsx';
 import CourtZoneSelector from '../components/tracking/CourtZoneSelector';
 import MatchPageHeader from '../components/ui/MatchPageHeader';
+import LiveScoreboard from '../components/scoreboard/LiveScoreboard';
+import type { ScoreSide } from '../components/scoreboard/LiveScoreboard';
 
 // Event buttons grouped by category for the tablet layout
 const CATEGORIES = [
@@ -68,13 +71,16 @@ export default function TrackingPage() {
   const { data: events } = useEvents(matchId!);
   const recordEvent = useRecordEvent(matchId!);
   const undoEvent = useUndoEvent(matchId!);
-  const updateMatch = useUpdateMatch();
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
+  const resetMatch = useResetMatch(matchId!);
   // Track is offered only to those who can track a live match (players never
   // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
   const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
+  // Flipping the Coach/Player toggle mid-session moves you to the matching
+  // route — a player-mode user never sits on the live input screen.
+  useSyncTrackWatchRoute(matchId, match?.status, canTrack);
 
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);
@@ -148,18 +154,32 @@ export default function TrackingPage() {
     }
   }
 
-  async function handleStatusToggle() {
-    if (!match) return;
-    const next = match.status === 'IN_PROGRESS' ? 'COMPLETED' : 'IN_PROGRESS';
-    await updateMatch.mutateAsync({ id: matchId!, data: { status: next } });
-  }
-
   // Destructive — zeroes the current set's score and clears its manual
   // adjustment history, so confirm before doing it (consistent with the
   // Delete confirm in MatchesPage.tsx).
   function handleResetSetScore() {
     if (confirm(`Reset the score for Set ${currentSet} to 0–0? This cannot be undone.`)) {
       resetSetScore.mutate();
+    }
+  }
+
+  // The scoreboard reports a delta; the score API takes absolutes.
+  function handleScore(side: ScoreSide, delta: number) {
+    const current = (side === 'home' ? match?.homeScore : match?.awayScore) ?? 0;
+    const next = Math.max(0, current + delta);
+    updateScore.mutate(side === 'home' ? { homeScore: next } : { awayScore: next });
+  }
+
+  // The most destructive action on this screen — wipes every set and the whole
+  // score history, not just the current set. Same confirm pattern as above.
+  async function handleResetMatch() {
+    if (!confirm('Reset the ENTIRE match? Every set score and set won will be cleared. Recorded stats are kept. This cannot be undone.')) return;
+    try {
+      await resetMatch.mutateAsync();
+      setCurrentSet(1);
+      showFlash('Match reset', true);
+    } catch {
+      showFlash("Couldn't reset the match", false);
     }
   }
 
@@ -178,8 +198,22 @@ export default function TrackingPage() {
     return <Navigate to={`/matches/${matchId}/events`} replace />;
   }
 
-  const recentEvents = [...(events ?? [])].reverse().slice(0, 6);
+  const recentEvents = [...(events ?? [])].reverse().slice(0, 5);
   const players = match.team?.players ?? [];
+
+  // One in-flight score mutation is enough to freeze the board's controls —
+  // double-tapping End Set or Reset Match while a request lands would apply twice.
+  const scoreboardBusy =
+    updateScore.isPending ||
+    resetSetScore.isPending ||
+    resetMatch.isPending ||
+    undoEvent.isPending;
+
+  // Undo reaches into both action logs, so the button has to account for both:
+  // a manual score tap writes a ScoreAdjustment, not an Event, and a match can
+  // have adjustments with no stat events recorded yet.
+  const canUndo =
+    (events?.length ?? 0) > 0 || (match._count?.scoreAdjustments ?? 0) > 0;
 
   // Focus mode re-sorts the roster so the most relevant positions surface first
   // (stable — everyone else keeps their original order and stays tappable) and
@@ -223,132 +257,23 @@ export default function TrackingPage() {
       />
 
       {/* ── Live Scoreboard + controls ── */}
-      <div className="card p-4 space-y-3">
-        {/* Control row: set selector + finish-match quick action + undo. The
-            match title/date/status now live in the shared MatchPageHeader. */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Set selector */}
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                onClick={() => setCurrentSet(s)}
-                className={clsx(
-                  'w-8 h-8 rounded-lg text-sm tabular-nums font-bold transition-colors border',
-                  currentSet === s
-                    ? 'bg-gold-500 border-gold-500 text-navy-900'
-                    : 'bg-grey-50 border-grey-200 text-grey-600 hover:bg-grey-200'
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Finish match — a natural real-time action while tracking
-                (IN_PROGRESS → COMPLETED). Completing redirects to Events. */}
-            <button
-              onClick={handleStatusToggle}
-              className={clsx(
-                'text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors',
-                match.status === 'IN_PROGRESS'
-                  ? 'bg-gold-500/15 text-navy-900 border border-gold-500/50'
-                  : 'bg-grey-50 text-grey-600 border border-grey-200'
-              )}
-            >
-              {match.status === 'IN_PROGRESS' ? '● LIVE' : match.status}
-            </button>
-
-            {/* Undo */}
-            <button
-              onClick={handleUndo}
-              disabled={undoEvent.isPending || !events?.length}
-              className="bg-grey-50 hover:bg-grey-200 disabled:opacity-40 text-grey-900 text-xs font-medium px-3 py-1.5 rounded-lg border border-grey-200 transition-colors"
-            >
-              ↩ Undo
-            </button>
-          </div>
-        </div>
-
-        {/* A completed match redirects to the Events changelog (Task 6), so the
-            tracker only ever renders a live, in-progress match here. */}
-          <div className="flex items-center justify-between gap-4">
-            {/* Home team */}
-            <div className="flex-1 text-right">
-              <div className="text-sm font-semibold text-grey-900 truncate">{match.team?.name ?? 'Home'}</div>
-              <div className="tabular-nums text-4xl font-bold text-grey-900 leading-none mt-1">{match.homeScore ?? 0}</div>
-              {/* Stacked on narrow viewports so the enlarged buttons don't force
-                  the name/score blocks to wrap; side-by-side from sm up. */}
-              <div className="flex flex-col sm:flex-row items-end sm:items-stretch gap-2 mt-2 justify-end">
-                <button
-                  onClick={() => updateScore.mutate({ homeScore: Math.max(0, (match.homeScore ?? 0) - 1) })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Home −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ homeScore: (match.homeScore ?? 0) + 1 })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Home +1"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Centre — sets won + reset (not tied to one side, so it stays centred) */}
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="tabular-nums text-xl font-bold text-navy-700">{match.homeSetsWon ?? 0}</span>
-                <span className="text-grey-600 text-xs font-semibold">Sets</span>
-                <span className="tabular-nums text-xl font-bold text-grey-600">{match.awaySetsWon ?? 0}</span>
-              </div>
-              <div className="text-xs text-grey-600">Set {currentSet}</div>
-
-              {/* Per-set score history */}
-              {Array.isArray(match.setScores) && (match.setScores as {set:number;home:number;away:number}[]).length > 0 && (
-                <div className="flex gap-1 mt-0.5">
-                  {(match.setScores as {set:number;home:number;away:number}[]).map((s) => (
-                    <span key={s.set} className="text-[10px] tabular-nums text-grey-600 bg-grey-50 px-1.5 py-0.5 rounded border border-grey-200">
-                      {s.home}–{s.away}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={handleResetSetScore}
-                className="mt-1 px-3 h-7 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-xs font-medium border border-grey-200 transition-colors"
-                title="Reset set score"
-              >
-                Reset Set
-              </button>
-            </div>
-
-            {/* Away team */}
-            <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-grey-900 truncate">{match.opponent}</div>
-              <div className="tabular-nums text-4xl font-bold text-grey-600 leading-none mt-1">{match.awayScore ?? 0}</div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-stretch gap-2 mt-2 justify-start">
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: Math.max(0, (match.awayScore ?? 0) - 1) })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Away −1"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateScore.mutate({ awayScore: (match.awayScore ?? 0) + 1 })}
-                  className="w-14 h-14 rounded-lg bg-grey-50 hover:bg-grey-200 text-grey-900 text-2xl font-bold border border-grey-200 transition-colors"
-                  title="Away +1"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-      </div>
+      <LiveScoreboard
+        homeName={match.team?.name ?? 'Home'}
+        awayName={match.opponent}
+        homeScore={match.homeScore ?? 0}
+        awayScore={match.awayScore ?? 0}
+        homeSetsWon={match.homeSetsWon ?? 0}
+        awaySetsWon={match.awaySetsWon ?? 0}
+        status={match.status}
+        currentSet={currentSet}
+        onSelectSet={setCurrentSet}
+        onScore={handleScore}
+        onResetSet={handleResetSetScore}
+        onResetMatch={handleResetMatch}
+        onUndoEvent={handleUndo}
+        canUndoEvent={canUndo}
+        busy={scoreboardBusy}
+      />
 
       {/* ── Main ── */}
       <div className="space-y-4">
@@ -365,27 +290,35 @@ export default function TrackingPage() {
         )}
 
         {/* ── Recording mode toggle ── */}
+        {/* Both toggles sit on a 36px (h-9) button height — courtside legibility,
+            and in line with the touch targets elsewhere on this screen. They read
+            as one banner, so Us/Opponent and Focus stay sized to match. */}
         <div className="flex items-center gap-3 flex-wrap card p-3">
-          <span className="text-xs text-grey-600 font-medium shrink-0">Recording for:</span>
-          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
-            <button
-              onClick={() => setIsOpponentMode(false)}
-              className={clsx(
-                'px-4 py-2 transition-colors',
-                !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
-              )}
-            >
-              Us
-            </button>
-            <button
-              onClick={() => setIsOpponentMode(true)}
-              className={clsx(
-                'px-4 py-2 transition-colors',
-                isOpponentMode ? 'bg-error text-white' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
-              )}
-            >
-              Opponent
-            </button>
+          {/* Each label is grouped with the toggle it labels, so when the row
+              wraps they travel together rather than the label being orphaned on
+              the line above its own buttons. */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-grey-600 font-medium shrink-0">Recording for:</span>
+            <div className="flex rounded-lg overflow-hidden border border-grey-200 text-sm font-semibold">
+              <button
+                onClick={() => setIsOpponentMode(false)}
+                className={clsx(
+                  'h-9 px-5 transition-colors',
+                  !isOpponentMode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                Us
+              </button>
+              <button
+                onClick={() => setIsOpponentMode(true)}
+                className={clsx(
+                  'h-9 px-5 transition-colors',
+                  isOpponentMode ? 'bg-error text-white' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                )}
+              >
+                Opponent
+              </button>
+            </div>
           </div>
           {isOpponentMode && (
             <input
@@ -395,30 +328,34 @@ export default function TrackingPage() {
               placeholder="Jersey # (opt.)"
               value={opponentJerseyNumber}
               onChange={(e) => setOpponentJerseyNumber(e.target.value)}
-              className="input text-sm w-36"
+              // .input's own py-2.5 would make this ~42px and leave it standing
+              // taller than the h-9 buttons beside it; py-0 lets h-9 win.
+              className="input h-9 py-0 text-sm w-36 shrink-0"
             />
           )}
 
           {/* Focus mode — filters which event groups render and re-sorts the
               roster by relevant position. Roster/score/zone stay visible. */}
-          <span className="text-xs text-grey-600 font-medium shrink-0 ml-auto">Focus:</span>
-          <div className="flex rounded-lg overflow-hidden border border-grey-200 text-xs font-semibold">
-            {([
-              ['all', 'All'],
-              ['attack', 'Attack'],
-              ['defense', 'Defense'],
-            ] as [FocusMode, string][]).map(([mode, label]) => (
-              <button
-                key={mode}
-                onClick={() => setFocusMode(mode)}
-                className={clsx(
-                  'px-4 py-2 transition-colors',
-                  focusMode === mode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-sm text-grey-600 font-medium shrink-0">Focus:</span>
+            <div className="flex rounded-lg overflow-hidden border border-grey-200 text-sm font-semibold">
+              {([
+                ['all', 'All'],
+                ['attack', 'Attack'],
+                ['defense', 'Defense'],
+              ] as [FocusMode, string][]).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => setFocusMode(mode)}
+                  className={clsx(
+                    'h-9 px-5 transition-colors',
+                    focusMode === mode ? 'bg-gold-500 text-navy-900' : 'bg-grey-50 text-grey-600 hover:bg-grey-200'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -595,14 +532,30 @@ export default function TrackingPage() {
         {/* ── Recent events feed ── */}
         {recentEvents.length > 0 && (
           <div className="card overflow-hidden mt-2">
-            <div className="px-4 py-2 border-b border-grey-200 text-xs text-grey-600 font-medium">
-              Recent Events
-            </div>
+            {/* The feed is only the last handful — the Events tab is the full log.
+                Sized to the brand's h3 role (§3: 1.125rem / Inter 600, for
+                sub-sections), so it reads as a section header rather than a caption. */}
+            <Link
+              to={`/matches/${matchId}/events`}
+              className="flex items-center justify-between gap-2 px-4 py-3 border-b border-grey-200 text-grey-900 hover:bg-grey-50 transition-colors group"
+            >
+              <span className="text-lg font-semibold group-hover:text-navy-700 transition-colors">
+                Recent Events
+              </span>
+              {/* Secondary to the label itself — smaller and quieter. */}
+              <span className="flex items-center gap-1 text-xs font-medium text-grey-400 group-hover:text-navy-700 transition-colors">
+                View all
+                <span aria-hidden="true">›</span>
+              </span>
+            </Link>
             <div className="divide-y divide-grey-200">
               {recentEvents.map((event) => {
                 const meta = getMeta(event.eventType);
                 return (
-                  <div key={event.id} className="flex items-center gap-3 px-4 py-2.5">
+                  // min-h matches an avatar row's height so opponent events —
+                  // which have no player, and so no avatar — don't sit visibly
+                  // shorter than the rows around them.
+                  <div key={event.id} className="flex items-center gap-3 px-4 py-3 min-h-[60px]">
                     <span
                       className={clsx(
                         'w-2 h-2 rounded-full shrink-0',
@@ -616,20 +569,41 @@ export default function TrackingPage() {
                     <span className="tabular-nums text-xs text-grey-600 shrink-0">
                       S{event.setNumber}
                     </span>
-                    <span className="text-sm font-medium text-grey-900 flex-1">
+                    <span className="text-sm font-medium text-grey-900 flex-1 min-w-0 truncate">
                       {meta.label}
                     </span>
                     {event.player && (
-                      <span className="text-xs text-grey-600 tabular-nums">
-                        #{event.player.jerseyNumber} {event.player.lastName}
+                      // Same jersey-in-a-circle placeholder as the Player
+                      // Statistics table (StatsOverview.tsx), scaled down for a
+                      // list row — structured so a real photoUrl can drop an
+                      // <img> in here later without restructuring. It carries
+                      // the jersey number, so the name beside it doesn't repeat it.
+                      <div className="w-9 h-9 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center shrink-0">
+                        <span className="tabular-nums font-bold text-xs">
+                          {event.player.jerseyNumber}
+                        </span>
+                      </div>
+                    )}
+                    {/* The two text spans give way first (min-w-0 lets a flex
+                        item shrink past its content); the badges, time and
+                        avatar hold their size. Without this a long full name
+                        pushes the row wider than the card on narrow screens. */}
+                    {event.player && (
+                      <span className="text-xs text-grey-600 min-w-0 truncate">
+                        {event.player.firstName} {event.player.lastName}
                       </span>
                     )}
                     {event.courtZone != null && (
-                      <span className="badge bg-grey-50 text-navy-700 border border-grey-200">
+                      <span className="badge shrink-0 bg-grey-50 text-navy-700 border border-grey-200">
                         Z{event.courtZone}
                       </span>
                     )}
-                    <span className="text-xs text-grey-600">
+                    {event.rotationNumber != null && (
+                      <span className="badge shrink-0 bg-grey-50 text-navy-700 border border-grey-200">
+                        R{event.rotationNumber}
+                      </span>
+                    )}
+                    <span className="text-xs text-grey-600 shrink-0">
                       {format(new Date(event.recordedAt), 'HH:mm:ss')}
                     </span>
                   </div>

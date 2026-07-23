@@ -212,6 +212,55 @@ export interface AuthResponse {
   user: User;
 }
 
+// ─── Team Chat (foundation) ───────────────────────────────────────────────────
+
+export interface ChatChannel {
+  id: string;
+  type: 'TEAM' | 'DIRECT';
+  teamId: string;
+  name: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatSender {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profileImage: string | null;
+}
+
+export interface ChatAttachment {
+  id: string;
+  kind: 'IMAGE' | 'FILE';
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  /** Short-lived download URL minted per read; null = signing failed. On an
+   *  optimistic (uploading) message this is a local object URL preview. */
+  signedUrl: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  senderId: string | null; // null = former member
+  sender: ChatSender | null;
+  body: string | null; // null = tombstone ("message deleted")
+  attachments: ChatAttachment[];
+  editedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  /** Client-only delivery state for optimistic sends; absent on server messages. */
+  sendState?: 'sending' | 'failed';
+  /** Client-only upload progress (0–100) while an attachment message sends. */
+  uploadProgress?: number;
+  /** Client-only server rejection message for a failed send (e.g. rate limit). */
+  sendError?: string;
+}
+
 export type Position =
   | 'SETTER'
   | 'OUTSIDE_HITTER'
@@ -348,7 +397,9 @@ export interface Match {
   awaySetsWon?: number;
   createdAt: string;
   updatedAt: string;
-  _count?: { events: number };
+  // scoreAdjustments (manual score taps) only comes back from GET /matches/:id;
+  // list endpoints count events alone.
+  _count?: { events: number; scoreAdjustments?: number };
 }
 
 export interface SetScore {
@@ -503,6 +554,7 @@ export interface Event {
   setNumber: number;
   rallyNumber?: number;
   courtZone?: number | null;
+  rotationNumber?: number | null;
   notes?: string;
   matchId: string | null;
   playerId: string | null;
@@ -737,18 +789,21 @@ export const POSITION_FULL_LABELS: Record<Position, string> = {
 };
 
 /**
- * Categorical badge styling for positions, grouped by what the position
- * actually does on court (set / attack / defend). Deliberately does NOT reuse
- * success/error/info — those carry positive/negative meaning elsewhere in the
- * UI, and a position is not a judgement. The full label disambiguates within a
- * group, so three groups is enough.
+ * Categorical badge styling — one distinct colour per position, so a roster is
+ * scannable at a glance. Previously three groups shared by six positions, which
+ * made Opposite/Middle Blocker/Outside Hitter indistinguishable.
+ *
+ * A position is not a judgement, so success/error/warning stay out — those read
+ * as good/bad. `info` is used purely as the categorical blue from the brand
+ * doc's 6-colour chart sequence (§2), not with its semantic meaning; violet and
+ * steel come from that same sequence.
  */
 export const POSITION_BADGE: Record<Position, string> = {
   SETTER: 'badge-brand',
   OUTSIDE_HITTER: 'badge-accent',
-  OPPOSITE: 'badge-accent',
-  MIDDLE_BLOCKER: 'badge-accent',
-  LIBERO: 'badge-neutral',
+  OPPOSITE: 'badge-steel',
+  MIDDLE_BLOCKER: 'badge-violet',
+  LIBERO: 'badge-info',
   DEFENSIVE_SPECIALIST: 'badge-neutral',
 };
 

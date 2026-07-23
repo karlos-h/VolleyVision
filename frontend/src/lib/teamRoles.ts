@@ -3,6 +3,17 @@ import type { TeamRole, AccessTier, AccessCategory } from '../types';
 // Single source of truth for how team roles and access tiers render, so
 // "add Manager everywhere" and future role tweaks happen in one place.
 
+// Permissions visible when the Coach/Player toggle is set to "Player" —
+// mirrors TeamRole.PLAYER's real permission set in the backend
+// (permission.service.ts), so the read-only lens never drifts from the
+// actual player role's capabilities.
+export const PLAYER_VIEW_PERMISSIONS = new Set([
+  'VIEW_ANALYTICS',
+  'VIEW_REPORTS',
+  'VIEW_TEAM',
+  'POST_MESSAGE',
+]);
+
 export const ROLE_LABELS: Record<TeamRole, string> = {
   HEAD_COACH:      'Head Coach',
   MANAGER:         'Manager',
@@ -22,7 +33,7 @@ export const ROLE_BADGE: Record<TeamRole, string> = {
   HEAD_COACH:      'badge-accent',
   MANAGER:         'badge-brand',
   ASSISTANT_COACH: 'badge-info',
-  STATISTICIAN:    'badge-neutral',
+  STATISTICIAN:    'badge-violet', // was neutral — collided with VIEWER
   PLAYER:          'badge-success',
   VIEWER:          'badge-neutral',
 };

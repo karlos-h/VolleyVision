@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { isEnabled } from '../../config/features';
 
 // Shared tab group for a single team's pages, so Dashboard / Matches / Roster
 // are reachable from any of the three without returning to the Teams grid.
@@ -9,6 +10,7 @@ export default function TeamSubNav({ teamId, teamName }: { teamId: string; teamN
     { to: `/teams/${teamId}/dashboard`, label: 'Dashboard', end: false },
     { to: `/teams/${teamId}/matches`, label: 'Matches', end: false },
     { to: `/teams/${teamId}`, label: 'Roster', end: true },
+    ...(isEnabled('teamChat') ? [{ to: `/teams/${teamId}/chat`, label: 'Chat', end: false }] : []),
   ];
 
   return (

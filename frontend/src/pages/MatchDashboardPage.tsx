@@ -45,6 +45,10 @@ export default function MatchDashboardPage() {
         canTrack={canTrack}
       />
 
+      {/* The nav tab reads just "Stats", so name the page explicitly here —
+          same pattern as the player dashboard's "Game Day Stats" eyebrow. */}
+      <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">Match Stats</p>
+
       {/* Phase 4 — Final Score Summary */}
       <div className="card p-4 space-y-3">
         {/* Match winner */}

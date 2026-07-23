@@ -105,6 +105,10 @@ export const matchesApi = {
     api.patch<Match>(`/matches/${id}/score`, data).then((r) => r.data),
   resetSetScore: (id: string) =>
     api.post<Match>(`/matches/${id}/score/reset`).then((r) => r.data),
+  // Clears sets won and the whole set history, unlike resetSetScore which only
+  // zeroes the current set.
+  resetMatch: (id: string) =>
+    api.post<Match>(`/matches/${id}/score/reset-match`).then((r) => r.data),
 };
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -231,6 +235,85 @@ export const videosApi = {
   deleteTimestamp: (timestampId: string) => api.delete(`/timestamps/${timestampId}`),
 };
 
+// ─── Team Chat (foundation) ───────────────────────────────────────────────────
+import type { ChatChannel, ChatMessage } from '../types';
+
+export const chatApi = {
+  getChannel: (teamId: string) =>
+    api.get<ChatChannel>(`/teams/${teamId}/channel`).then((r) => r.data),
+  listMessages: (channelId: string, params?: { limit?: number; before?: string; after?: string }) =>
+    api.get<ChatMessage[]>(`/channels/${channelId}/messages`, { params }).then((r) => r.data),
+  // idempotencyKey: reused verbatim on retry so a resend after a network blip
+  // returns the already-created message instead of a duplicate.
+  postMessage: (channelId: string, body: string, idempotencyKey?: string) =>
+    api
+      .post<ChatMessage>(`/channels/${channelId}/messages`, { body }, {
+        headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      })
+      .then((r) => r.data),
+  uploadMessage: (
+    channelId: string,
+    data: { body?: string; files: File[]; idempotencyKey?: string; onProgress?: (percent: number) => void },
+  ) => {
+    const fd = new FormData();
+    if (data.body) fd.append('body', data.body);
+    for (const file of data.files) fd.append('files', file);
+    return api
+      .post<ChatMessage>(`/channels/${channelId}/messages/upload`, fd, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(data.idempotencyKey ? { 'Idempotency-Key': data.idempotencyKey } : {}),
+        },
+        onUploadProgress: (e) => {
+          if (data.onProgress && e.total) data.onProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      })
+      .then((r) => r.data);
+  },
+  editMessage: (messageId: string, body: string) =>
+    api.patch<ChatMessage>(`/messages/${messageId}`, { body }).then((r) => r.data),
+  deleteMessage: (messageId: string) =>
+    api.delete<ChatMessage>(`/messages/${messageId}`).then((r) => r.data),
+};
+
+// ─── Feedback tab ─────────────────────────────────────────────────────────────
+import type { Feedback, FeedbackStatus } from '../types/feedback';
+
+export const feedbackApi = {
+  create: (data: {
+    type: string;
+    severity?: string;
+    subject: string;
+    description: string;
+    pageContext?: string;
+    files: File[];
+  }) => {
+    const fd = new FormData();
+    fd.append('type', data.type);
+    if (data.severity) fd.append('severity', data.severity);
+    fd.append('subject', data.subject);
+    fd.append('description', data.description);
+    if (data.pageContext) fd.append('pageContext', data.pageContext);
+    for (const file of data.files) fd.append('files', file);
+    return api
+      .post<Feedback>('/feedback', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data);
+  },
+  listMine: () => api.get<Feedback[]>('/feedback/mine').then((r) => r.data),
+  // Admin-only — 403 for everyone else.
+  listAll: (filters?: { status?: string; type?: string }) => {
+    const params: Record<string, string> = {};
+    if (filters?.status) params.status = filters.status;
+    if (filters?.type) params.type = filters.type;
+    return api.get<Feedback[]>('/feedback', { params }).then((r) => r.data);
+  },
+  updateStatus: (id: string, data: { status?: FeedbackStatus; adminNotes?: string | null }) =>
+    api.patch<Feedback>(`/feedback/${id}`, data).then((r) => r.data),
+  // Signed URL round-trip — owner or admin only.
+  getAttachmentUrl: (feedbackId: string, attachmentId: string) =>
+    api.get<{ url: string }>(`/feedback/${feedbackId}/attachments/${attachmentId}/url`).then((r) => r.data.url),
+};
+
 // ─── Memberships (Phase 5 Sprint 3) ──────────────────────────────────────────
 export const membershipsApi = {
   listByTeam: (teamId: string) =>
@@ -304,6 +387,38 @@ export const invitationsApi = {
     api.post<Invitation>('/invitations/redeem', { code }).then((r) => r.data),
   myInvitations: () =>
     api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
+};
+
+// ─── Team join codes — reusable player/staff codes ───────────────────────────
+export type TeamJoinCodeKind = 'PLAYER' | 'STAFF';
+
+export interface TeamJoinCodes {
+  playerJoinCode: string | null;
+  staffJoinCode: string | null;
+}
+
+export type CodeLookupKind = 'EMAIL_INVITE' | 'TEAM_PLAYER' | 'TEAM_STAFF' | null;
+
+export interface CodeLookupResult {
+  kind: CodeLookupKind;
+  teamName?: string;
+}
+
+export interface TeamCodeRedeemResult {
+  team: { id: string; name: string };
+  kind: 'PLAYER' | 'STAFF';
+  role: TeamRole;
+}
+
+export const joinCodesApi = {
+  get: (teamId: string) =>
+    api.get<TeamJoinCodes>(`/teams/${teamId}/join-codes`).then((r) => r.data),
+  regenerate: (teamId: string, kind: TeamJoinCodeKind) =>
+    api.post<{ kind: TeamJoinCodeKind; code: string }>(`/teams/${teamId}/join-codes/regenerate`, { kind }).then((r) => r.data),
+  lookup: (code: string) =>
+    api.get<CodeLookupResult>(`/invitations/lookup/${encodeURIComponent(code)}`).then((r) => r.data),
+  redeemTeamCode: (data: { code: string; role?: TeamRole }) =>
+    api.post<TeamCodeRedeemResult>('/invitations/redeem-team-code', data).then((r) => r.data),
 };
 
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────

@@ -6,6 +6,8 @@ import {
 import type { Invitation, TeamRole } from '../types';
 import { isPendingApproval } from '../types';
 import { ROLE_LABELS, ROLE_BADGE, ROLE_OPTIONS } from '../lib/teamRoles';
+import JoinByCodeCard from '../components/team/JoinByCodeCard';
+import TeamJoinCodes from '../components/team/TeamJoinCodes';
 
 const COACH_ROLES: TeamRole[] = ['HEAD_COACH', 'MANAGER', 'ASSISTANT_COACH', 'STATISTICIAN'];
 
@@ -101,6 +103,8 @@ function TeamSentInvitations({ teamId }: { teamId: string }) {
           </button>
         )}
       </div>
+
+      {canInvite && <TeamJoinCodes teamId={teamId} />}
 
       {showForm && canInvite && (
         <form onSubmit={handleCreate} className="px-5 py-4 border-b border-grey-200 bg-grey-50 space-y-3">
@@ -204,6 +208,12 @@ export default function InvitationsPage() {
         <h1 className="font-display font-bold text-2xl text-grey-900">Invitations</h1>
         <p className="text-grey-600 text-sm mt-0.5">Accept invitations sent to you, and manage invitations sent by your teams</p>
       </div>
+
+      {/* Self-serve join by code */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-grey-600">Join a team</h2>
+        <JoinByCodeCard />
+      </section>
 
       {/* Received */}
       <section className="space-y-3">

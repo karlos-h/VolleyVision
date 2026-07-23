@@ -5,6 +5,7 @@ import MatchSubNav from './MatchSubNav';
 import { ArrowLeftIcon, ChevronIcon } from './icons';
 import { isPendingApproval, type MatchStatus } from '../../types';
 import { useHasPermission, useUpdateMatch } from '../../hooks';
+import { useViewMode } from '../../context/ViewModeContext';
 
 // Shared header for all three match sub-pages (Match Stats | Events | Track).
 // Consolidates the back button, title/meta block, and MatchSubNav so every
@@ -55,6 +56,16 @@ export default function MatchPageHeader({
 }: MatchPageHeaderProps) {
   const canManageMatches = useHasPermission(teamId, 'CREATE_MATCH');
   const updateMatch = useUpdateMatch();
+  const { viewMode } = useViewMode();
+  // A dual coach+player account previewing "player" mode sees the Watch tab
+  // even though their real TRACK_MATCH permission still says yes — mirrors
+  // how DashboardPage's toggle already simulates the other portal. Tab-only:
+  // navigating straight to /track still works, nothing is actually blocked.
+  const effectiveCanTrack = canTrack && viewMode !== 'player';
+  const mode: 'track' | 'watch' | undefined =
+    effectiveCanTrack && status === 'IN_PROGRESS' ? 'track' :
+    !effectiveCanTrack && status === 'IN_PROGRESS' ? 'watch' :
+    undefined;
   const [pendingNotice, setPendingNotice] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -117,7 +128,7 @@ export default function MatchPageHeader({
                         role="option"
                         aria-selected={s === status}
                         onClick={() => handleStatusChange(s)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-grey-900 hover:bg-grey-100 transition-colors text-left"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-grey-900 hover:bg-grey-50 transition-colors text-left"
                       >
                         <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[s]}`} aria-hidden />
                         {s.replace('_', ' ')}
@@ -139,7 +150,7 @@ export default function MatchPageHeader({
         )}
       </div>
 
-      <MatchSubNav matchId={matchId} trackable={canTrack && status === 'IN_PROGRESS'} />
+      <MatchSubNav matchId={matchId} mode={mode} />
     </div>
   );
 }

@@ -40,6 +40,12 @@ export default {
         warning: { DEFAULT: '#E8890C', strong: '#9A5B02' },
         info: { DEFAULT: '#2B7FD4', dark: '#5FA6E8', strong: '#1B5FA8' },
 
+        // Categorical only — carries no positive/negative meaning, unlike the
+        // semantic tones above. From the brand doc's 6-colour chart sequence
+        // (§2), already used as CHART_SERIES[4] in lib/chartColors.ts.
+        // `strong` measures 7.9:1 on a violet/15 tint (WCAG AA needs 4.5).
+        violet: { DEFAULT: '#7A5FB8', strong: '#4A3B78' },
+
         // ── DEPRECATED legacy aliases → light-mode brand hexes ──
         // court/spike/chalk are kept so existing classes keep working; they
         // now point at the LIGHT surface roles (light mode is the default).

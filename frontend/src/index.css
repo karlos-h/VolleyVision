@@ -116,6 +116,18 @@
            px-5 py-2.5 rounded-xl border border-navy-700 transition-colors;
   }
 
+  /* Tertiary/ghost — quiet nav-style actions that shouldn't compete with the
+     one true CTA in a view (per Brand Guidelines: gold ≤10% of any screen,
+     one gold CTA per view). Text-navy on transparent, subtle border, light
+     fill on hover — for repeated links like per-card Stats/Events, and for
+     Cancel actions that shouldn't visually outweigh the Save/primary button
+     next to them. */
+  .btn-ghost {
+    @apply bg-transparent hover:bg-grey-200 text-navy-700 font-medium
+           px-5 py-2.5 rounded-xl border border-grey-200 transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
+  }
+
   /* Danger button */
   .btn-danger {
     @apply bg-error hover:brightness-90 text-white font-medium
@@ -155,6 +167,19 @@
 
   .badge-info {
     @apply bg-info/15 text-info-strong;
+  }
+
+  .badge-violet {
+    @apply bg-violet/15 text-violet-strong;
+  }
+
+  /* Steel deliberately breaks the /15-tint rule of its siblings: navy-500 at
+     15% with navy-700 text is perceptually identical to .badge-brand (measured
+     ΔE 2.6 on the tint, 0.0 on the text — the same text colour). The deeper
+     tint plus lighter same-hue text is what makes it a distinct chip while
+     staying inside the brand chart palette. 5.9:1 — clears WCAG AA. */
+  .badge-steel {
+    @apply bg-navy-500/25 text-navy-500;
   }
 
   /* Row-level action button — a real tap target for Edit/Remove/Delete/Unlink,

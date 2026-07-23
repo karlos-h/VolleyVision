@@ -1,22 +1,16 @@
-import { randomUUID, randomInt } from 'crypto';
+import { randomUUID } from 'crypto';
 import { InvitationStatus, TeamRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { generateUniqueCode } from '../lib/joinCode';
 import { addMember, isMember } from './teamMembership.service';
 import { sendInvitationEmail } from '../lib/mailer';
 
 const EXPIRY_DAYS = 7;
 
-// Human-enterable join code: 8 chars, unambiguous alphabet (no 0/O/1/I).
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-async function generateUniqueJoinCode(): Promise<string> {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    let code = '';
-    for (let i = 0; i < 8; i++) code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
-    const clash = await prisma.invitation.findUnique({ where: { joinCode: code }, select: { id: true } });
-    if (!clash) return code;
-  }
-  // Extremely unlikely; fall back to a UUID-derived code.
-  return randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase();
+function generateUniqueJoinCode(): Promise<string> {
+  return generateUniqueCode(async (code) =>
+    (await prisma.invitation.findUnique({ where: { joinCode: code }, select: { id: true } })) !== null,
+  );
 }
 
 export async function createInvitation(

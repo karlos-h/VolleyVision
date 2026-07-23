@@ -1,0 +1,263 @@
+// Feedback tab — submit / list / triage service. Visibility rules: users see
+// only their own submissions; the global ADMIN sees everything. The admin gate
+// is enforced by requireAdmin in the routes — listAllFeedback and
+// updateFeedbackStatus trust that; only the attachment signed-URL check
+// (mixed-audience endpoint) re-verifies ownership here.
+
+import { AttachmentKind, FeedbackAttachment, FeedbackSeverity, FeedbackStatus, FeedbackType, Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { prisma } from '../lib/prisma';
+import { AppError } from '../middleware/errorHandler';
+import {
+  MAX_ATTACHMENTS_PER_FEEDBACK,
+  assertAcceptable,
+  buildFeedbackObjectKey,
+  deleteObjects,
+  imageDimensions,
+  signAttachmentUrl,
+  uploadAttachment,
+} from './feedbackStorage.service';
+
+const MAX_SUBJECT_LENGTH = 200;
+const MAX_DESCRIPTION_LENGTH = 5000;
+const MAX_ADMIN_NOTES_LENGTH = 5000;
+const MAX_PAGE_CONTEXT_LENGTH = 300;
+
+// The submitter identity shown on the admin's "All Feedback" list only —
+// never included in a user's own list.
+const submitterSelect = { firstName: true, lastName: true, email: true } as const;
+
+// ─── Serialization ────────────────────────────────────────────────────────────
+
+/** Public attachment shape — storagePath never leaves the server. */
+function toAttachmentDto(a: FeedbackAttachment) {
+  return {
+    id: a.id,
+    kind: a.kind,
+    originalName: a.originalName,
+    mimeType: a.mimeType,
+    sizeBytes: a.sizeBytes,
+    width: a.width,
+    height: a.height,
+  };
+}
+
+function serializeFeedback<T extends { attachments: FeedbackAttachment[] }>(row: T) {
+  const { attachments, ...rest } = row;
+  return { ...rest, attachments: attachments.map(toAttachmentDto) };
+}
+
+// ─── Input validation ─────────────────────────────────────────────────────────
+
+/** Own-key membership test — `in` would also match prototype keys like "toString". */
+function isEnumValue<T extends Record<string, string>>(enumObj: T, raw: unknown): raw is T[keyof T] {
+  return typeof raw === 'string' && Object.values(enumObj).includes(raw);
+}
+
+function parseType(raw: unknown): FeedbackType {
+  if (isEnumValue(FeedbackType, raw)) return raw;
+  throw new AppError(400, 'Feedback type must be BUG, FEATURE_REQUEST, or GENERAL.');
+}
+
+function parseSeverity(raw: unknown, type: FeedbackType): FeedbackSeverity | null {
+  // Severity only applies to bugs — silently dropped otherwise so a client
+  // that leaves a stale value in the form doesn't get rejected.
+  if (type !== FeedbackType.BUG || raw == null || raw === '') return null;
+  if (isEnumValue(FeedbackSeverity, raw)) return raw;
+  throw new AppError(400, 'Severity must be LOW, MEDIUM, or HIGH.');
+}
+
+function parseRequiredText(raw: unknown, field: string, maxLength: number): string {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  if (!value) throw new AppError(400, `${field} is required.`);
+  if (value.length > maxLength) {
+    throw new AppError(400, `${field} must be at most ${maxLength.toLocaleString()} characters.`);
+  }
+  return value;
+}
+
+function parseOptionalText(raw: unknown, maxLength: number): string | null {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  return value ? value.slice(0, maxLength) : null;
+}
+
+// ─── Create ───────────────────────────────────────────────────────────────────
+
+export interface CreateFeedbackInput {
+  userId: string;
+  type: unknown;
+  severity?: unknown;
+  subject: unknown;
+  description: unknown;
+  pageContext?: unknown;
+  files: Express.Multer.File[];
+}
+
+/**
+ * Validate → upload attachments → create Feedback + FeedbackAttachment rows in
+ * one atomic write. If the DB write fails after bytes have landed in storage,
+ * the uploaded objects are deleted (compensating cleanup, mirrors
+ * message.service.postMessageWithAttachments) so a failed request leaves no
+ * orphans.
+ */
+export async function createFeedback(input: CreateFeedbackInput) {
+  const type = parseType(input.type);
+  const severity = parseSeverity(input.severity, type);
+  const subject = parseRequiredText(input.subject, 'Subject', MAX_SUBJECT_LENGTH);
+  const description = parseRequiredText(input.description, 'Description', MAX_DESCRIPTION_LENGTH);
+  const pageContext = parseOptionalText(input.pageContext, MAX_PAGE_CONTEXT_LENGTH);
+
+  if (input.files.length > MAX_ATTACHMENTS_PER_FEEDBACK) {
+    throw new AppError(400, `A feedback submission can have at most ${MAX_ATTACHMENTS_PER_FEEDBACK} attachments.`);
+  }
+
+  // Reject the whole batch up front so one bad file can't strand siblings
+  // that were already uploaded.
+  const prepared = input.files.map((file) => ({
+    file,
+    kind: assertAcceptable(file),
+  })).map((p) => ({
+    ...p,
+    dims: p.kind === AttachmentKind.IMAGE ? imageDimensions(p.file.buffer) : null,
+  }));
+
+  // Object keys embed the feedback id, so mint it before the row exists.
+  const feedbackId = randomUUID();
+  const uploaded: { p: (typeof prepared)[number]; storagePath: string }[] = [];
+  try {
+    for (const p of prepared) {
+      const key = buildFeedbackObjectKey({ feedbackId, originalName: p.file.originalname });
+      await uploadAttachment({ key, buffer: p.file.buffer, mimeType: p.file.mimetype });
+      uploaded.push({ p, storagePath: key });
+    }
+
+    // Nested create = feedback + attachments in a single transaction.
+    const feedback = await prisma.feedback.create({
+      data: {
+        id: feedbackId,
+        userId: input.userId,
+        type,
+        severity,
+        subject,
+        description,
+        pageContext,
+        attachments: {
+          create: uploaded.map(({ p, storagePath }) => ({
+            kind: p.kind,
+            storagePath,
+            originalName: p.file.originalname.slice(0, 255),
+            mimeType: p.file.mimetype,
+            sizeBytes: p.file.size,
+            width: p.dims?.width ?? null,
+            height: p.dims?.height ?? null,
+          })),
+        },
+      },
+      include: { attachments: true },
+    });
+    return serializeFeedback(feedback);
+  } catch (err) {
+    await deleteObjects(uploaded.map((u) => u.storagePath));
+    throw err;
+  }
+}
+
+// ─── Lists ────────────────────────────────────────────────────────────────────
+
+export async function listMyFeedback(userId: string) {
+  const rows = await prisma.feedback.findMany({
+    where: { userId },
+    include: { attachments: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map(serializeFeedback);
+}
+
+export interface FeedbackFilters {
+  status?: string;
+  type?: string;
+  severity?: string;
+}
+
+/** Admin-only (enforced by requireAdmin in the routes) — all users' feedback. */
+export async function listAllFeedback(filters: FeedbackFilters = {}) {
+  const where: Prisma.FeedbackWhereInput = {};
+  if (isEnumValue(FeedbackStatus, filters.status)) where.status = filters.status;
+  if (isEnumValue(FeedbackType, filters.type)) where.type = filters.type;
+  if (isEnumValue(FeedbackSeverity, filters.severity)) where.severity = filters.severity;
+
+  const rows = await prisma.feedback.findMany({
+    where,
+    include: { attachments: true, user: { select: submitterSelect } },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map(serializeFeedback);
+}
+
+// ─── Triage ───────────────────────────────────────────────────────────────────
+
+/** Admin-only (enforced by requireAdmin in the routes). */
+export async function updateFeedbackStatus(
+  feedbackId: string,
+  updates: { status?: unknown; adminNotes?: unknown },
+) {
+  const data: Prisma.FeedbackUpdateInput = {};
+
+  if (updates.status !== undefined) {
+    if (!isEnumValue(FeedbackStatus, updates.status)) {
+      throw new AppError(400, 'Status must be OPEN, IN_PROGRESS, RESOLVED, or WONT_FIX.');
+    }
+    data.status = updates.status;
+  }
+  if (updates.adminNotes !== undefined) {
+    if (updates.adminNotes !== null && typeof updates.adminNotes !== 'string') {
+      throw new AppError(400, 'Admin notes must be text.');
+    }
+    const notes = typeof updates.adminNotes === 'string' ? updates.adminNotes.trim() : '';
+    if (notes.length > MAX_ADMIN_NOTES_LENGTH) {
+      throw new AppError(400, `Admin notes must be at most ${MAX_ADMIN_NOTES_LENGTH.toLocaleString()} characters.`);
+    }
+    data.adminNotes = notes || null;
+  }
+  if (Object.keys(data).length === 0) {
+    throw new AppError(400, 'Nothing to update — provide a status and/or admin notes.');
+  }
+
+  try {
+    const feedback = await prisma.feedback.update({
+      where: { id: feedbackId },
+      data,
+      include: { attachments: true, user: { select: submitterSelect } },
+    });
+    return serializeFeedback(feedback);
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      throw new AppError(404, 'Feedback not found.');
+    }
+    throw err;
+  }
+}
+
+// ─── Attachments ──────────────────────────────────────────────────────────────
+
+/**
+ * Signed URL for one attachment. 403 unless the caller is the ADMIN or the
+ * attachment's feedback belongs to them — this endpoint serves both audiences,
+ * so ownership is checked here rather than in route middleware.
+ */
+export async function getAttachmentSignedUrl(
+  attachmentId: string,
+  requestingUserId: string,
+  isAdmin: boolean,
+): Promise<string> {
+  const attachment = await prisma.feedbackAttachment.findUnique({
+    where: { id: attachmentId },
+    select: { storagePath: true, feedback: { select: { userId: true } } },
+  });
+  if (!attachment) throw new AppError(404, 'Attachment not found.');
+  if (!isAdmin && attachment.feedback.userId !== requestingUserId) {
+    throw new AppError(403, 'You do not have permission to view this attachment.');
+  }
+  return signAttachmentUrl(attachment.storagePath);
+}
