@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useMatch, useEvents } from '../hooks';
+import { useMatch, useEvents, useHasPermission } from '../hooks';
+import { useSyncTrackWatchRoute } from '../hooks/useSyncTrackWatchRoute';
 import { EVENT_META, type Event } from '../types';
 import MatchPageHeader from '../components/ui/MatchPageHeader';
 import LiveScoreboard from '../components/scoreboard/LiveScoreboard';
@@ -29,6 +30,10 @@ export default function MatchWatchPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const { data: match, isLoading } = useMatch(matchId!, { live: true });
   const { data: events } = useEvents(matchId!);
+  // Only used to bounce back to Track if the Coach/Player toggle flips —
+  // this page itself is read-only regardless (see canTrack={false} below).
+  const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
+  useSyncTrackWatchRoute(matchId, match?.status, canTrack);
 
   const recentEvents = useMemo(
     () =>

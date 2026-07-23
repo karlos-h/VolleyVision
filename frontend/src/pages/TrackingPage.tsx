@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useMatch, useEvents, useRecordEvent, useUndoEvent, useUpdateScore, useResetSetScore, useResetMatch, useHasPermission } from '../hooks';
+import { useSyncTrackWatchRoute } from '../hooks/useSyncTrackWatchRoute';
 import type { EventType, Player, Position } from '../types';
 import { EVENT_META, POSITION_LABELS, POSITION_FULL_LABELS } from '../types';
 import type { EventMeta } from '../types';
@@ -77,6 +78,9 @@ export default function TrackingPage() {
   // Track is offered only to those who can track a live match (players never
   // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
   const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
+  // Flipping the Coach/Player toggle mid-session moves you to the matching
+  // route — a player-mode user never sits on the live input screen.
+  useSyncTrackWatchRoute(matchId, match?.status, canTrack);
 
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [currentSet, setCurrentSet] = useState(1);

@@ -244,6 +244,17 @@ export default function MatchesPage() {
                       Start
                     </button>
                   )}
+                  {/* Spectators get the read-only mirror of Track. The pulsing
+                      dot matches MatchWatchPage's live indicator. */}
+                  {!canTrack && match.status === 'IN_PROGRESS' && (
+                    <Link
+                      to={`/matches/${match.id}/watch`}
+                      className="btn-primary text-sm px-3 h-9 inline-flex items-center gap-1.5"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" aria-hidden />
+                      Watch
+                    </Link>
+                  )}
 
                   {canManageMatches && (
                     <button
