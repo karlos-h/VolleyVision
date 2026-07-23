@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import TeamMembersCard from '../components/team/TeamMembersCard';
 import PermissionGuard from '../components/ui/PermissionGuard';
 import PlayerTeamLinksCard from '../components/team/PlayerTeamLinksCard';
+import TeamJoinCodes from '../components/team/TeamJoinCodes';
+import QuickEmailInvite from '../components/team/QuickEmailInvite';
 import TeamSubNav from '../components/ui/TeamSubNav';
 import { ChevronIcon, PencilIcon } from '../components/ui/icons';
 
@@ -104,6 +106,9 @@ export default function TeamDetailPage() {
   const updatePlayer = useUpdatePlayer(teamId!);
   const transferOwnership = useTransferOwnership();
   const canManageTeam = useHasPermission(teamId!, 'MANAGE_TEAM');
+  // Roster access doesn't imply invitation access — the join-codes route 403s
+  // without it, so the inline invite block is gated separately.
+  const canInvite = useHasPermission(teamId!, 'INVITE_USERS');
 
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferEmail, setTransferEmail] = useState('');
@@ -278,7 +283,8 @@ export default function TeamDetailPage() {
 
         {/* Add-player form */}
         {showForm && user && (
-          <form onSubmit={handleCreate} className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 py-4 border-b border-grey-200 bg-grey-50">
+          <div className="px-5 py-4 border-b border-grey-200 bg-grey-50">
+          <form onSubmit={handleCreate} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-grey-600 mb-1">First Name *</label>
               <input className="input" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
@@ -305,6 +311,19 @@ export default function TeamDetailPage() {
               </button>
             </div>
           </form>
+
+          {/* The form above only creates a stat-tracking row — no account. This
+              invites a real person who can log in and track their own stats. */}
+          {canInvite && (
+            <div className="border-t border-grey-200 pt-4 mt-4 space-y-2">
+              <p className="text-xs text-grey-600">
+                Inviting a player to log in and track their own stats? Share the player code, or send an email invite:
+              </p>
+              <TeamJoinCodes teamId={teamId!} only="PLAYER" />
+              <QuickEmailInvite teamId={teamId!} role="PLAYER" />
+            </div>
+          )}
+          </div>
         )}
 
         {!team.players?.length ? (

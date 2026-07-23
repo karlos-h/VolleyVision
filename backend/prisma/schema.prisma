@@ -290,6 +290,12 @@ model Team {
   // Team Chat foundation
   channels    Channel[]
 
+  // Team join codes — persistent, reusable, self-serve. Player code joins as
+  // PLAYER instantly; staff code lets the redeemer pick a staff role. Distinct
+  // from per-email Invitations (single-use, email-locked, expiring).
+  playerJoinCode String? @unique @map("player_join_code")
+  staffJoinCode  String? @unique @map("staff_join_code")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

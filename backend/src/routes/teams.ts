@@ -3,6 +3,7 @@ import { getTeams, getTeam, createTeam, updateTeam, deleteTeam } from '../contro
 import { myTeams, transferTeam, teamOwner } from '../controllers/teamOwnership';
 import { listMembers, createMember, updateMember, deleteMember } from '../controllers/teamMembership';
 import { createTeamInvitation, listTeamInvitations } from '../controllers/invitation';
+import { listTeamJoinCodes, regenerateTeamJoinCode } from '../controllers/teamJoinCode';
 import { listTeamApprovalRequests } from '../controllers/approval';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { requireTeamPermission, requireTeamAccess } from '../middleware/permissions';
@@ -51,6 +52,11 @@ router.delete('/:id/members/:memberId', requireAuth, requireTeamPermission(Permi
 // invitation access tier, not the static INVITE_USERS role permission.
 router.get('/:id/invitations',  requireAuth, listTeamInvitations);
 router.post('/:id/invitations', requireAuth, requireTeamAccess('invitation', 'id'), createTeamInvitation);
+
+// Reusable team join codes — viewing and regenerating share the invitation
+// access category (regenerate additionally requires FULL_ACCESS in-controller).
+router.get('/:id/join-codes', requireAuth, requireTeamAccess('invitation', 'id'), listTeamJoinCodes);
+router.post('/:id/join-codes/regenerate', requireAuth, requireTeamAccess('invitation', 'id'), regenerateTeamJoinCode);
 
 // Approval queue — list is head-coach/owner only (MANAGE_TEAM = head coach)
 router.get('/:id/approval-requests', requireAuth, requireTeamPermission(Permission.MANAGE_TEAM), listTeamApprovalRequests);

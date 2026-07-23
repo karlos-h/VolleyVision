@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import {
   useTeamMembers, useAddMember, useUpdateMemberRole, useUpdateMemberAccess,
-  useRemoveMember, useUserSearch, useTeamRole,
+  useRemoveMember, useUserSearch, useTeamRole, useHasPermission,
 } from '../../hooks';
 import type { TeamRole, TeamMember, AccessTier, AccessCategory } from '../../types';
 import { ROLE_OPTIONS, ROLE_LABELS, ROLE_BADGE, TIER_OPTIONS, ACCESS_CATEGORIES } from '../../lib/teamRoles';
 import { useAuth } from '../../context/AuthContext';
 import { ChevronIcon, PencilIcon } from '../ui/icons';
+import TeamJoinCodes from './TeamJoinCodes';
+import QuickEmailInvite from './QuickEmailInvite';
 
 interface Props {
   teamId: string;
@@ -23,6 +25,9 @@ export default function TeamMembersCard({ teamId }: Props) {
   const { user } = useAuth();
 
   const canManage = roleInfo?.permissions.includes('MANAGE_MEMBERS') ?? false;
+  // Managing members doesn't imply invitation access — the join-codes route
+  // 403s without it, so the inline invite block is gated separately.
+  const canInvite = useHasPermission(teamId, 'INVITE_USERS');
 
   const [showAdd, setShowAdd]     = useState(false);
   const [searchQ, setSearchQ]     = useState('');
@@ -110,6 +115,21 @@ export default function TeamMembersCard({ teamId }: Props) {
           <button className="btn-primary text-sm" onClick={handleAdd} disabled={addMember.isPending || !selectedUserId}>
             {addMember.isPending ? 'Adding…' : 'Add member'}
           </button>
+
+          {/* The search above only finds people who already have an account. */}
+          {canInvite && (
+            <div className="border-t border-grey-200 pt-4 mt-1 space-y-2">
+              <p className="text-xs text-grey-600">
+                Inviting someone who doesn't have an account yet? Share the staff code, or send an email invite:
+              </p>
+              <TeamJoinCodes teamId={teamId} only="STAFF" />
+              <QuickEmailInvite
+                teamId={teamId}
+                roles={['ASSISTANT_COACH', 'MANAGER', 'STATISTICIAN']}
+                defaultRole="ASSISTANT_COACH"
+              />
+            </div>
+          )}
         </div>
       )}
 

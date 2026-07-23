@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi, feedbackApi } from '../lib/api';
+import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, joinCodesApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi, feedbackApi } from '../lib/api';
+import type { TeamJoinCodeKind } from '../lib/api';
 import type { CreateTeamInput } from '../lib/api';
 import type { Player, Match, TeamRole, TeamMember, ApprovalStatus } from '../types';
 import type { FeedbackStatus } from '../types/feedback';
@@ -652,6 +653,42 @@ export function useCreateInvitation(teamId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invitations', 'team', teamId] });
       qc.invalidateQueries({ queryKey: ['approvals', teamId] });
+    },
+  });
+}
+
+// ─── Team join codes — reusable player/staff codes ───────────────────────────
+
+export function useTeamJoinCodes(teamId: string) {
+  return useQuery({
+    queryKey: ['joinCodes', teamId],
+    queryFn: () => joinCodesApi.get(teamId),
+    enabled: !!teamId,
+  });
+}
+
+export function useRegenerateJoinCode(teamId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (kind: TeamJoinCodeKind) => joinCodesApi.regenerate(teamId, kind),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['joinCodes', teamId] }),
+  });
+}
+
+export function useLookupCode() {
+  return useMutation({
+    mutationFn: (code: string) => joinCodesApi.lookup(code),
+  });
+}
+
+export function useRedeemTeamCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { code: string; role?: TeamRole }) => joinCodesApi.redeemTeamCode(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invitations', 'me'] });
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: ['memberships', 'me'] });
     },
   });
 }

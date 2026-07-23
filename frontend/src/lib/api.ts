@@ -389,6 +389,38 @@ export const invitationsApi = {
     api.get<Invitation[]>('/users/me/invitations').then((r) => r.data),
 };
 
+// ─── Team join codes — reusable player/staff codes ───────────────────────────
+export type TeamJoinCodeKind = 'PLAYER' | 'STAFF';
+
+export interface TeamJoinCodes {
+  playerJoinCode: string | null;
+  staffJoinCode: string | null;
+}
+
+export type CodeLookupKind = 'EMAIL_INVITE' | 'TEAM_PLAYER' | 'TEAM_STAFF' | null;
+
+export interface CodeLookupResult {
+  kind: CodeLookupKind;
+  teamName?: string;
+}
+
+export interface TeamCodeRedeemResult {
+  team: { id: string; name: string };
+  kind: 'PLAYER' | 'STAFF';
+  role: TeamRole;
+}
+
+export const joinCodesApi = {
+  get: (teamId: string) =>
+    api.get<TeamJoinCodes>(`/teams/${teamId}/join-codes`).then((r) => r.data),
+  regenerate: (teamId: string, kind: TeamJoinCodeKind) =>
+    api.post<{ kind: TeamJoinCodeKind; code: string }>(`/teams/${teamId}/join-codes/regenerate`, { kind }).then((r) => r.data),
+  lookup: (code: string) =>
+    api.get<CodeLookupResult>(`/invitations/lookup/${encodeURIComponent(code)}`).then((r) => r.data),
+  redeemTeamCode: (data: { code: string; role?: TeamRole }) =>
+    api.post<TeamCodeRedeemResult>('/invitations/redeem-team-code', data).then((r) => r.data),
+};
+
 // ─── Approval queue (Stabilization Pass 2) ───────────────────────────────────
 export const approvalApi = {
   listByTeam: (teamId: string, status?: ApprovalStatus) =>
