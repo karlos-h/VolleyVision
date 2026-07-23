@@ -1,14 +1,16 @@
 import { NavLink } from 'react-router-dom';
 
-// Match-level tab group (Match Stats | Events | Track), one level down from
-// TeamSubNav and styled identically to it. The Track tab only appears when the
-// caller can track a live, in-progress match (via `trackable`) — players never
-// can (Iteration 3 Task 6).
-export default function MatchSubNav({ matchId, trackable = false }: { matchId: string; trackable?: boolean }) {
+// Match-level tab group (Match Stats | Events | Track/Watch), one level down
+// from TeamSubNav and styled identically to it. `mode` picks which live tab
+// shows: 'track' for those who can run the tracker on an in-progress match,
+// 'watch' for read-only spectators (players never get Track — Iteration 3
+// Task 6), or omitted entirely outside of IN_PROGRESS.
+export default function MatchSubNav({ matchId, mode }: { matchId: string; mode?: 'track' | 'watch' }) {
   const tabs = [
     { to: `/matches/${matchId}/dashboard`, label: 'Stats' },
     { to: `/matches/${matchId}/events`, label: 'Events' },
-    ...(trackable ? [{ to: `/matches/${matchId}/track`, label: 'Track' }] : []),
+    ...(mode === 'track' ? [{ to: `/matches/${matchId}/track`, label: 'Track' }] : []),
+    ...(mode === 'watch' ? [{ to: `/matches/${matchId}/watch`, label: 'Watch' }] : []),
   ];
 
   return (

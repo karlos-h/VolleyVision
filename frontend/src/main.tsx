@@ -23,6 +23,7 @@ import MatchesPage from './pages/MatchesPage';
 import TrackingPage from './pages/TrackingPage';
 import MatchDashboardPage from './pages/MatchDashboardPage';
 import MatchEventsPage from './pages/MatchEventsPage';
+import MatchWatchPage from './pages/MatchWatchPage';
 import TeamDashboardPage from './pages/TeamDashboardPage';
 import PlayersDashboardPage from './pages/PlayersDashboardPage';
 import OnboardingCoachPage from './pages/OnboardingCoachPage';
@@ -98,6 +99,7 @@ function App() {
               <Route path="/matches/:matchId/dashboard" element={<MatchDashboardPage />} />
               <Route path="/matches/:matchId/events" element={<MatchEventsPage />} />
               <Route path="/matches/:matchId/track" element={<TrackingPage />} />
+              <Route path="/matches/:matchId/watch" element={<MatchWatchPage />} />
               <Route path="/players/:playerId/dashboard" element={<PlayersDashboardPage />} />
 
               {features.leagues && (

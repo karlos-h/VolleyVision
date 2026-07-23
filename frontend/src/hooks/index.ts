@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { teamsApi, playersApi, matchesApi, eventsApi, analyticsApi, membershipsApi, invitationsApi, profileApi, playerPortalApi, coachPortalApi, permissionsApi, videosApi, leagueApi, approvalApi, feedbackApi } from '../lib/api';
 import type { CreateTeamInput } from '../lib/api';
 import type { Player, Match, TeamRole, TeamMember, ApprovalStatus } from '../types';
 import type { FeedbackStatus } from '../types/feedback';
+import { useViewMode } from '../context/ViewModeContext';
+import { PLAYER_VIEW_PERMISSIONS } from '../lib/teamRoles';
 
 // ─── Feedback tab ─────────────────────────────────────────────────────────────
 
@@ -191,11 +194,12 @@ export function useMatches(teamId: string, filters?: { opponent?: string; status
   });
 }
 
-export function useMatch(id: string) {
+export function useMatch(id: string, options?: { live?: boolean }) {
   return useQuery({
     queryKey: ['match', id],
     queryFn: () => matchesApi.get(id),
     enabled: !!id,
+    ...(options?.live ? { refetchInterval: 5000 } : {}),
   });
 }
 
@@ -733,12 +737,28 @@ export function useCoachDashboard() {
 // ─── Permissions (Phase 5 Sprint 6) ──────────────────────────────────────────
 
 export function useTeamRole(teamId: string) {
-  return useQuery({
+  const { viewMode } = useViewMode();
+  const query = useQuery({
     queryKey: ['permissions', 'team', teamId],
     queryFn: () => permissionsApi.myTeamRole(teamId),
     enabled: !!teamId,
     staleTime: 60_000, // role changes are infrequent
   });
+
+  // Presentation-only lens: while the Coach/Player toggle is set to "Player",
+  // clamp the permissions the UI offers to TeamRole.PLAYER's real set. Every
+  // gate (useHasPermission, PermissionGuard, TeamMembersCard) reads this hook,
+  // so they all go read-only from one place. This never grants a permission
+  // the user lacks — the backend remains the real authorization boundary.
+  const data = useMemo(() => {
+    if (!query.data || viewMode !== 'player') return query.data;
+    return {
+      ...query.data,
+      permissions: query.data.permissions.filter((p) => PLAYER_VIEW_PERMISSIONS.has(p)),
+    };
+  }, [query.data, viewMode]);
+
+  return { ...query, data };
 }
 
 /** Convenience: returns true if the user has the given permission on teamId */
