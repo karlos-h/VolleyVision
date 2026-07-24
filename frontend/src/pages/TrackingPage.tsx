@@ -44,6 +44,54 @@ function getMeta(type: EventType) {
   return EVENT_META.find((m) => m.type === type)!;
 }
 
+// Passing grades 2 and 1 are separate values the analytics depend on, but to a
+// coach mid-rally they're both just "a pass" — the distinction is quality, not
+// action. So they share one visual button split into two tap zones, ordered
+// left-to-right by descending quality like the rest of the row.
+//
+// Only the presentation is compound: each half records its own EventType and
+// gets its own pulse, exactly like a plain event button. Both grades are
+// outcome: neutral, so they'd render in identical colour anyway — the corner
+// grade tag is what actually keeps them apart, since the shared "Pass" label
+// can't.
+const SPLIT_PASS_HALVES = [
+  { type: 'PASS_2' as EventType, grade: '2' },
+  { type: 'PASS_1' as EventType, grade: '1' },
+];
+
+function SplitPassButton({
+  justRecorded,
+  disabled,
+  onRecord,
+}: {
+  justRecorded: string | null;
+  disabled: boolean;
+  onRecord: (type: EventType) => void;
+}) {
+  return (
+    <div className="btn-event-split">
+      {SPLIT_PASS_HALVES.map(({ type, grade }, i) => (
+        <button
+          key={type}
+          onClick={() => onRecord(type)}
+          disabled={disabled}
+          aria-label={`Pass grade ${grade}`}
+          className={clsx(
+            'btn-event-split-half',
+            i > 0 && 'border-l border-navy-600',
+            justRecorded === type && 'scale-95 btn-event-just-recorded',
+          )}
+        >
+          Pass
+          <span className="absolute top-1 right-2 text-xs font-bold text-navy-300 tabular-nums">
+            {grade}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // Focus mode filters which event-button groups render (roster/score/zone stay
 // put). Categories are matched against EVENT_META[].category so the lists stay
 // in sync with the data rather than being hardcoded event-by-event.
@@ -181,6 +229,28 @@ export default function TrackingPage() {
     } catch {
       showFlash("Couldn't reset the match", false);
     }
+  }
+
+  // A plain one-event button. Shared by every category and by the two ends of
+  // the Pass row, so the split button in the middle is the only special case.
+  function renderEventButton(eventType: EventType) {
+    const meta = getMeta(eventType);
+    const cls =
+      meta.outcome === 'positive'
+        ? 'btn-event-positive'
+        : meta.outcome === 'negative'
+        ? 'btn-event-negative'
+        : 'btn-event-neutral';
+    return (
+      <button
+        key={eventType}
+        className={clsx(cls, justRecorded === eventType && 'scale-95 btn-event-just-recorded')}
+        onClick={() => handleRecord(eventType)}
+        disabled={recordEvent.isPending}
+      >
+        {meta.label}
+      </button>
+    );
   }
 
   if (isLoading) return <p className="text-grey-600">Loading match…</p>;
@@ -458,34 +528,34 @@ export default function TrackingPage() {
 
         {/* ── Event buttons ── */}
         <div className="space-y-3">
-          {visibleCategories.map((cat) => (
-            <div key={cat.label}>
-              <div className="text-xs font-semibold text-grey-600 mb-2 px-1">
-                {cat.label}
+          {visibleCategories.map((cat) => {
+            // Pass collapses its two middle grades into one split button, so it
+            // occupies 3 slots rather than one per event.
+            const isPass = getMeta(cat.events[0]).category === 'pass';
+            const slots = isPass ? 3 : cat.events.length;
+            return (
+              <div key={cat.label}>
+                <div className="text-xs font-semibold text-grey-600 mb-2 px-1">
+                  {cat.label}
+                </div>
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${slots}, 1fr)` }}>
+                  {isPass ? (
+                    <>
+                      {renderEventButton('PASS_3')}
+                      <SplitPassButton
+                        justRecorded={justRecorded}
+                        disabled={recordEvent.isPending}
+                        onRecord={handleRecord}
+                      />
+                      {renderEventButton('PASS_0')}
+                    </>
+                  ) : (
+                    cat.events.map(renderEventButton)
+                  )}
+                </div>
               </div>
-              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cat.events.length}, 1fr)` }}>
-                {cat.events.map((eventType) => {
-                  const meta = getMeta(eventType);
-                  const cls =
-                    meta.outcome === 'positive'
-                      ? 'btn-event-positive'
-                      : meta.outcome === 'negative'
-                      ? 'btn-event-negative'
-                      : 'btn-event-neutral';
-                  return (
-                    <button
-                      key={eventType}
-                      className={clsx(cls, justRecorded === eventType && 'scale-95 btn-event-just-recorded')}
-                      onClick={() => handleRecord(eventType)}
-                      disabled={recordEvent.isPending}
-                    >
-                      {meta.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* ── Court zone + Rotation selectors ── */}
