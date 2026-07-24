@@ -38,15 +38,16 @@
   /* Event button base */
   .btn-event {
     @apply no-select relative flex flex-col items-center justify-center rounded-xl
-           font-semibold text-sm leading-tight transition-all duration-75
+           font-semibold text-base leading-tight transition-all duration-75
            active:scale-95 active:shadow-inner focus:outline-none
            focus-visible:ring-2 focus-visible:ring-gold-500;
-    min-height: 76px;
-    /* Slightly tighter than the old 10px/8px so longer labels (e.g. "Attack
-       Error") have more room to wrap to a second line without ever pushing
-       past min-height — CSS Grid then stretches every button in the row to
-       match, so a wrapped neighbour never looks uneven next to a one-line one. */
-    padding: 8px 6px;
+    /* Raised with the type bump (text-sm → text-base): two-line labels like
+       "Service Error" or "Setting Error" now need ~44px of text box, and the
+       old 76px left them pressed against the padding. CSS Grid stretches every
+       button in a row to the tallest, so a wrapped neighbour never looks uneven
+       next to a one-line one. */
+    min-height: 84px;
+    padding: 10px 6px;
   }
 
   /* Post-tap pulse: reuse the same gold ring as focus-visible above, so
@@ -74,6 +75,27 @@
 
   .btn-event-neutral {
     @apply btn-event bg-navy-700 hover:bg-navy-500 text-navy-100 border border-navy-600;
+  }
+
+  /* A compound event button: one visual button divided into independently
+     tappable halves. Used for the two middle passing grades, which are distinct
+     values on the 0–3 rating scale but read as the same action to a coach.
+     Shares the neutral variant's frame (both grades are outcome: neutral), but
+     is a row container carrying no padding of its own — each half supplies its
+     own hit area, so the whole surface is tappable with no dead gap between. */
+  .btn-event-split {
+    @apply no-select relative flex flex-row overflow-hidden rounded-xl
+           bg-navy-700 text-navy-100 border border-navy-600;
+    min-height: 84px;
+  }
+
+  .btn-event-split-half {
+    @apply relative flex-1 flex items-center justify-center font-semibold
+           text-base leading-tight transition-all duration-75
+           hover:bg-navy-500 active:scale-95 active:shadow-inner
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-inset
+           focus-visible:ring-gold-500 disabled:opacity-60;
+    padding: 10px 6px;
   }
 
   /* Nav link — sidebar shell (components/ui/Layout.tsx).

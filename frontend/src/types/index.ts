@@ -749,15 +749,24 @@ export const EVENT_META: EventMeta[] = [
   { type: 'FREE_BALL', label: 'Free Ball', category: 'attack', outcome: 'neutral' },
   // Serving
   { type: 'ACE', label: 'Ace', category: 'serve', outcome: 'positive' },
-  { type: 'SERVICE_ERROR', label: 'Svc Error', category: 'serve', outcome: 'negative' },
+  { type: 'SERVICE_ERROR', label: 'Service Error', category: 'serve', outcome: 'negative' },
   { type: 'SERVE_IN', label: 'Serve In', category: 'serve', outcome: 'neutral' },
-  // Passing
-  { type: 'PASS_3', label: 'Pass 3', category: 'pass', outcome: 'positive' },
+  // Passing. The 0–3 rating scale is what the passing analytics are built on
+  // (ZonePass in backend/src/lib/heatmap.ts counts each grade separately), so
+  // these stay four distinct values.
+  //
+  // Grades 2 and 1 keep their numbered labels HERE on purpose: this label is
+  // what the Events log, Watch page, Recent Events feed and the post-record
+  // flash all render, and collapsing both to "Pass" would make the two grades
+  // indistinguishable in every one of them. The tracker presents them as one
+  // split button labelled "Pass" with a corner grade tag — that is a button
+  // presentation concern, handled in TrackingPage, not a data one.
+  { type: 'PASS_3', label: 'Dime Pass', category: 'pass', outcome: 'positive' },
   { type: 'PASS_2', label: 'Pass 2', category: 'pass', outcome: 'neutral' },
   { type: 'PASS_1', label: 'Pass 1', category: 'pass', outcome: 'neutral' },
-  { type: 'PASS_0', label: 'Pass 0', category: 'pass', outcome: 'negative' },
+  { type: 'PASS_0', label: 'Shank Pass', category: 'pass', outcome: 'negative' },
   // Blocking
-  { type: 'SOLO_BLOCK', label: 'Solo Block', category: 'block', outcome: 'positive' },
+  { type: 'SOLO_BLOCK', label: 'Roof', category: 'block', outcome: 'positive' },
   { type: 'BLOCK_ASSIST', label: 'Block Assist', category: 'block', outcome: 'positive' },
   { type: 'BLOCK_ERROR', label: 'Block Error', category: 'block', outcome: 'negative' },
   // Defence
@@ -765,7 +774,9 @@ export const EVENT_META: EventMeta[] = [
   { type: 'DIG_ERROR', label: 'Dig Error', category: 'defence', outcome: 'negative' },
   // Setting
   { type: 'ASSIST', label: 'Assist', category: 'set', outcome: 'positive' },
-  { type: 'SETTING_ERROR', label: 'Set Error', category: 'set', outcome: 'negative' },
+  // "Setting Error" rather than "Set Error" — this screen already uses "Set"
+  // for the match set, so the short form reads ambiguously.
+  { type: 'SETTING_ERROR', label: 'Setting Error', category: 'set', outcome: 'negative' },
 ];
 
 /** Abbreviations — for genuinely tight spaces only (tracking screen, stat table columns). */

@@ -6,6 +6,7 @@ import {
   useLeagues, useCreateLeague,
 } from '../hooks';
 import { useAuth } from '../context/AuthContext';
+import JoinByCodeCard from '../components/team/JoinByCodeCard';
 import { PencilIcon, TrashIcon } from '../components/ui/icons';
 import { ROLE_LABELS, ROLE_BADGE } from '../lib/teamRoles';
 import type { TeamRole } from '../types';
@@ -138,6 +139,11 @@ export default function TeamsPage() {
 
   const pendingCount = invitations?.length ?? 0;
 
+  // Players join a team with a code or a coach's invitation — they never found
+  // one, so no create-team affordance is rendered for them. Mirrors the 403 in
+  // createTeam. Only PLAYER is gated; UNSURE and pre-existing (null) users aren't.
+  const isPlayer = user?.signupIntent === 'PLAYER';
+
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<TeamForm>(emptyForm);
 
@@ -229,9 +235,11 @@ export default function TeamsPage() {
               </span>
             )}
           </Link>
-          <button className={showForm ? 'btn-secondary' : 'btn-primary'} onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : '+ New team'}
-          </button>
+          {!isPlayer && (
+            <button className={showForm ? 'btn-secondary' : 'btn-primary'} onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : '+ New team'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -272,11 +280,27 @@ export default function TeamsPage() {
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <div>
-            <p className="text-grey-900 font-medium">You're not part of any team yet</p>
-            <p className="text-grey-600 text-sm mt-1">Create one, or ask a coach to send you an invitation.</p>
-          </div>
-          <button className="btn-primary" onClick={() => setShowForm(true)}>Create a team</button>
+          {isPlayer ? (
+            <>
+              <div>
+                <p className="text-grey-900 font-medium">You're not part of any team yet</p>
+                <p className="text-grey-600 text-sm mt-1">
+                  Enter the join code your coach gave you, or check your invitations above.
+                </p>
+              </div>
+              <div className="max-w-md mx-auto text-left">
+                <JoinByCodeCard />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className="text-grey-900 font-medium">You're not part of any team yet</p>
+                <p className="text-grey-600 text-sm mt-1">Create one, or ask a coach to send you an invitation.</p>
+              </div>
+              <button className="btn-primary" onClick={() => setShowForm(true)}>Create a team</button>
+            </>
+          )}
         </div>
       ) : (
         <>
