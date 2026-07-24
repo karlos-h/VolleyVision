@@ -34,6 +34,10 @@ export const authApi = {
     api.post<AuthResponse>('/auth/login', data).then((r) => r.data),
   logout: () => api.post('/auth/logout').then((r) => r.data),
   me: () => api.get<User>('/auth/me').then((r) => r.data),
+  forgotPassword: (data: { email: string }) =>
+    api.post<{ message: string }>('/auth/forgot-password', data).then((r) => r.data),
+  resetPassword: (data: { token: string; password: string }) =>
+    api.post<{ message: string }>('/auth/reset-password', data).then((r) => r.data),
 };
 
 // ─── Teams ────────────────────────────────────────────────────────────────────

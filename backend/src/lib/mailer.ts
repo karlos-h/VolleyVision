@@ -46,7 +46,10 @@ export async function sendMail({ to, subject, html, text }: MailInput): Promise<
   }
   try {
     await tx.sendMail({
-      from: process.env.SMTP_USER,
+      // Display name only — this is the SMTP "From" header nodemailer sends
+      // for this app's own emails specifically. It doesn't touch the Gmail
+      // account's own settings or anything sent from that inbox any other way.
+      from: `"VolleyVision" <${process.env.SMTP_USER}>`,
       to,
       subject,
       text: text ?? html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
@@ -102,4 +105,37 @@ export async function sendInvitationEmail(inv: InvitationEmailData, joinCode: st
     subject: `You're invited to join ${inv.team.name} on VolleyVision`,
     html,
   });
+}
+
+// ── Password reset email ──────────────────────────────────────────────────────
+
+interface PasswordResetEmailData {
+  email: string;
+  firstName: string;
+}
+
+/**
+ * Sends the branded password-reset email. Unlike the invitation email there is
+ * deliberately no manual/UI fallback for the raw token — surfacing it anywhere
+ * other than the recipient's inbox would defeat the point of emailing it. If
+ * SMTP isn't configured this no-ops and returns false, exactly like invitations.
+ */
+export async function sendPasswordResetEmail(user: PasswordResetEmailData, token: string): Promise<boolean> {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const resetUrl = `${clientUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+  const html = `
+  <div style="font-family:'Inter',system-ui,sans-serif;background:#111C36;color:#E4E9F4;padding:32px;border-radius:12px;max-width:520px;margin:0 auto;">
+    <h1 style="font-family:'Barlow Semi Condensed',sans-serif;color:#FFB81C;font-size:24px;margin:0 0 4px;">VolleyVision</h1>
+    <p style="color:#8FA0C4;font-size:13px;margin:0 0 24px;">See the game. Raise your game.</p>
+    <p style="font-size:15px;line-height:1.5;">
+      Hi ${user.firstName}, we received a request to reset your VolleyVision password.
+    </p>
+    <a href="${resetUrl}" style="display:inline-block;background:#FFB81C;color:#111C36;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;margin:16px 0;">Reset password</a>
+    <p style="color:#8FA0C4;font-size:12px;line-height:1.5;margin:20px 0 0;">
+      This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.
+    </p>
+  </div>`;
+
+  return sendMail({ to: user.email, subject: 'Reset your VolleyVision password', html });
 }

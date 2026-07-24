@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../middleware/errorHandler';
-import { registerUser, loginUser, getCurrentUser } from '../services/auth.service';
+import {
+  registerUser,
+  loginUser,
+  getCurrentUser,
+  requestPasswordReset,
+  resetPassword as resetPasswordService,
+} from '../services/auth.service';
 
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
@@ -23,6 +29,30 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     }
     const result = await loginUser(email, password);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// The response here is deliberately identical whether or not an account exists
+// for that email — anything else would leak which addresses are registered.
+export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body;
+    if (!email) throw new AppError(400, 'Email is required.');
+    await requestPasswordReset(email);
+    res.json({ message: "If an account exists for that email, we've sent a reset link." });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) throw new AppError(400, 'Token and password are required.');
+    await resetPasswordService(token, password);
+    res.json({ message: 'Password updated. You can now sign in.' });
   } catch (err) {
     next(err);
   }

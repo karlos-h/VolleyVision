@@ -11,6 +11,8 @@ import Layout from './components/ui/Layout';
 import RequireAuth from './components/ui/RequireAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import RedeemInvitationPage from './pages/RedeemInvitationPage';
 import InvitationsPage from './pages/InvitationsPage';
 import DashboardPage from './pages/DashboardPage';
@@ -64,6 +66,9 @@ function App() {
           {/* Auth pages — standalone, no Layout chrome */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          {/* Password reset — public; the emailed token is the credential */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           {/* Invitation redemption — public so brand-new / logged-out invitees can join */}
           <Route path="/invitations/redeem" element={<RedeemInvitationPage />} />
           {/* Post-registration onboarding nudges — one-time, intent-driven */}

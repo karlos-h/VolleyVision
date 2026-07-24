@@ -10,12 +10,20 @@
 // - All timestamps use @default(now()) and @updatedAt so audit trails work for free.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Netlify Functions run on Amazon Linux; "native" covers local/dev, the
+  // rhel targets cover the Lambda runtime so the query engine binary that
+  // ships with the deployed function actually works in production.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "rhel-openssl-1.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Pooled connection (pgbouncer) for app runtime queries — required in a
+  // serverless environment where every invocation can open a new connection.
+  // directUrl is used only for migrations, which need a non-pooled connection.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -194,8 +202,17 @@ model User {
   role         UserRole @default(COACH)
 
   // Phase 7 Sprint 0 — one-time onboarding hint, null for all pre-existing users.
-  // NEVER used in permission checks — all permissions derive from TeamMembership role.
+  // Not used for any team-scoped permission (those all derive from TeamMembership
+  // role). Exception: gates team *creation* — signupIntent === 'PLAYER' blocks
+  // POST /teams, since players join existing teams via invite/join-code rather
+  // than founding their own. See createTeam in controllers/teams.ts.
   signupIntent SignupIntent? @map("signup_intent")
+
+  // Forgot-password flow — sha256 hash of the raw token (never store the raw
+  // token), null when no reset is pending. Single active token per user:
+  // requesting a new one overwrites these, invalidating any previous link.
+  passwordResetTokenHash String?   @map("password_reset_token_hash")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
 
   profileImage String?  @map("profile_image")
 
@@ -246,6 +263,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Reset links are looked up by token hash. Not unique — the column is null
+  // for every user without a pending reset.
+  @@index([passwordResetTokenHash])
   @@map("users")
 }
 
