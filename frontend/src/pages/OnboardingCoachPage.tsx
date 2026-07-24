@@ -25,7 +25,9 @@ export default function OnboardingCoachPage() {
           </ol>
         </div>
         <div className="flex flex-col gap-3">
-          <Link to="/teams/new" className="btn-primary w-full text-center">
+          {/* /teams/new was never a route — it fell through to /teams/:teamId.
+              /teams carries the create-team form inline. */}
+          <Link to="/teams" className="btn-primary w-full text-center">
             Create my first team
           </Link>
           <Link to="/teams" className="btn-secondary w-full text-center text-sm">

@@ -92,6 +92,18 @@ export async function getTeam(req: Request, res: Response, next: NextFunction) {
 export async function createTeam(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new AppError(401, 'Authentication required.');
+
+    // Team *creation* is the one place signupIntent gates anything — players
+    // join an existing team via invite/join code rather than founding their own.
+    // Every team-scoped permission still derives from TeamMembership role.
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { signupIntent: true },
+    });
+    if (requester?.signupIntent === 'PLAYER') {
+      throw new AppError(403, "Players join a team with a code or invitation from their coach — they can't create a team.");
+    }
+
     const { name, division, season, leagueSeasonId } = req.body;
     if (!name || !season) throw new AppError(400, 'Team name and season are required.');
 
