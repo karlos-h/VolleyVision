@@ -6,6 +6,12 @@
 # Usage (from repo root, Docker Desktop running):
 #   .\backup.ps1                              # -> $HOME\Backups\vv-backup-<date>.sql
 #   .\backup.ps1 -OutDir D:\Backups           # somewhere else
+#   .\backup.ps1 -WhatIf                      # back up, but only list what pruning would delete
+#
+# After a successful backup it deletes this script's own backups
+# (vv-backup-yyyy-MM-dd-HHmm.sql in -OutDir, by the date in the name) older than
+# -KeepDays (30): the privacy policy promises deleted data leaves the backups
+# within that time. Change the policy pages if you change the number.
 #
 # It reads DIRECT_URL, then DATABASE_URL, from backend/.env and never prints
 # them; the first that works is used. (Docker on Windows often can't reach
@@ -22,9 +28,11 @@
 # password hashes, and players who can be minors. Keep it somewhere private; it
 # refuses to write inside the repo. It doesn't cover chat attachments, which
 # live in Supabase Storage.
+[CmdletBinding(SupportsShouldProcess)]
 param(
   [string]$OutDir = (Join-Path $HOME 'Backups'),
-  [string]$EnvFile = (Join-Path $PSScriptRoot 'backend\.env')
+  [string]$EnvFile = (Join-Path $PSScriptRoot 'backend\.env'),
+  [ValidateRange(1, 3650)][int]$KeepDays = 30
 )
 
 $ErrorActionPreference = 'Stop'
@@ -61,6 +69,24 @@ function ConvertTo-PgDumpUrl([string]$Url) {
   }
 }
 
+# Only this script's own file names, only directly in $Dir, aged by the date in
+# the name (not the file time, which a copy changes), and never $Keep, the file
+# just written. backup.test.ps1 checks each of those.
+function Remove-OldBackups {
+  [CmdletBinding(SupportsShouldProcess)]
+  param([string]$Dir, [int]$KeepDays, [string]$Keep, [datetime]$Now = (Get-Date))
+  $cutoff = $Now.AddDays(-$KeepDays)
+  foreach ($f in Get-ChildItem -LiteralPath $Dir -File) {
+    if ($f.Name -eq $Keep -or $f.Name -cnotmatch '^vv-backup-(\d{4}-\d{2}-\d{2}-\d{4})\.sql$') { continue }
+    $taken = [datetime]::MinValue
+    if (-not [datetime]::TryParseExact($Matches[1], 'yyyy-MM-dd-HHmm', [cultureinfo]::InvariantCulture, 'None', [ref]$taken)) { continue }
+    if ($taken -lt $cutoff -and $PSCmdlet.ShouldProcess($f.FullName, "Delete backup older than $KeepDays days")) {
+      Remove-Item -LiteralPath $f.FullName -Force
+      Write-Host "Removed old backup $($f.Name) (older than $KeepDays days)."
+    }
+  }
+}
+
 if (-not (Test-Path -LiteralPath $EnvFile)) { throw "Can't find $EnvFile." }
 $candidates = @('DIRECT_URL', 'DATABASE_URL') |
   ForEach-Object { Read-EnvValue $EnvFile $_ } |
@@ -78,7 +104,7 @@ if ($outFull.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)
   throw "Refusing to write a backup inside the repo ($OutDir): it holds everyone's data in plain text. Pick a folder outside it."
 }
 
-New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+New-Item -ItemType Directory -Force -Path $OutDir -WhatIf:$false | Out-Null
 $name = 'vv-backup-{0}.sql' -f (Get-Date -Format 'yyyy-MM-dd-HHmm')
 $file = Join-Path $OutDir $name
 
@@ -101,9 +127,12 @@ foreach ($raw in $candidates) {
     $tables = (Select-String -LiteralPath $file -Pattern '^CREATE TABLE' | Measure-Object).Count
     Write-Host "Backup saved: $file ($kb KB, $tables tables). Keep it private." -ForegroundColor Green
     Write-Host 'Not included: chat attachments (they live in Supabase Storage).'
+    # The backup is safe on disk; a pruning problem mustn't turn that into a failure.
+    try { Remove-OldBackups -Dir $OutDir -KeepDays $KeepDays -Keep $name }
+    catch { Write-Host "Couldn't remove old backups: $($_.Exception.Message)" -ForegroundColor Yellow }
     exit 0
   }
-  if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force }
+  if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force -WhatIf:$false }
   Write-Host "That connection didn't work; trying the next one if there is one." -ForegroundColor Yellow
 }
 
