@@ -25,14 +25,18 @@ Netlify, both overseas.
 | **Team chat** messages and attachments (photos, files up to 25 MB) | Team communication | Team members. Other members' account ids are never sent to the app. | Optional | Deleting a message erases its text and files. Account deletion erases all your messages. Team deletion erases the team's chat. |
 | Blocks (who you blocked) | Hide a member's chat messages from you | You | Optional | Unblock or either account's deletion |
 | **Feedback and message reports** (subject, text, attachments, page, admin notes; a report keeps a snapshot of the reported message) | Bug reports, requests, moderation | You and the global admin (Himex Trading Ltd) | Optional | Your account's deletion. A report's snapshot is blanked if the reported person deletes their account; the reason and time stay. |
-| **Invitations** (invitee email, role, code) | Invite someone to a team | Staff who can invite; the invitee | n/a | Expire after 7 days (row kept, marked expired) until the team or the invitee's account is deleted |
-| Approval requests (pending changes, may hold names and emails) | Staff changes that need approval | Team managers | n/a | Team deletion; the requester's account deletion; emails removed when the invitee's account is deleted |
-| **Audit log** (who did what, when; invitation email in some entries) | Security and team history | Not shown in the app | n/a | Kept. On account deletion the entries stay with the user replaced by "deleted-user", and their email and id removed. |
-| **Rate-limit records** (keys include IP address, email or account id) | Stop abuse (login attempts, spam) | Nobody | n/a | Minutes to an hour (swept once the limit refills); deleted with the account |
+| **Invitations** (invitee email, role, code) | Invite someone to a team | Staff who can invite; the invitee | n/a | Expire after 7 days (row kept, marked expired) until the team is deleted, or the invitee's account is deleted if its email was verified |
+| Approval requests (pending changes, may hold names and emails) | Staff changes that need approval | Team managers | n/a | Team deletion; the requester's account deletion; emails removed when the invitee's account is deleted, if its email was verified |
+| **Audit log** (who did what, when; invitation email in some entries) | Security and team history | Not shown in the app | n/a | Kept. On account deletion the entries stay with the user replaced by "deleted-user", and their id removed, and their email if it was verified. |
+| **Rate-limit records** (keys include IP address, email or account id) | Stop abuse (login attempts, spam) | Nobody | n/a | Minutes to an hour (swept once the limit refills); deleted with the account (the email-keyed ones only if the email was verified) |
 | Server logs (Netlify Functions): request paths | Operating the service | Himex Trading Ltd | n/a | Netlify's log retention (**Karlos to confirm** the plan's retention) |
 | **Error reports (Sentry, US):** error, stack trace, page path, app version, device/browser type | Fix crashes | Himex Trading Ltd | n/a | Sentry's retention for the plan. No user id or email is attached. Server events have IPs, request bodies, cookies, query strings and auth headers removed; the Sentry organisation stores no IP addresses (set by Karlos, 1 Oct). |
 | **On the device:** sign-in token, cached name, recent match rosters, queued offline taps | Offline use | You (on your device) | n/a | Sign-out (taps stay until synced); account deletion clears all of it. Apps: phone storage (UserDefaults / SharedPreferences); web: browser storage. |
 | **Local backups** of the whole database (`vv-backup-*.sql`, Karlos's PC) | Recovery | Himex Trading Ltd | n/a | 30 days (Karlos, 4 Oct; `backup.ps1` deletes older ones after each backup) |
+
+**Unverified emails:** account deletion removes the email from invitations, approval requests, the audit log and
+email-keyed rate limits only if the account had verified it (`accountDeletion.service.ts`). Otherwise anyone could
+sign up with someone else's address, never verify it, delete the account, and erase that person's invitations.
 
 **Players and minors:** accounts are 13+ (tick box at signup; no date of birth asked). Coaches can add player records
 for anyone, including under-13s and people without accounts: a record holds only a name, jersey number, position and
