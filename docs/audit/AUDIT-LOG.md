@@ -1138,6 +1138,12 @@ a free-plan production-deploy pause when the team's credits run out (each produc
 staging site's). Production stays on v9.15.0, compatible with the additive migration. Next: Karlos checks the Netlify
 dashboard (credits used up → wait for 23 Oct or add credits; otherwise Netlify support), then `.\deploy.ps1` from `main`.
 
+**Rolling back from v9.17.0 (added 4 Oct, Phase 9.5.0.4).** Once a chat message has been reported, v9.15.0/v9.16.0 code
+can't read the `MESSAGE_REPORT` feedback rows (unknown enum value: the admin feedback list and "My feedback" return 500).
+Roll forward instead; or, before publishing an older deploy, `UPDATE feedback SET type = 'GENERAL' WHERE type =
+'MESSAGE_REPORT';` (Karlos runs it; the snapshot stays in the description) or delete those rows. Publishing an older
+deploy from Netlify's dashboard needs no build, so it shouldn't spend build credits. Details: README "Rolling back".
+
 **Android emulator check (4 Oct 2026, 9.8 storage move; Karlos has no Android phone).** Emulator `VV_Light` (API 34),
 debug builds of v9.15.0 and v9.17.0 against the local API on `vv-pg17`, driven through WebView debugging (the headless
 image draws no frames, so no screenshots). v9.15.0 signed in as a pre-9.17 account (Terms not accepted); tracker in

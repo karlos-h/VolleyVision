@@ -180,7 +180,25 @@ Take a backup before every production migration and deploy (the Supabase free pl
 
 It reads `DIRECT_URL`, then `DATABASE_URL`, from `backend/.env` without printing them (the first that works is used), runs `pg_dump` from the `postgres:17` image, and uses Supabase's session pooler (port 5432) because `pg_dump` can't run through the transaction pooler. If Docker can't reach Supabase's direct host (it's IPv6-only), put the Session pooler URL from Supabase > Connect into `DIRECT_URL`. The URL reaches the container through the environment, never on its command line. The file holds every user's and player's data in plain text (emails, password hashes, players who can be minors): keep it private. The script refuses an `-OutDir` inside the repo, and `.gitignore` excludes `vv-backup-*.sql`. **Chat attachments aren't included**: they live in Supabase Storage.
 
+After a successful backup it deletes its own older backups (`vv-backup-yyyy-MM-dd-HHmm.sql` in that folder, by the date in the name) past `-KeepDays` (30), because the privacy policy promises deleted data leaves the backups within 30 days. `-WhatIf` lists what it would delete instead; `backup.test.ps1` checks it in CI.
+
 A production `deploy.ps1` refuses to run unless today's backup exists in `$HOME\Backups` (`-NoBackup` overrides it).
+
+### Rolling back
+
+**Prefer rolling forward**: fix the problem and deploy a new release. Rolling the code back is possible because migrations are additive, but code older than the database can trip on data the newer code wrote.
+
+Rolling a deploy back with Netlify's dashboard (Deploys → an older production deploy → **Publish deploy**) republishes a deploy that already exists, with no new build, so it shouldn't spend build credits (check Netlify's usage page if credits are tight). It never touches the database.
+
+**v9.17.0 or later → v9.15.0 (or v9.16.0):** v9.17.0 added the `MESSAGE_REPORT` feedback type. Older code's Prisma client doesn't know that value, so once anyone has reported a chat message, the admin feedback list and the reporter's "My feedback" return 500 on the old code. Before publishing the older deploy, either:
+
+- retype those rows (Karlos runs this in the Supabase SQL editor; the reported message's snapshot is in each row's description, so the reports stay readable as ordinary feedback):
+  ```sql
+  UPDATE feedback SET type = 'GENERAL' WHERE type = 'MESSAGE_REPORT';
+  ```
+- or delete them (`DELETE FROM feedback WHERE type = 'MESSAGE_REPORT';`), which loses the reports.
+
+Also know that the older code has no Terms step, report, block or word filter, and its sign-up doesn't record consent to the Terms. Roll forward again as soon as you can.
 
 ## Building the Android app
 
