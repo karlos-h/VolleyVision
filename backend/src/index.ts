@@ -30,6 +30,7 @@ import { minClientVersion } from './middleware/minClientVersion';
 import { prisma } from './lib/prisma';
 import { checkDatabase } from './lib/dbHealth';
 import { allowedOrigins } from './lib/corsOrigins';
+import { requestContext } from './lib/serverTiming';
 
 dotenv.config();
 
@@ -37,6 +38,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
+// First, so app;dur covers every middleware and each request gets its own store.
+app.use(requestContext);
 app.use(helmet());
 // Compress JSON responses (brotli where the client supports it, else gzip).
 // Safe under serverless-http, which runs this app on Netlify: it treats a

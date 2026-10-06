@@ -6,6 +6,8 @@
 //
 // No test framework here (see CLAUDE.md); this stays small on purpose.
 
+import { noteDbOperation } from '../lib/serverTiming';
+
 type AnyFn = (...args: any[]) => any;
 
 const modelHandlers = new Map<string, Record<string, AnyFn>>();
@@ -28,6 +30,7 @@ function createModel(name: string): Record<string, AnyFn> {
       if (typeof prop !== 'string') return undefined;
       return (...args: any[]) => {
         (calls[prop] ??= []).push(args);
+        noteDbOperation(prop);
         const handler = handlers[prop];
         if (!handler) throw new Error(`fakePrisma: ${name}.${prop} not stubbed`);
         return handler(...args);
@@ -70,7 +73,7 @@ export const db: any = new Proxy(
       // Raw SQL (e.g. recordOneEvent's row lock) is a recorded no-op here;
       // only the integration tests prove what it does.
       if (prop === '$queryRaw' || prop === '$executeRaw') {
-        return async (...args: any[]) => { rawCalls.push(args); return []; };
+        return async (...args: any[]) => { rawCalls.push(args); noteDbOperation(prop); return []; };
       }
       if (typeof prop !== 'string') return undefined;
       if (!models.has(prop)) models.set(prop, createModel(prop));

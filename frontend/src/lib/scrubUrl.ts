@@ -1,13 +1,6 @@
-// What a URL may look like once it reaches Sentry. The query string and
-// fragment go (they carry reset tokens and join codes under innocent key names;
-// see instrument.ts), and so do the two path segments that ARE credentials: a
-// team join code on /invitations/lookup/:code and an invitation token on
-// /invitations/:token/accept|decline. Folded by route shape, not by what the
-// value looks like, so a new code format can't slip past.
-//
-// Used by instrument.ts and netlify-functions/api.js. frontend/src/lib/scrubUrl.ts
-// is a copy (the frontend can't import backend code, has no test runner);
-// scrubUrl.test.ts fails if everything from CREDENTIAL_SEGMENTS down differs.
+// Copy of backend/src/lib/scrubUrl.ts, which is tested there: its drift check
+// fails if everything from CREDENTIAL_SEGMENTS down differs. Pure on purpose
+// (no Sentry import) so main.tsx can hand these straight to Sentry.init.
 
 const CREDENTIAL_SEGMENTS: Array<[RegExp, string]> = [
   [/\/invitations\/lookup\/[^/]+/g, '/invitations/lookup/:code'],

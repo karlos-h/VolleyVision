@@ -15,53 +15,13 @@ import QueueFlusher from './components/tracking/QueueFlusher';
 import { trimCachedMatches } from './lib/offlineCache';
 import { isAppOutdatedError } from './lib/api';
 import PageLoadingFallback from './components/ui/PageLoadingFallback';
+import { scrubUrls, scrubTransaction } from './lib/scrubUrl';
 
 // Fail-soft: unset VITE_SENTRY_DSN is normal in local dev (see
 // backend/src/instrument.ts for the equivalent backend guard). Session
 // Replay stays off on purpose: this app shows match footage and chat that
 // can include minors, and DOM/video capture is exactly the second copy of
 // that data Sentry must not become.
-// Drop query strings from anything Sentry is about to send. Only the fields
-// touched are described, so this needs no type that @sentry/react does not
-// export.
-type ScrubbableEvent = {
-  request?: { url?: string; query_string?: unknown };
-  breadcrumbs?: Array<{ data?: Record<string, unknown> }>;
-};
-
-// Copy of backend/src/lib/scrubUrl.ts (tested there; the frontend can't import
-// backend code and has no test runner). Path only, plus the two API path
-// segments that are credentials: a join code and an invitation token.
-const CREDENTIAL_SEGMENTS: Array<[RegExp, string]> = [
-  [/\/invitations\/lookup\/[^/]+/g, '/invitations/lookup/:code'],
-  [/\/invitations\/[^/]+\/(accept|decline)(?=\/|$)/g, '/invitations/:token/$1'],
-];
-const scrubUrl = (url: string) => {
-  let out = url.split('?')[0].split('#')[0];
-  for (const [pattern, replacement] of CREDENTIAL_SEGMENTS) out = out.replace(pattern, replacement);
-  return out;
-};
-
-function scrubUrls<T extends ScrubbableEvent>(event: T): T {
-  if (event.request) {
-    delete event.request.query_string;
-    if (event.request.url) event.request.url = scrubUrl(event.request.url);
-  }
-  // fetch/xhr breadcrumbs carry `url`; navigation breadcrumbs carry `from` and
-  // `to`. Scrubbing only `url` let a team join code from
-  // /redeem-invitation?code=... (or a reset/verify token) ride along on any
-  // later error in the same browser session.
-  for (const crumb of event.breadcrumbs ?? []) {
-    const data = crumb.data;
-    if (!data) continue;
-    for (const key of ['url', 'from', 'to']) {
-      const value = data[key];
-      if (typeof value === 'string') data[key] = scrubUrl(value);
-    }
-  }
-  return event;
-}
-
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
@@ -72,6 +32,9 @@ if (sentryDsn) {
     sendDefaultPii: false,
     // Free-tier Sentry quota; keep sampling low. See backend/src/instrument.ts.
     tracesSampleRate: 0.1,
+    // Page-load, navigation and fetch spans (9.5.1 measurement). Their URLs are
+    // scrubbed by scrubTransaction below.
+    integrations: [Sentry.browserTracingIntegration()],
     // sendDefaultPii: false is NOT "attach nothing" in SDK v10 - it switches
     // the SDK to a deny-list that filters by KEY NAME. The page URL is not
     // filtered at all, and this app puts live secrets in query strings:
@@ -83,7 +46,7 @@ if (sentryDsn) {
     // every fetch, and any query string on it. Path only, on both. See backend/src/instrument.ts for
     // the server half and the SDK source this is based on.
     beforeSend: scrubUrls,
-    beforeSendTransaction: scrubUrls,
+    beforeSendTransaction: scrubTransaction,
   });
 }
 

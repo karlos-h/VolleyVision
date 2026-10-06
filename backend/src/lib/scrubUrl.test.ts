@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { scrubUrl } from './scrubUrl';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { scrubUrl, scrubTransaction } from './scrubUrl';
 
 // Record ids (cuids) are not credentials and stay: they make an error findable.
 const CUID = 'ckz8x1q0v0000abcd1234efgh';
@@ -21,5 +23,45 @@ assert.equal(scrubUrl('/api/v1/invitations/redeem-team-code'), '/api/v1/invitati
 // Query strings and fragments always go.
 assert.equal(scrubUrl('/reset-password?token=secret'), '/reset-password');
 assert.equal(scrubUrl('/a#b'), '/a');
+
+// Tracing: fetch spans carry the same join codes and invitation tokens.
+const event = {
+  transaction: 'GET /invitations/lookup/ABC123?x=1',
+  request: { url: 'https://x.test/api/v1/invitations/lookup/ABC123?code=ABC123', query_string: 'code=ABC123' },
+  spans: [
+    { description: 'GET /api/v1/invitations/lookup/ABC123', data: undefined as Record<string, unknown> | undefined },
+    {
+      description: 'POST /api/v1/invitations/tok_secret/accept',
+      data: {
+        url: 'https://x.test/api/v1/invitations/tok_secret/accept?code=ABC123',
+        'http.url': 'https://x.test/api/v1/invitations/lookup/ABC123',
+        'url.full': 'https://x.test/api/v1/invitations/tok_secret/accept#ABC123',
+        'http.query': 'code=ABC123',
+        'http.fragment': 'frag',
+        'http.method': 'POST',
+      } as Record<string, unknown>,
+    },
+    { description: 'GET /api/v1/teams/abc/members', data: {} },
+  ],
+  contexts: { trace: { data: { 'url.full': 'https://x.test/invitations/tok_secret/accept?a=ABC123', 'http.query': 'ABC123' } } },
+};
+const scrubbed = scrubTransaction(event);
+const json = JSON.stringify(scrubbed);
+assert.ok(!json.includes('ABC123') && !json.includes('tok_secret'), `credential left in ${json}`);
+assert.equal(scrubbed.transaction, 'GET /invitations/lookup/:code');
+assert.equal(scrubbed.spans[2].description, 'GET /api/v1/teams/abc/members');
+assert.equal(scrubbed.spans[1].data!['http.method'], 'POST');
+
+// The frontend keeps a copy (no test runner): everything from CREDENTIAL_SEGMENTS
+// down must stay byte-identical to this tested file.
+const logic = (file: string) => {
+  const src = readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  return src.slice(src.indexOf('const CREDENTIAL_SEGMENTS'));
+};
+assert.equal(
+  logic(path.join(__dirname, '../../../frontend/src/lib/scrubUrl.ts')),
+  logic(path.join(__dirname, 'scrubUrl.ts')),
+  'frontend/src/lib/scrubUrl.ts has drifted from the tested backend copy',
+);
 
 console.log('scrubUrl.test.ts passed');

@@ -1,15 +1,13 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/errorHandler';
 import { isSerializationConflict, retryOnConflict } from './serializationConflict';
+import { timeDbOperation } from './serverTiming';
 
 // Singleton pattern prevents connection pool exhaustion during hot reloads in
 // development. In production (Node.js process stays alive) this is just a
 // single instance. Pattern from Prisma's official Next.js recommendation,
 // adapted for Express.
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prisma ||
+const makeClient = () =>
   new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     // Join codes let anyone holding one join the team — the staff code as
@@ -20,6 +18,17 @@ export const prisma =
     // invitation access, the staff code only at FULL_ACCESS.
     omit: { team: { playerJoinCode: true, staffJoinCode: true } },
   });
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+
+// The extension counts and times every operation for Server-Timing
+// (lib/serverTiming). Interactive transactions hand their callback the
+// extended client, so work inside runSerializable is counted too. Typed as the
+// plain PrismaClient, as before: services pass it where a
+// Prisma.TransactionClient is expected, which the extended type is not.
+export const prisma =
+  globalForPrisma.prisma ||
+  (makeClient().$extends({ query: { $allOperations: timeDbOperation } }) as unknown as PrismaClient);
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
