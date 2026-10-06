@@ -14,6 +14,12 @@ async function main() {
   assert.equal(formatServerTiming({ dbMs: 1, dbOps: 1, appMs: 1, cold: false, region: '' }), 'db;dur=1;desc="ops=1", app;dur=1, cold;desc="0"');
 
   // Never in production; nothing can switch it back on there.
+// Fail closed inside the function: an unset NODE_ENV on Lambda is off, and a
+// non-production NODE_ENV there is still off unless it's staging.
+assert.equal(serverTimingEnabled({ AWS_LAMBDA_FUNCTION_NAME: 'api' }), false);
+assert.equal(serverTimingEnabled({ AWS_LAMBDA_FUNCTION_NAME: 'api', NODE_ENV: 'development' }), false);
+assert.equal(serverTimingEnabled({ AWS_LAMBDA_FUNCTION_NAME: 'api', SENTRY_ENVIRONMENT: 'staging', NODE_ENV: 'production' }), true);
+assert.equal(serverTimingEnabled({}), true, 'npm run dev leaves NODE_ENV unset');
   assert.equal(serverTimingEnabled({ NODE_ENV: 'production', SENTRY_ENVIRONMENT: 'staging' }), true);
   assert.equal(serverTimingEnabled({ NODE_ENV: 'test' }), true);
   assert.equal(serverTimingEnabled({}), true);

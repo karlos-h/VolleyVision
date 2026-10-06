@@ -68,8 +68,13 @@ export function formatServerTiming(s: { dbMs: number; dbOps: number; appMs: numb
 
 // No switch to turn this on in production: the ops count differs between a
 // hidden team's 404 and a missing one's, which would undo the 404-not-403 rule.
+// Inside the Netlify function only staging qualifies, so an unset NODE_ENV
+// there fails closed; elsewhere (npm run dev leaves it unset) anything but
+// production is on.
 export function serverTimingEnabled(env: NodeJS.ProcessEnv): boolean {
-  return env.SENTRY_ENVIRONMENT === 'staging' || env.NODE_ENV !== 'production';
+  if (env.SENTRY_ENVIRONMENT === 'staging') return true;
+  if (env.AWS_LAMBDA_FUNCTION_NAME) return false;
+  return env.NODE_ENV !== 'production';
 }
 
 let cold = true;

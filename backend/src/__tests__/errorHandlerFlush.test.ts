@@ -27,5 +27,16 @@ assert.equal(r.statusCode, 500);
 assert.equal(takeFlushNeeded(), true, 'a 500 flags the flush synchronously');
 assert.equal(takeFlushNeeded(), false);
 
+// Sentry's handler captures by the error's own status, not ours: storage
+// failures are 502/503 AppErrors, and a Prisma P2002 (answered 409) has none.
+r = res();
+errorHandler(new AppError(502, 'File storage upload failed.'), req, r, next);
+assert.equal(r.statusCode, 502);
+assert.equal(takeFlushNeeded(), true, 'a 502 is captured by Sentry, so it must flush');
+r = res();
+errorHandler(Object.assign(new Error('dup'), { code: 'P2002' }), req, r, next);
+assert.equal(r.statusCode, 409);
+assert.equal(takeFlushNeeded(), true, 'no statusCode on the error: Sentry treats it as 500');
+
 console.error = silent;
 console.log('errorHandlerFlush.test.ts passed');
