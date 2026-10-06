@@ -1,5 +1,5 @@
 // Per-request Server-Timing (Phase 9.5.1: measure before optimising) and the
-// request-scoped store a later step's memo will hang off.
+// request-scoped store the authz memo (permission.service, 9.5.4) hangs off.
 //
 // Its own module, importing nothing from the app, because installFakePrisma
 // swaps lib/prisma out of require.cache: the fake must still be able to count
@@ -25,10 +25,21 @@ export function getRequestStore(): RequestStore | undefined {
   return als.getStore();
 }
 
-export function noteDbOperation(_operation: string): RequestStore | undefined {
+const READ_OPERATIONS = new Set([
+  'findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy',
+]);
+
+export function noteDbOperation(operation: string): RequestStore | undefined {
   const store = als.getStore();
-  if (store) store.dbOps++;
-  // 9.5.4: a write (by operation name) will poison the memo here.
+  if (store) {
+    store.dbOps++;
+    // 9.5.4: anything but a known read (a write, raw SQL, an unknown op) turns
+    // the authz memo off for the rest of the request, before the query runs.
+    // Off, never cleared: inside an interactive transaction a later read via
+    // the global client still sees the old committed row and would re-memoise
+    // it, serving that stale row after COMMIT. A rollback only costs queries.
+    if (!READ_OPERATIONS.has(operation)) store.memo = null;
+  }
   return store;
 }
 

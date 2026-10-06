@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, AuthPayload } from '../services/auth.service';
-import { prisma } from '../lib/prisma';
+import { loadUser } from '../services/permission.service';
 import { isTokenCurrent } from '../lib/tokenVersion';
 import { AppError } from './errorHandler';
 
@@ -20,7 +20,9 @@ declare global {
  * tokenVersion to match, so it fails closed the same way a stale one does.
  */
 async function tokenIsCurrent(payload: AuthPayload): Promise<boolean> {
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { tokenVersion: true } });
+  // The shared per-request loader: optionalAuth then requireAuth on one route,
+  // and isGlobalAdmin later in the request, read this user row once.
+  const user = await loadUser(payload.userId);
   if (!user) return false;
   return isTokenCurrent(payload.tv, user.tokenVersion);
 }

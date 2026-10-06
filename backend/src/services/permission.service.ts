@@ -2,11 +2,53 @@ import { AccessTier, TeamRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { Permission, getPermissionsForRole, roleHasPermission } from '../lib/rolePermissions';
+import { getRequestStore } from '../lib/serverTiming';
 
 // The static role map lives in lib/rolePermissions so pure-logic tests can reach
 // it without loading the Prisma client. Re-exported here because this module has
 // always been its public address.
 export { Permission, getPermissionsForRole, roleHasPermission };
+
+// ─── Per-request authz loaders (9.5.4) ───────────────────────────────────────
+// A guarded request used to read the same owner / user / membership rows 2-3
+// times. Each entity has exactly ONE loader whose select is the union of what
+// every caller needs, so a memo hit can never hand a caller a narrower row.
+// The memo hangs off the request's AsyncLocalStorage store (lib/serverTiming):
+// it dies with the request, and noteDbOperation switches it off for the rest
+// of the request at the first non-read operation. Null rows are memoised too
+// (one request only). Outside a request, or once it's off, every call reads.
+
+function memoized<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const store = getRequestStore();
+  if (!store?.memo) return load();
+  const hit = store.memo.get(key);
+  if (hit) return hit as Promise<T>;
+  const p = load();
+  store.memo.set(key, p);
+  // A failed read must not be served to later callers; they retry instead.
+  p.catch(() => { if (store.memo?.get(key) === p) store.memo.delete(key); });
+  return p;
+}
+
+// async so each returns a native promise: Prisma's PrismaPromise is lazy and
+// must be awaited here, not stored un-started in the memo.
+export function loadUser(userId: string) {
+  return memoized(`u:${userId}`, async () =>
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true, tokenVersion: true } }));
+}
+
+export function loadTeam(teamId: string) {
+  return memoized(`t:${teamId}`, async () =>
+    prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } }));
+}
+
+export function loadMembership(userId: string, teamId: string) {
+  return memoized(`m:${userId}:${teamId}`, async () =>
+    prisma.teamMembership.findUnique({
+      where: { userId_teamId: { userId, teamId } },
+      select: { role: true, rosterAccess: true, invitationAccess: true, matchAccess: true },
+    }));
+}
 
 // ─── Team-context permission check ───────────────────────────────────────────
 
@@ -14,13 +56,7 @@ export async function getUserTeamRole(
   userId: string,
   teamId: string,
 ): Promise<{ role: string | null; isOwner: boolean }> {
-  const [team, membership] = await Promise.all([
-    prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } }),
-    prisma.teamMembership.findUnique({
-      where: { userId_teamId: { userId, teamId } },
-      select: { role: true },
-    }),
-  ]);
+  const [team, membership] = await Promise.all([loadTeam(teamId), loadMembership(userId, teamId)]);
 
   const isOwner = team?.ownerId === userId;
   const role = isOwner ? 'HEAD_COACH' : (membership?.role ?? null);
@@ -36,13 +72,7 @@ export async function getUserTeamRole(
  * team but has no role (null), so role checks still refuse them.
  */
 export async function getVisibleTeamRole(userId: string, teamId: string, notFound = 'Team not found.'): Promise<string | null> {
-  const [team, membership] = await Promise.all([
-    prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } }),
-    prisma.teamMembership.findUnique({
-      where: { userId_teamId: { userId, teamId } },
-      select: { role: true },
-    }),
-  ]);
+  const [team, membership] = await Promise.all([loadTeam(teamId), loadMembership(userId, teamId)]);
   if (team && team.ownerId === userId) return 'HEAD_COACH';
   if (team && membership) return membership.role;
   if (team && (await isGlobalAdmin(userId))) return null;
@@ -93,9 +123,11 @@ export async function seesEveryPlayer(userId: string | null, teamId: string): Pr
 /**
  * Global ADMIN, read from the database. Never trust the role claim in the JWT:
  * tokens live 7 days, so a demoted admin would keep admin rights until expiry.
+ * The loader's memo is per request and off after any write, so this is still
+ * the database's answer, never the token's.
  */
 export async function isGlobalAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const user = await loadUser(userId);
   return user?.role === 'ADMIN';
 }
 
@@ -142,13 +174,10 @@ export async function getAccessTier(
   teamId: string,
   category: AccessCategory,
 ): Promise<AccessTier | null> {
-  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } });
+  const team = await loadTeam(teamId);
   if (team?.ownerId === userId) return AccessTier.FULL_ACCESS;
 
-  const membership = await prisma.teamMembership.findUnique({
-    where: { userId_teamId: { userId, teamId } },
-    select: { rosterAccess: true, invitationAccess: true, matchAccess: true },
-  });
+  const membership = await loadMembership(userId, teamId);
   if (!membership) return null;
 
   return category === 'roster'
@@ -176,10 +205,7 @@ export async function getEffectivePermissions(userId: string, teamId: string): P
   const set = new Set(getPermissionsForRole(role));
   if (isOwner) return [...set]; // owner keeps everything
 
-  const membership = await prisma.teamMembership.findUnique({
-    where: { userId_teamId: { userId, teamId } },
-    select: { rosterAccess: true, invitationAccess: true, matchAccess: true },
-  });
+  const membership = await loadMembership(userId, teamId);
   if (!membership) return [...set];
 
   const apply = (tier: AccessTier, category: AccessCategory) => {
