@@ -121,6 +121,24 @@ export async function seesEveryPlayer(userId: string | null, teamId: string): Pr
 }
 
 /**
+ * The caller's role on a team, shaped like GET /teams/:id/my-role plus the
+ * per-player flag. Embedded as `viewer` in the match responses so the SPA needs
+ * no sequential /my-role round trip after loading a match (9.5.7). Additive:
+ * installed apps ignore the key. Derived from the same functions as /my-role,
+ * so the answers are identical; `seesEveryPlayer` is informational only (the
+ * server filters player rows itself). Anonymous: nothing.
+ */
+export async function viewerBlock(userId: string | null, teamId: string) {
+  if (!userId) return { role: null as string | null, isOwner: false, canTrack: false, seesEveryPlayer: false, permissions: [] as string[] };
+  const [{ role, isOwner }, permissions, sees] = await Promise.all([
+    getUserTeamRole(userId, teamId),
+    getEffectivePermissions(userId, teamId),
+    seesEveryPlayer(userId, teamId),
+  ]);
+  return { role, isOwner, canTrack: permissions.includes(Permission.TRACK_MATCH), seesEveryPlayer: sees, permissions: permissions as string[] };
+}
+
+/**
  * Global ADMIN, read from the database. Never trust the role claim in the JWT:
  * tokens live 7 days, so a demoted admin would keep admin rights until expiry.
  * The loader's memo is per request and off after any write, so this is still
