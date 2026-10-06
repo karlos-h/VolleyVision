@@ -7,6 +7,8 @@ import { cacheUser, cachedUser, cachedUserId, clearOfflineCache } from '../lib/o
 import { forgetSession, purgeUserQueue } from '../lib/eventQueue';
 import { setLeaveGuard } from '../lib/leaveGuard';
 import { flushStorage } from '../lib/nativeStorage';
+import { initialAuthState } from '../lib/authStart';
+import { preloadLikelyPages } from '../lib/preloadPages';
 
 /** The user id inside a stored JWT (read locally; the server still verifies it). */
 function tokenUserId(token: string): string | null {
@@ -50,9 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // (revoked or expired: the server said so). With no signal the tracker must
   // still open offline and keep its queued taps (6.6a), so the token stays and
   // the cached name and role stand in until /auth/me answers again.
+  // When the cache belongs to this token's account, pages render from it at
+  // once (9.5.3) instead of waiting a round trip; /auth/me still runs and
+  // replaces it (termsRequired arrives with it), and a 401 still signs out.
   useEffect(() => {
     const stored = getToken();
     if (!stored) { setIsLoading(false); return; }
+    const early = cachedUser();
+    if (initialAuthState(stored, early?.id ?? null, tokenUserId) === 'render') {
+      setUser(early);
+      setIsLoading(false);
+    }
     const restore = () => authApi.me().then((u) => { cacheUser(u); setUser(u); });
     const retryOnline = () => { restore().catch(() => {}); };
     restore()
@@ -61,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           clearToken();
           clearOfflineCache();
           setToken(null);
+          setUser(null);
           return;
         }
         // Only the account this token belongs to: a cache left by someone
@@ -72,6 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
     return () => window.removeEventListener('online', retryOnline);
   }, []);
+
+  useEffect(() => {
+    if (user) preloadLikelyPages();
+  }, [user]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login({ email, password });
