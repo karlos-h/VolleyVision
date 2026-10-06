@@ -145,7 +145,11 @@ export default function TrackingPage() {
   const resetMatch = useResetMatch(matchId!);
   // Track is offered only to those who can track a live match (players never
   // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
-  const { data: role } = useTeamRole(match?.teamId ?? '');
+  // GET /matches/:id carries the role since v9.5.7, so /my-role is skipped; a
+  // match cached offline before that has no `viewer` and falls back.
+  const viewer = match?.viewer;
+  const { data: fetchedRole } = useTeamRole(viewer ? '' : match?.teamId ?? '');
+  const role = viewer ?? fetchedRole;
   const canTrack = role?.permissions.includes('TRACK_MATCH') ?? false;
   // A role change mid-session moves you to the matching route. Not while the
   // role is unknown: offline, it may never load.
@@ -499,6 +503,7 @@ export default function TrackingPage() {
         venue={match.venue}
         status={match.status}
         canTrack={canTrack}
+        viewer={viewer}
       />
 
       {/* ── Sync status (6.9) ── */}

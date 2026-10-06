@@ -34,7 +34,8 @@ export default function MatchWatchPage() {
   const { data: events } = useEvents(matchId!);
   // Only used to bounce back to Track if the Coach/Player toggle flips —
   // this page itself is read-only regardless (see canTrack={false} below).
-  const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
+  const fetchedCanTrack = useHasPermission(match?.viewer ? '' : match?.teamId ?? '', 'TRACK_MATCH');
+  const canTrack = match?.viewer ? match.viewer.canTrack : fetchedCanTrack;
   useSyncTrackWatchRoute(matchId, match?.status, canTrack);
 
   const recentEvents = useMemo(
@@ -63,6 +64,7 @@ export default function MatchWatchPage() {
         venue={match.venue}
         status={match.status}
         canTrack={false}
+        viewer={match.viewer}
       />
 
       {!isLive ? (

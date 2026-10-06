@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import clsx from 'clsx';
 import type { ZoneMap, ZoneAttack, ZoneServe, ZonePass, ZoneDefence } from '../../types';
 import { CHART_SERIES, CHART_POSITIVE, CHART_NEGATIVE } from '../../lib/chartColors';
+import { hasProFeature } from '../../lib/proFeatures';
 
 // Standard volleyball zone layout, net at the top (see CourtZoneSelector.tsx):
 //   4 | 3 | 2   ← front row
@@ -138,6 +139,8 @@ export default function CourtHeatMap({ data, title, defaultCategory = 'attack', 
   const { tagged, total } = data.coverage;
   const lowCoverage = total > 0 && tagged / total < 0.3;
   const maxVolume = Math.max(...ZONES.map((z) => zoneVolume(z, data, category)), 1);
+
+  if (!hasProFeature(undefined, 'heatmapsFull')) return null; // no team id in scope (zone data only)
 
   return (
     <div className="card p-4 space-y-4">

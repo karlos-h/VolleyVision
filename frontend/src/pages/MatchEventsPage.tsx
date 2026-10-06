@@ -41,7 +41,9 @@ export default function MatchEventsPage() {
   const navigate = useNavigate();
   const { data: match, isLoading: matchLoading } = useMatch(matchId!);
   const { data: events, isLoading: eventsLoading } = useEvents(matchId!);
-  const canTrack = useHasPermission(match?.teamId ?? '', 'TRACK_MATCH');
+  // match.viewer (v9.5.7) answers this without a /my-role request; older cached matches fall back.
+  const fetchedCanTrack = useHasPermission(match?.viewer ? '' : match?.teamId ?? '', 'TRACK_MATCH');
+  const canTrack = match?.viewer ? match.viewer.canTrack : fetchedCanTrack;
   const myPlayerIds = useMyPlayerIds(!canTrack);
   const [openSets, setOpenSets] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState('');
@@ -107,6 +109,7 @@ export default function MatchEventsPage() {
         venue={match.venue}
         status={match.status}
         canTrack={canTrack}
+        viewer={match.viewer}
       />
 
       {/* Total count — moved here off the match card (it's detail, not something

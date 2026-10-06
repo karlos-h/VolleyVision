@@ -2,6 +2,61 @@
 
 All notable changes to VolleyVision, reconstructed from the repository's commit and tag history. Versions are listed newest first, in chronological order of release. Untagged commits are listed under the tagged release they shipped with.
 
+## v9.18.0 — unreleased (tag pending G2/G3; no production deploy before 23 Oct)
+
+Phase 9.5 of the rebuild roadmap: the speed pass, plus the clean-ups from the
+Phase 9 review. No migration, no new dependency. Works with the Android 9.13.0+
+apps: every API change adds fields or an opt-in query parameter.
+
+**Pages load faster**
+- The app no longer waits for the sign-in check before drawing a page: when the
+  device already knows who you are, the page and its data start at once while
+  the check runs behind it. A bad or expired sign-in still sends you to the
+  sign-in page, and nothing shows until the server has answered for it.
+- Home asks the server for a third of what it used to (12 database operations
+  down to 4), team and match pages for fewer, and the match pages no longer
+  make a second "what's my role?" request after loading.
+- Each request reads your role and your team's details once instead of two or
+  three times. Every permission check runs in the same order with the same
+  answer as before.
+- Rate-limit checks on writes (sign-in, invitations, tracking taps) are one
+  database statement instead of a four-step transaction.
+
+**Live tracking**
+- **The Terms step no longer blocks the tracker.** If you still have to accept
+  the updated Terms and lose signal courtside, you can keep tracking; a note on
+  the tracker reminds you, and every other page still shows the step. Posting
+  in chat stays off until you accept.
+
+**Legal and privacy pages**
+- In the apps, the Privacy, Terms, Delete-account and Support links open the
+  netlify.app address until the volleyvision.co.nz domain is live.
+- Backups are now kept 30 days (was "48 hours"), and the backup script deletes
+  older ones; the policy pages and data inventory say so.
+- The privacy and delete-account pages (and the in-app delete screen) now say
+  that an unverified email address may remain in invitations and team records
+  after deletion; a verified one is removed.
+
+**Internal**
+- `Server-Timing` header on staging and local only (never in production, by
+  design); browser performance tracing with join codes and invitation tokens
+  scrubbed from spans; `backend/scripts/measure.mjs`; `docs/performance.md`
+  (local baseline and after-tables; all handoff targets met) and
+  `docs/region-decision.md` (recommends Netlify Pro + Singapore; Karlos decides).
+- The function zip no longer carries the Windows Prisma engine (unverified
+  until a deploy); Sentry is flushed only after an error, flagged at the
+  capture site (a test scans for new sites).
+- A single Pro-feature switch (`lib/proFeatures.ts`, always on; no UI change)
+  wraps the six panels a later season pass would gate.
+- `deploy.ps1 -Target staging -Draft` for free rehearsals; `backup.ps1
+  -KeepDays`/`-WhatIf`; admin scripts refuse `--prod` with a database URL
+  already in the shell and ask for the typed project ref; `check-legal
+  --release` refuses an unconfirmed support mailbox; the repo folder is
+  unlinked from the production Netlify site and `netlify env:*` is denied to
+  Claude; README "Rolling back".
+- Fixed on the way: a 1 ms rounding mismatch refused a brand-new rate-limit key
+  about half the time (harmless for today's limits).
+
 ## v9.17.0 — 2026-10-03
 
 Phase 9 of the rebuild roadmap: store readiness, for both app stores. One

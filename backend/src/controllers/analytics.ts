@@ -5,7 +5,7 @@ import { calculatePlayerStats, calculateSetStats, calculateStats } from '../lib/
 import { ownEventsOnly, teamEventsWithOpponent } from '../lib/eventFilters';
 import { generateMatchReport } from '../services/report.service';
 import { assertTeamVisible } from '../lib/teamVisibility';
-import { seesEveryPlayer } from '../services/permission.service';
+import { seesEveryPlayer, viewerBlock } from '../services/permission.service';
 import { visiblePlayers } from '../lib/playerPrivacy';
 import { buildDetailedHeatmap } from '../lib/heatmap';
 import { buildAdvancedMetrics } from '../lib/advancedMetrics';
@@ -42,7 +42,7 @@ const eventSelect = {
 export async function getMatchAnalytics(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.user?.userId ?? null;
-    const [match, isStaff] = await Promise.all([
+    const [match, viewer] = await Promise.all([
       prisma.match.findUnique({
         where: { id: req.params.matchId },
         include: {
@@ -50,10 +50,10 @@ export async function getMatchAnalytics(req: Request, res: Response, next: NextF
           events: { where: ownEventsOnly, select: eventSelect },
         },
       }),
-      seesEveryPlayer(userId, res.locals.visibleTeamId), // set by visibleByMatchParam
+      viewerBlock(userId, res.locals.visibleTeamId), // set by visibleByMatchParam
     ]);
     if (!match) throw new AppError(404, 'Match not found.');
-    const players = visiblePlayers(match.team.players, isStaff, userId);
+    const players = visiblePlayers(match.team.players, viewer.seesEveryPlayer, userId);
     res.json({
       match: {
         id: match.id, matchDate: match.matchDate, opponent: match.opponent,
@@ -65,6 +65,8 @@ export async function getMatchAnalytics(req: Request, res: Response, next: NextF
       teamStats:   calculateStats(match.events),
       playerStats: calculatePlayerStats(players, match.events),
       setStats:    calculateSetStats(match.events),
+      // Additive (9.5.7): lets the dashboard skip the sequential /my-role call.
+      viewer,
     });
   } catch (err) { next(err); }
 }

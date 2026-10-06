@@ -4,7 +4,7 @@ import { confirmLeave } from '../../lib/leaveGuard';
 import { formatMatchDate } from '../../lib/matchTime';
 import MatchSubNav from './MatchSubNav';
 import { ArrowLeftIcon, ChevronIcon } from './icons';
-import { isPendingApproval, type MatchStatus } from '../../types';
+import { isPendingApproval, type MatchStatus, type MatchViewer } from '../../types';
 import { useHasPermission, useUpdateMatch } from '../../hooks';
 
 // Shared header for all three match sub-pages (Match Stats | Events | Track).
@@ -41,6 +41,8 @@ interface MatchPageHeaderProps {
   // Live tracking is offered only to those who can track a live match; the Track
   // tab additionally requires the match to be IN_PROGRESS (same gating as before).
   canTrack: boolean;
+  // The match response's role block; present means no /my-role request (v9.5.7).
+  viewer?: MatchViewer;
 }
 
 export default function MatchPageHeader({
@@ -53,8 +55,10 @@ export default function MatchPageHeader({
   venue,
   status,
   canTrack,
+  viewer,
 }: MatchPageHeaderProps) {
-  const canManageMatches = useHasPermission(teamId, 'CREATE_MATCH');
+  const fetchedCanManage = useHasPermission(viewer ? '' : teamId, 'CREATE_MATCH');
+  const canManageMatches = viewer ? viewer.permissions.includes('CREATE_MATCH') : fetchedCanManage;
   const updateMatch = useUpdateMatch();
   const mode: 'track' | 'watch' | undefined =
     status === 'IN_PROGRESS' ? (canTrack ? 'track' : 'watch') : undefined;

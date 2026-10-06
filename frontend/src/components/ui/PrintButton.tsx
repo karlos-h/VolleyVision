@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { isNative } from '../../lib/native';
 import { setPrinting } from '../../lib/printing';
+import { hasProFeature } from '../../lib/proFeatures';
 
 // The dashboards' own data. Unrelated background fetches (chat, a focus
 // refetch of the team) mustn't disable the button or swallow a click.
@@ -26,6 +27,7 @@ export default function PrintButton({ title, chunks }: { title: string; chunks?:
   }, [chunks]);
 
   if (isNative()) return null;
+  if (!hasProFeature(undefined, 'printPdf')) return null; // no team id in scope
 
   function print() {
     if (queryClient.isFetching(DASHBOARD) > 0) return;
