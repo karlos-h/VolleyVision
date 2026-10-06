@@ -1194,3 +1194,11 @@ per call; a tracking batch ≈ 8–11 ops per event (recorded, locking unchanged
 `/security-review` no findings; phase-end Opus audit of 9.5.5–9.5.9 (see PROGRESS for its result).
 Checks: backend tsc / 98+ unit files / build; frontend tsc / lint / build; integration 11/11 on `vv-pg17`; `npm audit`
 clean in the frontend, two registry advisories in the backend (compression, proxy-addr; G3, patch bumps).
+
+**Staging draft, 7 Oct 2026.** Netlify credits restored (Personal plan). `deploy.ps1 -Target staging -Draft` of v9.18.0
+(first `-Draft` run after the unlink; works): smoke 10/10 at `rehearse-e211c3b--volleyvision-staging.netlify.app`.
+Measured there: **function region `us-east-1`**, **~1.1 s per Prisma operation** to Singapore (Home 4.2 s, `/my-role`
+3.7 s, match analytics 6.2 s medians); `connection_limit=3` (C3, Karlos) in effect — parallel queries overlap. The
+function zip (21.8 MB) no longer carries the Windows engine, but the Linux engine was packed twice and the unused WASM
+engines came along; follow-up fix below. Region note revised: B (free, move the database to us-east-1) or Pro for A/C.
+Production deploy still refused by design: the support mailbox isn't set up (`SUPPORT_EMAIL_CONFIRMED = false`).
