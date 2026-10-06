@@ -23,7 +23,10 @@ async function main() {
   assert.equal(takeFlushNeeded(), false);
   Sentry.captureException(new Error('boom'));
   await Sentry.flush(2000);
-  assert.equal(envelopes.length, 1, 'error reached the transport');
+  // Count event envelopes only: the SDK may also send a session or client-report
+  // envelope on the same flush (it did on the Linux CI runner, not on Windows).
+  const events = envelopes.filter((env) => (env as [unknown, Array<[{ type?: string }, unknown]>])[1]?.some(([h]) => h?.type === 'event'));
+  assert.equal(events.length, 1, `error reached the transport (envelopes: ${envelopes.length})`);
   assert.equal(takeFlushNeeded(), true);
   assert.equal(takeFlushNeeded(), false, 'nothing captured since');
 
