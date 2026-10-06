@@ -49,7 +49,12 @@ export default function DeleteAccountPage() {
         <ul className="list-disc pl-5 space-y-1">
           <li>Your account, profile and sign-in are deleted.</li>
           <li>Messages you sent in team chat are erased, photos and files included. Others see "Message from a former member was removed".</li>
-          <li>Your feedback, blocks and any pending invitations to your email are deleted.</li>
+          {/* The server removes invitations to the address only if it was verified (accountDeletion.service). */}
+          <li>
+            {user?.emailVerified
+              ? 'Your feedback, blocks and any pending invitations to your email are deleted.'
+              : "Your feedback and blocks are deleted. Your email isn't verified, so invitations sent to it may remain."}
+          </li>
           <li>Stats recorded for you stay with your teams, so their totals stay right, but your name is replaced with "Former player".</li>
           <li>Invitations you sent that haven't been accepted stop working.</li>
         </ul>

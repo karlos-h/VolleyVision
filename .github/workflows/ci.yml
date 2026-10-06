@@ -41,6 +41,10 @@ jobs:
         run: npx tsc --noEmit
       - name: Tests (pure lib tests + import-cycle check)
         run: npm test
+      - name: backup.ps1 deletes only its own old backups
+        working-directory: .
+        shell: pwsh
+        run: ./backup.test.ps1
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 
@@ -112,6 +116,8 @@ jobs:
         run: npm run lint
       - name: Type-check and build
         run: npm run build
+      - name: The legal check still catches what it should
+        run: node scripts/check-legal.test.mjs
       - name: Legal pages match the app (company, support email, Terms version)
         run: node scripts/check-legal.mjs
       - name: Production dependency audit

@@ -1,8 +1,11 @@
 # volleyvision.co.nz: pointing the domain at the app
 
-For Karlos. The code already uses `https://volleyvision.co.nz` for the legal pages and
-store listings (`frontend/src/lib/legal.ts`, `docs/store/`), and `support@volleyvision.co.nz`
-for support. Nothing here is urgent until an app build or a store submission needs the links.
+For Karlos. Until the domain is live, the apps' legal links and the store listings use
+`https://volleyvision-app.netlify.app` (`DOMAIN_LIVE = false` in `frontend/src/lib/legal.ts`,
+`docs/store/`). The support address is already `support@volleyvision.co.nz`, but
+`SUPPORT_EMAIL_CONFIRMED = false` makes prod deploys and store builds refuse to run until you
+confirm the mailbox receives mail. Nothing here is urgent until an app build or a store
+submission needs the links.
 
 ## 1. Buy it
 
@@ -46,5 +49,9 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://volleyvision-app.netlif
 
 ## 5. Tell Claude
 
-When `https://volleyvision.co.nz/privacy` opens, say so: Claude moves the smoke check and the
-remaining `netlify.app` mentions (`deploy.ps1`, README) over.
+- When the mailbox receives your test email, say so: Claude sets `SUPPORT_EMAIL_CONFIRMED = true`.
+- When `https://volleyvision.co.nz/privacy` opens, say so: in **one commit** Claude sets
+  `DOMAIN_LIVE = true` in `legal.ts` (the apps' legal links move to the domain), switches the
+  privacy/support/delete URLs in `docs/store/*` back to the domain, and moves the smoke check and
+  the remaining `netlify.app` mentions (`deploy.ps1`, README) over.
+- **Never redirect the netlify.app address to the domain** (step 3): the apps call the API there.

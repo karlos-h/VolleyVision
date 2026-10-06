@@ -10,9 +10,13 @@
  * A dry run by default: what would be removed, as counts. Refuses, like the
  * app, while the account owns a team. Prints the database's project ref, never
  * its URL.
+ *
+ * --prod refuses to run if DATABASE_URL or DIRECT_URL is already set in the
+ * shell (it would win over backend/.env), and --prod --apply asks you to type
+ * the printed project ref before it writes anything.
  */
 import path from 'node:path';
-import { adminScriptTarget, projectRef } from '../src/lib/adminScript';
+import { adminScriptTarget, askProdConfirmation, projectRef } from '../src/lib/adminScript';
 
 async function main() {
   // Before anything loads Prisma or dotenv (see lib/adminScript.ts).
@@ -34,7 +38,8 @@ async function main() {
   const { normalizeEmail } = await import('../src/lib/email');
   const { deleteAccount, planAccountDeletion } = await import('../src/services/accountDeletion.service');
   const { blockersMessage } = await import('../src/lib/accountDeletion');
-  console.log(`Database: ${projectRef(process.env.DATABASE_URL)}${target.prod ? ' (production, from backend/.env)' : ''}`);
+  const ref = projectRef(process.env.DATABASE_URL);
+  console.log(`Database: ${ref}${target.prod ? ' (production, from backend/.env)' : ''}`);
 
   try {
     const user = await prisma.user.findUnique({ where: { email: normalizeEmail(emailArg) }, select: { id: true } });
@@ -55,6 +60,11 @@ async function main() {
       + `${plan.auditRows} audit row(s) anonymised.`);
     if (!target.apply) {
       console.log('Dry run: nothing changed. Run again with --apply to delete it.');
+      return;
+    }
+    if (!(await askProdConfirmation(target, ref))) {
+      console.log('Not confirmed: nothing changed.');
+      process.exitCode = 1;
       return;
     }
     await deleteAccount(user.id);
