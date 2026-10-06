@@ -11,9 +11,13 @@
  * all be removed keeps its rows, so running it again retries them. Local runs
  * skip storage (there's no bucket locally). Prints the database's project ref,
  * never its URL, and never message text or file names.
+ *
+ * --prod refuses to run if DATABASE_URL or DIRECT_URL is already set in the
+ * shell (it would win over backend/.env), and --prod --apply asks you to type
+ * the printed project ref before it writes anything.
  */
 import path from 'node:path';
-import { adminScriptTarget, projectRef } from '../src/lib/adminScript';
+import { adminScriptTarget, askProdConfirmation, projectRef } from '../src/lib/adminScript';
 
 const BATCH = 100;
 
@@ -29,7 +33,8 @@ async function main() {
 
   const { prisma } = await import('../src/lib/prisma');
   const { removeStoredFiles } = await import('../src/lib/storageCleanup');
-  console.log(`Database: ${projectRef(process.env.DATABASE_URL)}${target.prod ? ' (production, from backend/.env)' : ''}`);
+  const ref = projectRef(process.env.DATABASE_URL);
+  console.log(`Database: ${ref}${target.prod ? ' (production, from backend/.env)' : ''}`);
 
   try {
     const messages = await prisma.message.findMany({
@@ -44,6 +49,11 @@ async function main() {
       return;
     }
 
+    if (!(await askProdConfirmation(target, ref))) {
+      console.log('Not confirmed: nothing changed.');
+      process.exitCode = 1;
+      return;
+    }
     if (!target.prod) console.log('Local run: storage skipped.');
     let erased = 0;
     let kept = 0;

@@ -4,9 +4,9 @@ For Karlos, on your own iPhone, with the TestFlight build. Claude can't drive th
 check the iPhone app gets before anyone else uses it.
 
 **Before you start**
-- Production runs v9.15.0, and `CORS_EXTRA_ORIGINS` in Netlify includes `capacitor://localhost` (Part C3).
+- Production runs v9.15.0 or later, and `CORS_EXTRA_ORIGINS` in Netlify includes `capacitor://localhost` (Part C3).
   Without both, sign-in fails with a network error.
-- VolleyVision is installed from TestFlight. In TestFlight the build shows as version 9.15.0 with a build number.
+- VolleyVision is installed from TestFlight. In TestFlight the build shows the version from `versionName` in `frontend/android/app/build.gradle` (9.18.0 from v9.18.0 on) with a build number.
 - Use a team where you're the coach, with at least one scheduled match you can track.
 
 **How to report back:** tick each box (`[x]`), write what you saw in the Notes, and take a screenshot of anything
