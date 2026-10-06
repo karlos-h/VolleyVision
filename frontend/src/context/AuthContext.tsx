@@ -63,10 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(early);
       setIsLoading(false);
     }
-    const restore = () => authApi.me().then((u) => { cacheUser(u); setUser(u); });
+    // Rendering early makes Sign out reachable while this call is in flight:
+    // a late answer for a token that's gone (or was replaced by another
+    // sign-in) must not write that account back into state or the cache.
+    const stale = () => getToken() !== stored;
+    const restore = () => authApi.me().then((u) => { if (stale()) return; cacheUser(u); setUser(u); });
     const retryOnline = () => { restore().catch(() => {}); };
     restore()
       .catch((err) => {
+        if (stale()) return;
         if (axios.isAxiosError(err) && err.response?.status === 401) {
           clearToken();
           clearOfflineCache();
