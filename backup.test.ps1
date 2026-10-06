@@ -54,3 +54,6 @@ try {
 
 if ($failures) { Write-Host "backup.test.ps1: $failures FAILED" -ForegroundColor Red; exit 1 }
 Write-Host 'backup.test.ps1 passed' -ForegroundColor Green
+# Explicit: the -KeepDays 0 child run leaves $LASTEXITCODE = 1, and pwsh -Command
+# (CI) reports that as the script's own exit code otherwise.
+exit 0
