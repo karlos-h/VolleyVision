@@ -9,7 +9,9 @@ import { upcomingFrom } from '../lib/matchDate';
 
 export async function coachDashboardHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    const dashboard = await getCoachDashboard(req.user!.userId, upcomingFrom(req.query.localNow));
+    const dashboard = await getCoachDashboard(req.user!.userId, upcomingFrom(req.query.localNow), {
+      lite: req.query.lite === '1' || req.query.lite === 'true',
+    });
     res.json(dashboard);
   } catch (err) {
     next(err);

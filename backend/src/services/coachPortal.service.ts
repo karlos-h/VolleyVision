@@ -30,16 +30,23 @@ export async function getCoachMemberTeams(userId: string) {
   }));
 }
 
-export async function getCoachingStats(userId: string) {
-  // All team IDs the coach owns or is a member of
+// Owned-or-member team ids. The dashboard already has both lists and passes the ids
+// in; the standalone routes (/coach/stats) fall back to these two reads.
+async function resolveTeamIds(userId: string, teamIds?: string[]) {
+  if (teamIds) return { teamIds, ownedCount: undefined as number | undefined };
   const [ownedTeams, memberships] = await Promise.all([
     prisma.team.findMany({ where: { ownerId: userId }, select: { id: true } }),
     prisma.teamMembership.findMany({ where: { userId }, select: { teamId: true } }),
   ]);
+  return {
+    teamIds: [...new Set([...ownedTeams.map((t) => t.id), ...memberships.map((m) => m.teamId)])],
+    ownedCount: ownedTeams.length,
+  };
+}
 
-  const teamIds = [
-    ...new Set([...ownedTeams.map((t) => t.id), ...memberships.map((m) => m.teamId)]),
-  ];
+export async function getCoachingStats(userId: string, knownTeamIds?: string[], knownOwnedCount?: number) {
+  const { teamIds, ownedCount: fetchedOwned } = await resolveTeamIds(userId, knownTeamIds);
+  const ownedCount = fetchedOwned ?? knownOwnedCount ?? 0;
 
   if (!teamIds.length) {
     return { teamsOwned: 0, teamsCoached: 0, totalMatches: 0, wins: 0, losses: 0, winPercentage: null };
@@ -54,7 +61,7 @@ export async function getCoachingStats(userId: string) {
   const losses = matches.length - wins;
 
   return {
-    teamsOwned: ownedTeams.length,
+    teamsOwned: ownedCount,
     teamsCoached: teamIds.length,
     totalMatches: matches.length,
     wins,
@@ -63,15 +70,8 @@ export async function getCoachingStats(userId: string) {
   };
 }
 
-export async function getCoachRecentMatches(userId: string, limit = 5) {
-  const [ownedTeams, memberships] = await Promise.all([
-    prisma.team.findMany({ where: { ownerId: userId }, select: { id: true } }),
-    prisma.teamMembership.findMany({ where: { userId }, select: { teamId: true } }),
-  ]);
-
-  const teamIds = [
-    ...new Set([...ownedTeams.map((t) => t.id), ...memberships.map((m) => m.teamId)]),
-  ];
+export async function getCoachRecentMatches(userId: string, knownTeamIds?: string[], limit = 5) {
+  const { teamIds } = await resolveTeamIds(userId, knownTeamIds);
 
   if (!teamIds.length) return [];
 
@@ -95,15 +95,8 @@ export async function getCoachRecentMatches(userId: string, limit = 5) {
 // The soonest scheduled match of EACH team the user owns or belongs to: the
 // home page's team cards show one per team, and a global "5 soonest" list
 // left a team whose next match wasn't among them showing none.
-export async function getCoachUpcomingMatches(userId: string, from: Date = new Date()) {
-  const [ownedTeams, memberships] = await Promise.all([
-    prisma.team.findMany({ where: { ownerId: userId }, select: { id: true } }),
-    prisma.teamMembership.findMany({ where: { userId }, select: { teamId: true } }),
-  ]);
-
-  const teamIds = [
-    ...new Set([...ownedTeams.map((t) => t.id), ...memberships.map((m) => m.teamId)]),
-  ];
+export async function getCoachUpcomingMatches(userId: string, from: Date = new Date(), knownTeamIds?: string[]) {
+  const { teamIds } = await resolveTeamIds(userId, knownTeamIds);
 
   if (!teamIds.length) return [];
 
@@ -126,15 +119,28 @@ export async function getCoachUpcomingMatches(userId: string, from: Date = new D
   });
 }
 
-/** `from`: see lib/matchDate upcomingFrom. */
-export async function getCoachDashboard(userId: string, from?: Date) {
-  const [ownedTeams, memberTeams, coachingStats, recentMatches, upcomingMatches] = await Promise.all([
+/**
+ * `from`: see lib/matchDate upcomingFrom. `lite` drops the two blocks no shipped client
+ * reads, so a dashboard load costs 3 queries instead of 5; the default response keeps
+ * every key because installed apps may still parse them.
+ */
+export async function getCoachDashboard(userId: string, from?: Date, opts: { lite?: boolean } = {}) {
+  // Team lists first: their ids feed the match queries, which would otherwise each
+  // re-read the same ids (the 12-query dashboard).
+  const [ownedTeams, memberTeams] = await Promise.all([
     getCoachOwnedTeams(userId),
     getCoachMemberTeams(userId),
-    getCoachingStats(userId),
-    getCoachRecentMatches(userId),
-    getCoachUpcomingMatches(userId, from),
   ]);
+  const teamIds = [...new Set([...ownedTeams.map((t) => t.id), ...memberTeams.map((t) => t.id)])];
 
+  if (opts.lite) {
+    const upcomingMatches = await getCoachUpcomingMatches(userId, from, teamIds);
+    return { ownedTeams, memberTeams, upcomingMatches };
+  }
+  const [coachingStats, recentMatches, upcomingMatches] = await Promise.all([
+    getCoachingStats(userId, teamIds, ownedTeams.length),
+    getCoachRecentMatches(userId, teamIds),
+    getCoachUpcomingMatches(userId, from, teamIds),
+  ]);
   return { ownedTeams, memberTeams, coachingStats, recentMatches, upcomingMatches };
 }

@@ -444,7 +444,7 @@ export const playerPortalApi = {
 
 // ─── Coach Portal (Phase 5 Sprint 5) ─────────────────────────────────────────
 export const coachPortalApi = {
-  dashboard: () => api.get<CoachDashboard>('/coach/dashboard', { params: { localNow: localNow() } }).then((r) => r.data),
+  dashboard: () => api.get<CoachDashboard>('/coach/dashboard', { params: { localNow: localNow(), lite: '1' } }).then((r) => r.data),
   teams: () => api.get('/coach/teams').then((r) => r.data),
   stats: () => api.get('/coach/stats').then((r) => r.data),
 };

@@ -181,8 +181,8 @@ export interface CoachingStats {
 export interface CoachDashboard {
   ownedTeams: TeamSummary[];
   memberTeams: TeamSummary[];
-  coachingStats: CoachingStats;
-  recentMatches: MatchSummaryItem[];
+  coachingStats?: CoachingStats;
+  recentMatches?: MatchSummaryItem[];
   upcomingMatches: UpcomingMatchItem[];
 }
 
