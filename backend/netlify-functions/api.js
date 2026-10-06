@@ -18,6 +18,12 @@ const serverless = require('serverless-http');
 const Sentry = require('@sentry/node');
 const app = require('../dist/index').default;
 const { scrubUrl } = require('../dist/lib/scrubUrl');
+const { takeFlushNeeded } = require('../dist/lib/sentryFlush');
+const { describePool } = require('../dist/lib/dbPool');
+
+// 9.5.8: staging only (never production) — one line per cold start saying how
+// many connections Prisma may open, the knob Karlos tunes in the dashboard.
+if (process.env.SENTRY_ENVIRONMENT === 'staging') console.log(`db pool: ${describePool(process.env.DATABASE_URL)}`);
 
 const handler = serverless(app);
 
@@ -71,6 +77,9 @@ exports.handler = async (event, context) => {
     // meaningfully adds to response latency. Requiring ../dist/index above
     // already ran instrument.ts (index.ts's first import), so Sentry is
     // initialized by now, or safely inert if SENTRY_DSN was unset.
-    await Sentry.flush(2000).catch(() => {});
+    // Only errors set the flag (instrument.ts): a sampled transaction left
+    // unflushed goes out on a later invocation or is dropped, which is fine,
+    // and skipping the await keeps every normal response off that cost.
+    if (takeFlushNeeded()) await Sentry.flush(2000).catch(() => {});
   }
 };

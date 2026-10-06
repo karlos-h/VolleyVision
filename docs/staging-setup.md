@@ -77,8 +77,10 @@ every deploy context.
 | `VITE_SENTRY_DSN` | the same as production's `VITE_SENTRY_DSN` |
 | `VITE_SENTRY_ENVIRONMENT` | `staging` |
 
-Tell Claude the site id and URL (neither is secret). Claude reads the names back with
-`netlify env:list --site <id>`; that proves the names are set, not their values.
+Tell Claude the site id and URL (neither is secret). **Claude never runs `netlify env:*`** (any site, any form; denied
+in its settings after the 3 Oct incident, when `env:set --site <staging>` from a folder linked to production changed
+production). Check the names yourself in the dashboard; after a deploy, the smoke check's sign-in and `/health`
+(`db ok`) prove the function got working values.
 
 ## 5. Your local `backend/.env.staging`
 
@@ -94,8 +96,18 @@ Claude then runs, from the repo root:
 ```powershell
 .\deploy.ps1 -Target staging -Migrate   # prisma migrate deploy against staging
 .\deploy.ps1 -Target staging -Seed      # the seed users and teams (refuses any non-staging database)
-.\deploy.ps1 -Target staging            # build, publish to the staging site, smoke check
+.\deploy.ps1 -Target staging -Draft     # build, draft deploy (free), smoke check against the draft URL
+.\deploy.ps1 -Target staging            # build, publish to the staging site (costs credits), smoke check
 ```
+
+**Rehearsals use `-Draft` from Phase 9.5 on** (Karlos, 4 Oct), unless he says otherwise. On Netlify every production
+publish costs credits, the staging site's included; a draft deploy is free. `-Draft` uploads the same local build
+without `--prod`, under the alias `rehearse-<short sha>`, prints the draft URL
+(`https://rehearse-<sha>--volleyvision-staging.netlify.app`) and runs the smoke check against it. The draft serves the
+SPA and the API from one origin (the SPA calls the relative `/api/v1`, routed by `netlify.toml` to the function on the
+same deploy), so CORS is unchanged; emailed links still point at `CLIENT_URL`, the main staging URL. A draft reads the
+site's `dev`/deploy-preview env context, and staging sets every variable for all contexts, so the smoke sign-in plus
+`/health` reporting `db ok` prove the function got the right values.
 
 `-Migrate` and `-Seed` load `backend/.env.staging` for that one step, refuse it if it points at production, print no
 values, and stop without deploying. Supabase projects already have the `anon` and `authenticated` roles, so the

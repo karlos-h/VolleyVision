@@ -1,5 +1,5 @@
-import { prisma } from './prisma';
 import { AppError } from '../middleware/errorHandler';
+import { loadTeam, loadUser, loadMembership } from '../services/permission.service';
 
 /**
  * Team visibility model
@@ -17,24 +17,20 @@ import { AppError } from '../middleware/errorHandler';
  * endpoint, and reused by the team-list controller to filter results.
  */
 export async function isTeamVisibleTo(teamId: string, userId: string | null): Promise<boolean> {
-  const team = await prisma.team.findUnique({
-    where: { id: teamId },
-    select: { ownerId: true },
-  });
+  // Team first, even for anonymous callers: a hidden team answers 404 before
+  // any later 400/403 could tell it apart from a missing one.
+  const team = await loadTeam(teamId);
   if (!team) return false;   // non-existent team → not visible
   if (!userId) return false; // anonymous → nothing is visible
 
   if (team.ownerId === userId) return true;
 
   // Global admins bypass visibility entirely.
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const user = await loadUser(userId);
   if (user?.role === 'ADMIN') return true;
 
   // Accepted membership on this team.
-  const membership = await prisma.teamMembership.findUnique({
-    where: { userId_teamId: { userId, teamId } },
-    select: { id: true },
-  });
+  const membership = await loadMembership(userId, teamId);
   return !!membership;
 }
 

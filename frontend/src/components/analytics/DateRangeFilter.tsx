@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { subDays, subMonths } from 'date-fns';
 import type { DateRange } from '../../types';
 import { useDateRangeParams, ymd } from '../../lib/dateRange';
+import { hasProFeature } from '../../lib/proFeatures';
 
 type Mode = 'all' | '30d' | '3m' | 'custom';
 
@@ -10,6 +11,8 @@ export default function DateRangeFilter({ season }: { season?: string }) {
   const [params, setParams] = useSearchParams();
   const range = useDateRangeParams();
   const [customOpen, setCustomOpen] = useState(false);
+
+  if (!hasProFeature(undefined, 'multiSeasonFilters')) return null; // no team id in scope (season label only)
 
   const today = new Date();
   const last30 = { from: ymd(subDays(today, 30)), to: ymd(today) };

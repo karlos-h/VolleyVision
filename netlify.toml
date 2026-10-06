@@ -35,7 +35,11 @@
   directory = "backend/netlify-functions"
   node_bundler = "esbuild"
   external_node_modules = ["@prisma/client", ".prisma/client"]
-  included_files = ["backend/node_modules/.prisma/client/**"]
+  # Deploys build on Windows, so the native engine would ship beside the Linux one; Lambda only loads rhel-openssl-3.0.x. Excluded to shrink the zip.
+  included_files = [
+    "backend/node_modules/.prisma/client/**",
+    "!backend/node_modules/.prisma/client/query_engine-windows.dll.node*",
+  ]
 
 # Route the API through the same domain as the frontend so the SPA's default
 # same-origin "/api/v1" base URL (see frontend/.env.example) just works with no

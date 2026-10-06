@@ -34,7 +34,11 @@ export default function MatchDashboardPage() {
   // teamId is only known once the match loads; the hook stays unconditional and
   // re-runs when it resolves. Track is offered only to those who can track a
   // live match (players never can — Iteration 3 Task 6).
-  const canTrack = useHasPermission(data?.match.teamId ?? '', 'TRACK_MATCH');
+  // The analytics response carries the caller's role (v9.5.7), so /my-role is
+  // skipped ('' disables the query); only a response without it falls back.
+  const viewer = data?.viewer;
+  const roleFallback = useHasPermission(viewer ? '' : data?.match.teamId ?? '', 'TRACK_MATCH');
+  const canTrack = viewer ? viewer.canTrack : roleFallback;
   // Staff open any player's stats; a player opens only their own.
   const myPlayerIds = useMyPlayerIds(!canTrack);
   // The server decides who gets every row (lib/playerPrivacy): a global admin
@@ -83,6 +87,7 @@ export default function MatchDashboardPage() {
         venue={data.match.venue}
         status={data.match.status}
         canTrack={canTrack}
+        viewer={viewer}
       />
 
       <div className="flex justify-end">

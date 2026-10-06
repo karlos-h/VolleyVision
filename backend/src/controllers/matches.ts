@@ -12,7 +12,7 @@ import { logAudit } from '../lib/audit';
 import { maskOtherUserIds, maskOwner } from '../lib/playerPrivacy';
 import { parseDateWindow, matchDateWhere } from '../lib/dateWindow';
 import { parseMatchDate } from '../lib/matchDate';
-import { getAccessTier, seesEveryPlayer, canManageMembers } from '../services/permission.service';
+import { getAccessTier, viewerBlock, canManageMembers } from '../services/permission.service';
 import { createApprovalRequest } from '../services/approval.service';
 import { applyCreateMatch, applyUpdateMatch, applyDeleteMatch } from '../services/teamActions.service';
 import { withMatchLock } from '../services/eventRecording.service';
@@ -55,20 +55,27 @@ export async function getMatchesByTeam(req: Request, res: Response, next: NextFu
 
 export async function getMatch(req: Request, res: Response, next: NextFunction) {
   try {
-    const match = await prisma.match.findUnique({
-      where: { id: req.params.id },
-      include: {
-        team: { include: { players: { orderBy: { jerseyNumber: 'asc' } } } },
-        // scoreAdjustments counts toward "is there anything to undo" — a manual
-        // score tap is undoable but records no Event. See deleteLastEvent.
-        _count: { select: { events: true, scoreAdjustments: true } },
-      },
-    });
-    if (!match) throw new AppError(404, 'Match not found.');
     const callerId = req.user?.userId ?? null;
-    const players = maskOtherUserIds(match.team.players, await seesEveryPlayer(callerId, match.teamId), callerId);
-    const canManage = callerId ? await canManageMembers(callerId, match.teamId) : false;
-    res.json({ ...match, team: maskOwner({ ...match.team, players }, canManage, callerId) });
+    // The team id comes from visibleByMatchParam, so the role reads run beside
+    // the match query instead of after it (9.5.7).
+    const teamId: string = res.locals.visibleTeamId;
+    const [match, viewer, canManage] = await Promise.all([
+      prisma.match.findUnique({
+        where: { id: req.params.id },
+        include: {
+          team: { include: { players: { orderBy: { jerseyNumber: 'asc' } } } },
+          // scoreAdjustments counts toward "is there anything to undo" — a manual
+          // score tap is undoable but records no Event. See deleteLastEvent.
+          _count: { select: { events: true, scoreAdjustments: true } },
+        },
+      }),
+      viewerBlock(callerId, teamId),
+      callerId ? canManageMembers(callerId, teamId) : false,
+    ]);
+    if (!match) throw new AppError(404, 'Match not found.');
+    const players = maskOtherUserIds(match.team.players, viewer.seesEveryPlayer, callerId);
+    // `viewer` is additive: the tracking page skips the sequential /my-role call.
+    res.json({ ...match, team: maskOwner({ ...match.team, players }, canManage, callerId), viewer });
   } catch (err) {
     next(err);
   }

@@ -30,6 +30,8 @@ import { minClientVersion } from './middleware/minClientVersion';
 import { prisma } from './lib/prisma';
 import { checkDatabase } from './lib/dbHealth';
 import { allowedOrigins } from './lib/corsOrigins';
+import { requestContext } from './lib/serverTiming';
+import { describePool } from './lib/dbPool';
 
 dotenv.config();
 
@@ -37,6 +39,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
+// First, so app;dur covers every middleware and each request gets its own store.
+app.use(requestContext);
 app.use(helmet());
 // Compress JSON responses (brotli where the client supports it, else gzip).
 // Safe under serverless-http, which runs this app on Netlify: it treats a
@@ -106,6 +110,8 @@ if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   app.listen(PORT, () => {
     console.log(`\n⚡ VolleyVision API running on http://localhost:${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health\n`);
+    // 9.5.8: the pool knob that decides whether Promise.all queries overlap.
+    console.log(`   db pool: ${describePool(process.env.DATABASE_URL)}\n`);
   });
 }
 

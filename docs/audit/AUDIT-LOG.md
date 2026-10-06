@@ -1129,3 +1129,68 @@ production) wrote eight staging values to production's environment variables: CL
 two Sentry environment variables added, four re-set to the values production already had. Production's secrets were untouched and nothing was deployed, so the live site never
 used them; Karlos restored the two changed values and removed the extras in the dashboard, checked read-only through the
 Netlify API. Staging variables are now set only in the dashboard.
+
+**Production, 3–4 Oct 2026.** Backups `vv-backup-2026-10-03-2149.sql` and `-2026-10-04-0117.sql`; the 9.1 migration
+applied to production with `npx prisma migrate deploy` (Karlos's go-ahead). `deploy.ps1` then failed at Netlify's publish
+step with `JSONHTTPError: Forbidden`, both for Claude and for Karlos after a fresh `netlify login` as himextradingltd.
+A draft deploy to the same site works, staging deploys work, and the API reported no usage exceeded; public reports match
+a free-plan production-deploy pause when the team's credits run out (each production deploy costs credits, including the
+staging site's). Production stays on v9.15.0, compatible with the additive migration. Next: Karlos checks the Netlify
+dashboard (credits used up → wait for 23 Oct or add credits; otherwise Netlify support), then `.\deploy.ps1` from `main`.
+
+**Rolling back from v9.17.0 (added 4 Oct, Phase 9.5.0.4).** Once a chat message has been reported, v9.15.0/v9.16.0 code
+can't read the `MESSAGE_REPORT` feedback rows (unknown enum value: the admin feedback list and "My feedback" return 500).
+Roll forward instead; or, before publishing an older deploy, `UPDATE feedback SET type = 'GENERAL' WHERE type =
+'MESSAGE_REPORT';` (Karlos runs it; the snapshot stays in the description) or delete those rows. Publishing an older
+deploy from Netlify's dashboard needs no build, so it shouldn't spend build credits. Details: README "Rolling back".
+
+**Android emulator check (4 Oct 2026, 9.8 storage move; Karlos has no Android phone).** Emulator `VV_Light` (API 34),
+debug builds of v9.15.0 and v9.17.0 against the local API on `vv-pg17`, driven through WebView debugging (the headless
+image draws no frames, so no screenshots). v9.15.0 signed in as a pre-9.17 account (Terms not accepted); tracker in
+airplane mode: 3 taps, "Offline — 3 waiting", server 0 events, app force-stopped. `adb install -r` v9.17.0, still offline:
+**still signed in**; browser storage empty and all five `vv_` keys now in Preferences; tracker "Offline — 3 waiting".
+Airplane off: "All saved", server 3 events (KILL, DIG, ACE). Online, the Terms step showed (Continue disabled until
+ticked; links open outside the app at volleyvision.co.nz, not live yet); accepted, stored 2026-10-01, gone after a
+restart. Chat post and the word filter (`****`). Sign-out removed the token and user from Preferences (queued taps and
+sent-tap ids stay by design, no names); reopening shows sign-in. Sign-up refuses without the tick; in-app account deletion
+lands on "Your account has been deleted…", the server has no trace, nothing of that account on the device. Signing back in
+works. Not covered: a release-signed build, a real phone, the iPhone (after Apple enrolment).
+
+### Phase 9.5 of the rebuild roadmap: clean-ups and the speed pass (branches `rebuild/p9-5-0-cleanups`, `rebuild/p9-5-speed`, 2026-10-04 to 06)
+
+No migration, no dependency, no deploy (Netlify credits exhausted; production stays on v9.15.0 until after 23 Oct).
+Autonomous run under Fable 5.1 from 6 Oct: subagents built each item test-first, I reviewed every diff, an independent
+Opus audit checked the auth items, and the three phase-end reviews ran (below). Karlos's decisions: 30-day backups,
+support mailbox not yet live, `?lite=1` opt-in, Claude runs `netlify unlink`, local measurement instead of a staging draft.
+
+| Item | Change | Test |
+|---|---|---|
+| 9.5.0.1 | `DOMAIN_LIVE`/`SUPPORT_EMAIL_CONFIRMED` in `legal.ts`; apps' legal links on netlify.app until the domain is live; `check-legal --release` refuses an unconfirmed mailbox; `docs/store/*` URLs | `check-legal.test.mjs` (23) in CI |
+| 9.5.0.2 | `backup.ps1 -KeepDays 30`, prunes only its own files after a successful backup; policy pages 30 days | `backup.test.ps1` in CI (pwsh) |
+| 9.5.0.3 | Unverified-email wording on the privacy/delete pages, data inventory and the in-app delete screen | browser |
+| 9.5.0.4 | README "Rolling back" (retype `MESSAGE_REPORT` rows before an older deploy) | – |
+| 9.5.0.5 (G2 ✔) | Terms step exempts `/matches/:id/track` and `/track/:id`; tracker reminder; chat still 403 | `termsGate.test.ts`; terms integration |
+| 9.5.0.6 (G7 ✔) | `netlify unlink`; 8 deny rules for `netlify env:*`; docs | – |
+| 9.5.0.7 | `versionName 9.18.0`; admin scripts refuse `--prod` with a preset URL, typed-ref confirmation | `adminScript.test.ts` |
+| 9.5.0.8 | `deploy.ps1 -Target staging -Draft` (free rehearsals) | refusal paths |
+| 9.5.1 | `Server-Timing` (staging/local; off on Lambda unless staging), Prisma op counter, browser tracing + span scrub (drift-checked), `measure.mjs`, local baseline | 3 unit files incl. a serverless-http round trip |
+| 9.5.2 | Home 12 → 6 ops, `?lite=1` → 4 (web); default shape unchanged | `coachDashboardOps.test.ts` |
+| 9.5.3 (G2) | Optimistic render from the device's cached user (same account as the token only); chunk preload; late-answer guard (audit MED, fixed) | `authStart.test.ts`; browser (401 path, early render) |
+| 9.5.4 (G2) | Per-request authz memo, off at the first non-read op; `/my-role` 9 → 3; order and authz matrix unchanged | 2 unit + 1 integration (incl. the stale-after-commit case) |
+| 9.5.5 | Windows engine out of the function zip (unverified); Sentry flush only after an error, flagged synchronously; capture-site scan | 4 unit files |
+| 9.5.6 (G2) | Single-key rate limit = one statement (bit-exact parity); multi-key keeps the transaction; 2 s cap | `rateLimit.test.ts` integration (7 cases, real Postgres) |
+| 9.5.7 | Additive `viewer` on match responses; match pages skip `/my-role`; batch/poll costs recorded | `http.matchViewer.test.ts` |
+| 9.5.8 | Startup pool line (local + staging); `connection_limit=3` recommended on staging (C3) | `dbPool.test.ts` |
+| 9.5.9 | `docs/region-decision.md` (recommends A: Netlify Pro + `sin`) | – |
+| 9.5.10 | `lib/proFeatures.ts`, always on, six panels wrapped | `proFeatures.test.ts` |
+
+**Measured (local stack; operation counts exact, milliseconds not representative; `docs/performance.md`):** Home 12 → 4
+(lite), `/teams/:id/my-role` 6/9 → 3, guarded reads 6 → 5, no second `/my-role` on the match pages, limiter ~29 → 11 ms
+per call; a tracking batch ≈ 8–11 ops per event (recorded, locking unchanged). **Function region:** not yet read
+(`fn` needs a Netlify deploy); the Ohio default is assumed in the region note.
+
+**Reviews:** independent Opus audit of 9.5.3/9.5.4/9.5.10 (1 MED fixed, 1 LOW recorded); `/code-review high` 3 fixed
+(flush flag mirrors Sentry's capture rule; `Server-Timing` fails closed on Lambda; capture-site scan) + 7 LOW recorded;
+`/security-review` no findings; phase-end Opus audit of 9.5.5–9.5.9 (see PROGRESS for its result).
+Checks: backend tsc / 98+ unit files / build; frontend tsc / lint / build; integration 11/11 on `vv-pg17`; `npm audit`
+clean in the frontend, two registry advisories in the backend (compression, proxy-addr; G3, patch bumps).

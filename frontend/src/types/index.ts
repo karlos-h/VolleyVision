@@ -181,8 +181,8 @@ export interface CoachingStats {
 export interface CoachDashboard {
   ownedTeams: TeamSummary[];
   memberTeams: TeamSummary[];
-  coachingStats: CoachingStats;
-  recentMatches: MatchSummaryItem[];
+  coachingStats?: CoachingStats;
+  recentMatches?: MatchSummaryItem[];
   upcomingMatches: UpcomingMatchItem[];
 }
 
@@ -366,6 +366,17 @@ export interface Player {
   updatedAt: string;
 }
 
+// The caller's role on a match's team, embedded by GET /matches/:id and the match
+// analytics (v9.5.7) so no /my-role round trip follows. Absent from older servers
+// and from matches cached offline before it existed: fall back to useTeamRole.
+export interface MatchViewer {
+  role: string | null;
+  isOwner: boolean;
+  canTrack: boolean;
+  seesEveryPlayer: boolean;
+  permissions: string[];
+}
+
 export interface Match {
   id: string;
   matchDate: string;
@@ -386,6 +397,7 @@ export interface Match {
   // scoreAdjustments (manual score taps) only comes back from GET /matches/:id;
   // list endpoints count events alone.
   _count?: { events: number; scoreAdjustments?: number };
+  viewer?: MatchViewer;
 }
 
 export interface SetScore {
@@ -528,6 +540,7 @@ export interface MatchAnalytics {
   teamStats: StatLine;
   playerStats: PlayerStatLine[];
   setStats: Array<StatLine & { setNumber: number }>;
+  viewer?: MatchViewer;
 }
 
 export interface TeamAnalytics {

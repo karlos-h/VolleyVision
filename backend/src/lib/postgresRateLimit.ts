@@ -6,11 +6,25 @@
 // Raw SQL rather than the generated client: the debit has to be one atomic
 // read-lock-write per key, which a read-then-write through the model API cannot
 // express without reopening the race this class exists to close.
+//
+// Two paths, one arithmetic. A single key (nearly every limiter) is one
+// INSERT ... ON CONFLICT DO UPDATE ... WHERE statement: one round trip instead
+// of an interactive transaction's four or five. Several keys (forgot-password:
+// ip + email) keep the transaction, because one upsert decides each row on its
+// own and so cannot make several keys all-or-nothing.
+//
+// Both rely on Postgres's default READ COMMITTED: there, ON CONFLICT DO UPDATE
+// locks the existing row and evaluates SET/WHERE against its latest committed
+// version, so debits on one key are serial. Under SERIALIZABLE (if the
+// database default were ever changed) concurrent debits would instead fail
+// with 40001, which lands in the catch below — the in-memory fallback, loud in
+// Sentry, not a wrong count.
 
 import { Prisma } from '@prisma/client';
 import * as Sentry from '@sentry/node';
 import { prisma } from './prisma';
 import { allowsAll, fullAt, refill, RateLimiter, RateLimitOptions } from './rateLimit';
+import { markFlushNeeded } from './sentryFlush';
 
 // The cleanup predicate is absolute ("full_at has passed"), not relative to a
 // window, so this interval is purely a cost knob: it caps how many rows a burst
@@ -20,8 +34,23 @@ const SWEEP_INTERVAL_MS = 60_000;
 
 // A limiter that stalls the request while the database is unwell is worse than
 // no limiter: Prisma's 5s default would spend half a Function's budget before
-// the in-memory fallback below ever ran.
+// the in-memory fallback below ever ran. Enforced on both paths by
+// `withTimeout`, as well as by the transaction's own options.
 const TX_TIMEOUT_MS = 2_000;
+
+/** Rejects after TX_TIMEOUT_MS. The query it gives up on may still finish and
+ * debit a token later — the conservative direction for a limiter. */
+async function withTimeout<T>(work: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Rate limiter query exceeded ${TX_TIMEOUT_MS}ms`)), TX_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface BucketRow {
   key: string;
@@ -48,12 +77,19 @@ export class PostgresRateLimiter {
   async tryConsume(keys: string | string[]): Promise<boolean> {
     const list = typeof keys === 'string' ? [keys] : keys;
     if (list.length === 0) return true;
+    // Deduplicated because ON CONFLICT DO UPDATE refuses to touch the same row
+    // twice in one statement — and a repeated key is still one key.
+    const unique = [...new Set(list)];
 
     try {
-      const allowed = await prisma.$transaction((tx) => this.consume(tx, list), {
-        timeout: TX_TIMEOUT_MS,
-        maxWait: TX_TIMEOUT_MS,
-      });
+      const allowed = await withTimeout(
+        unique.length === 1
+          ? this.consumeOne(unique[0])
+          : prisma.$transaction((tx) => this.consume(tx, unique), {
+              timeout: TX_TIMEOUT_MS,
+              maxWait: TX_TIMEOUT_MS,
+            }),
+      );
       await this.sweep();
       return allowed;
     } catch (err) {
@@ -69,9 +105,46 @@ export class PostgresRateLimiter {
       // wobble, and it lasts only as long as the wobble. Revisit only if
       // outages stop being rare enough for that to matter.
       console.error('Rate limiter fell back to in-memory buckets:', err);
+      markFlushNeeded();
       Sentry.captureException(err);
       return this.fallback.tryConsume(list);
     }
+  }
+
+  /**
+   * One key, one statement: refill, check and debit inside the upsert.
+   *
+   * A fresh key inserts a full bucket already spent by one — refill(undefined)
+   * minus one, full again 1/refillPerMs later. An existing key takes the row
+   * lock, computes R = refill() in SQL from the committed row, and is updated
+   * only if R >= 1; otherwise the WHERE fails, no row version is written and
+   * nothing is returned. Admitted exactly when a row comes back.
+   *
+   * `n` is now() truncated to the millisecond, the precision the columns
+   * store, so the elapsed time below is a whole number of milliseconds and
+   * the float arithmetic is the same as refill()'s, operation for operation.
+   * A first-use race waits on the other insert and then takes the update
+   * path; a sweep deleting the row meanwhile (it deletes only full buckets)
+   * just means a fresh full bucket is inserted. One row lock, so it cannot
+   * deadlock with the sorted multi-key transaction.
+   */
+  private async consumeOne(key: string): Promise<boolean> {
+    const max = Prisma.sql`${this.opts.max}::float8`;
+    const rate = Prisma.sql`${this.refillPerMs}::float8`;
+    const refilled = Prisma.sql`LEAST(${max}, b."tokens"
+      + round(extract(epoch FROM EXCLUDED."updated_at" - b."updated_at") * 1000) * ${rate})`;
+
+    const rows = await prisma.$queryRaw<{ key: string }[]>`
+      INSERT INTO "rate_limit_buckets" AS b ("key", "tokens", "updated_at", "full_at")
+      SELECT ${key}::text, ${max} - 1, c.n, c.n + (1 / ${rate}) * interval '1 millisecond'
+      FROM (SELECT date_trunc('milliseconds', now()) AS n) AS c
+      ON CONFLICT ("key") DO UPDATE SET
+        "tokens" = ${refilled} - 1,
+        "updated_at" = EXCLUDED."updated_at",
+        "full_at" = EXCLUDED."updated_at" + ((${max} - (${refilled} - 1)) / ${rate}) * interval '1 millisecond'
+      WHERE ${refilled} >= 1
+      RETURNING b."key"`;
+    return rows.length === 1;
   }
 
   /**
@@ -82,15 +155,18 @@ export class PostgresRateLimiter {
    * transaction), never from this process. Buckets are shared across Function
    * instances whose clocks drift independently, and a bucket stamped by a fast
    * clock reads as "in the future" to a slow one — one clock for everyone
-   * removes the question.
+   * removes the question. Truncated to the millisecond, the columns'
+   * precision: untruncated, the column rounded it while the Date read back
+   * here was truncated, so `now` could sit up to 1 ms before `updated_at` and
+   * a fresh bucket read a hair under full (a fresh max=1 key was refused about
+   * half the time).
    */
   private async consume(tx: Prisma.TransactionClient, keys: string[]): Promise<boolean> {
     // Sorted, and inserted in that order, so any two requests sharing keys
     // acquire them in the same sequence. Unsorted, a request holding
     // forgot:ip:X while waiting for forgot:email:Y deadlocks against one
-    // holding Y and waiting for X. Deduplicated because ON CONFLICT DO UPDATE
-    // refuses to touch the same row twice in one statement.
-    const sorted = [...new Set(keys)].sort();
+    // holding Y and waiting for X. `keys` arrives deduplicated (tryConsume).
+    const sorted = [...keys].sort();
     const keyRows = Prisma.join(sorted.map((key) => Prisma.sql`(${key}::text)`));
 
     // Materialise-and-lock in one statement. A plain SELECT ... FOR UPDATE
@@ -103,11 +179,11 @@ export class PostgresRateLimiter {
     // whose only purpose is to take that lock.
     const rows = await tx.$queryRaw<BucketRow[]>`
       INSERT INTO "rate_limit_buckets" ("key", "tokens", "updated_at", "full_at")
-      SELECT k.key, ${this.opts.max}::double precision, now(), now()
+      SELECT k.key, ${this.opts.max}::double precision, date_trunc('milliseconds', now()), date_trunc('milliseconds', now())
       FROM (VALUES ${keyRows}) AS k(key)
       ORDER BY k.key
       ON CONFLICT ("key") DO UPDATE SET "tokens" = "rate_limit_buckets"."tokens"
-      RETURNING "key", "tokens", "updated_at", now() AS "now"`;
+      RETURNING "key", "tokens", "updated_at", date_trunc('milliseconds', now()) AS "now"`;
 
     const now = rows[0].now.getTime();
     const debited = rows.map((row) => ({
@@ -137,8 +213,8 @@ export class PostgresRateLimiter {
     await tx.$executeRaw`
       UPDATE "rate_limit_buckets" AS b
       SET "tokens" = v.tokens,
-          "updated_at" = now(),
-          "full_at" = now() + interval '1 second' * v.seconds_to_full
+          "updated_at" = date_trunc('milliseconds', now()),
+          "full_at" = date_trunc('milliseconds', now()) + interval '1 second' * v.seconds_to_full
       FROM (VALUES ${Prisma.join(updates)}) AS v(key, tokens, seconds_to_full)
       WHERE b."key" = v.key`;
 
@@ -171,6 +247,7 @@ export class PostgresRateLimiter {
         )`;
     } catch (err) {
       console.error('Rate limiter bucket sweep failed:', err);
+      markFlushNeeded();
       Sentry.captureException(err);
     }
   }

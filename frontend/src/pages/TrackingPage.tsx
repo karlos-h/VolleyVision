@@ -20,6 +20,7 @@ import { scoringTeam } from '../lib/scoringRules';
 import type { ServingSide } from '../types';
 import type { QueueItem } from '../lib/eventQueueCore';
 import { confirmLeave, leaveWarning, setLeaveGuard } from '../lib/leaveGuard';
+import { useAuth } from '../context/AuthContext';
 
 // Another device's taps inside this window mean two people are tracking (6.11).
 const OTHER_DEVICE_WINDOW_MS = 2 * 60 * 1000;
@@ -136,13 +137,19 @@ export default function TrackingPage() {
   const recordEvent = useRecordEvent(matchId!);
   const { undo, isPending: undoPending } = useUndoEvent(matchId!);
   const queue = useEventQueue(matchId!);
+  // The Terms step doesn't cover the tracker (9.5.0.5); remind instead.
+  const termsPending = useAuth().user?.termsRequired === true;
 
   const updateScore = useUpdateScore(matchId!);
   const resetSetScore = useResetSetScore(matchId!);
   const resetMatch = useResetMatch(matchId!);
   // Track is offered only to those who can track a live match (players never
   // can — Iteration 3 Task 6); the shared header uses this to render the Track tab.
-  const { data: role } = useTeamRole(match?.teamId ?? '');
+  // GET /matches/:id carries the role since v9.5.7, so /my-role is skipped; a
+  // match cached offline before that has no `viewer` and falls back.
+  const viewer = match?.viewer;
+  const { data: fetchedRole } = useTeamRole(viewer ? '' : match?.teamId ?? '');
+  const role = viewer ?? fetchedRole;
   const canTrack = role?.permissions.includes('TRACK_MATCH') ?? false;
   // A role change mid-session moves you to the matching route. Not while the
   // role is unknown: offline, it may never load.
@@ -496,6 +503,7 @@ export default function TrackingPage() {
         venue={match.venue}
         status={match.status}
         canTrack={canTrack}
+        viewer={viewer}
       />
 
       {/* ── Sync status (6.9) ── */}
@@ -518,6 +526,11 @@ export default function TrackingPage() {
       )}
       {!queue.canPersist && (
         <p className="card p-3 text-sm text-error-strong">This device can't save offline. Stay connected while tracking.</p>
+      )}
+      {termsPending && (
+        <p className="card p-3 text-sm text-grey-900" role="status">
+          Please accept the updated Terms when you're back online. Tracking isn't affected; they'll show on any other page.
+        </p>
       )}
       {otherDevice && (
         <p className="card p-3 text-sm text-grey-900">
