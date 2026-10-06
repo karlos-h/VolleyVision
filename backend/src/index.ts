@@ -111,8 +111,7 @@ if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     console.log(`\n⚡ VolleyVision API running on http://localhost:${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health\n`);
     // 9.5.8: the pool knob that decides whether Promise.all queries overlap.
-    console.log(`   db pool: ${describePool(process.env.DATABASE_URL)}
-`);
+    console.log(`   db pool: ${describePool(process.env.DATABASE_URL)}\n`);
   });
 }
 
