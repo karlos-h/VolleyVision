@@ -10,6 +10,7 @@
 #   .\deploy.ps1 -NoBackup            # prod without today's backup.ps1 file
 #   .\deploy.ps1 -Target staging -Migrate   # prisma migrate deploy against staging, then stop
 #   .\deploy.ps1 -Target staging -Seed      # npm run db:seed:staging against staging, then stop
+#   .\deploy.ps1 -Target staging -Draft     # a draft deploy (free: no --prod) at rehearse-<sha>--<site>.netlify.app
 #
 # The auto-built message is "<tag> (<sha>): <commit subject>", with a
 # "+ uncommitted local changes" suffix when the working tree is dirty —
@@ -32,6 +33,14 @@
 # with no credentials (read-only checks), against staging with the SMOKE_*
 # values from backend/.env.staging (logs in as the seed users).
 #
+# -Draft (staging only, 9.5.0.8): on Netlify every production publish costs
+# credits, the staging site's included; a draft deploy is free. It uploads the
+# same local build without --prod, under the alias rehearse-<short sha>, and
+# smoke-checks that draft URL. The SPA calls the relative /api/v1, which
+# netlify.toml routes to the function on the same deploy, so the draft serves
+# both from one origin (no CORS change). Env vars come from the site's
+# dev/deploy-preview context; staging sets every value for all contexts.
+#
 # Notes:
 # - Deploys build LOCALLY (--build) and publish the working tree, not a git
 #   ref. --build is load-bearing: it runs netlify.toml's build command with
@@ -52,7 +61,8 @@ param(
   [switch]$Force,
   [switch]$NoBackup,
   [switch]$Migrate,
-  [switch]$Seed
+  [switch]$Seed,
+  [switch]$Draft
 )
 
 $ErrorActionPreference = 'Stop'
@@ -105,6 +115,14 @@ if (($Migrate -or $Seed) -and $Target -ne 'staging') {
 }
 if ($Migrate -and $Seed) {
   Write-Host "ABORTED: run -Migrate first, then -Seed, as two commands."
+  exit 1
+}
+if ($Draft -and $Target -ne 'staging') {
+  Write-Host "ABORTED: -Draft is for staging only. Production is published for real or not at all."
+  exit 1
+}
+if ($Draft -and ($Migrate -or $Seed)) {
+  Write-Host "ABORTED: -Draft deploys; run -Migrate or -Seed as its own command first."
   exit 1
 }
 
@@ -262,7 +280,14 @@ if (-not $Message) {
   }
 }
 
-$netlifyArgs = @('netlify-cli@26.2.0', 'deploy', '--prod', '--build', '--message', "$Message")
+$netlifyArgs = @('netlify-cli@26.2.0', 'deploy', '--build', '--message', "$Message")
+if ($Draft) {
+  # Netlify caps an alias at 37 characters; 'rehearse-' plus a short sha fits.
+  $draftAlias = 'rehearse-' + (git rev-parse --short HEAD)
+  $netlifyArgs += @('--alias', $draftAlias)
+} else {
+  $netlifyArgs += '--prod'
+}
 # --prod publishes to the site's production URL; --site always names the site,
 # so a stale local .netlify link can't publish prod code to another site while
 # the smoke check passes against the unchanged prod URL.
@@ -272,7 +297,7 @@ if ($Target -eq 'staging') {
   $netlifyArgs += @('--site', $ProdSiteId)
 }
 
-Write-Host "Deploying to $Target with message: $Message"
+Write-Host "Deploying to $Target$(if ($Draft) { ' (draft)' }) with message: $Message"
 # Same PowerShell 5.1 trap as the migration check above: under Stop, npm's
 # harmless stderr warnings (e.g. "npm warn allow-scripts") become terminating
 # NativeCommandErrors and abort the deploy before it starts. Run with Continue
@@ -295,6 +320,12 @@ if ($Target -eq 'staging') {
     if ($key.StartsWith('SMOKE_')) { $smokeEnv[$key] = $stagingVars[$key] }
   }
   $smokeUrl = $stagingVars['STAGING_URL']
+  if ($Draft) {
+    # https://<alias>--<site-name>.netlify.app, derived from STAGING_URL's host.
+    $siteHost = ([System.Uri]$stagingVars['STAGING_URL']).Host
+    $smokeUrl = "https://$draftAlias--$siteHost"
+    Write-Host "Draft URL: $smokeUrl"
+  }
 } else {
   # Prod runs only the read-only checks: blank any SMOKE_* left in this shell.
   $smokeEnv = @{ SMOKE_EMAIL = $null; SMOKE_PASSWORD = $null; SMOKE_OUTSIDER_EMAIL = $null; SMOKE_OUTSIDER_PASSWORD = $null }
