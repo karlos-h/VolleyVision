@@ -23,6 +23,7 @@ import {
   CHART_TOOLTIP_TEXT,
 } from '../../lib/chartColors';
 import { useChartWidth } from '../../lib/printing';
+import { hasProFeature } from '../../lib/proFeatures';
 
 const US = CHART_SERIES[0];
 const THEM = CHART_SERIES[1];
@@ -56,6 +57,8 @@ export default function MomentumChart({ matchId, homeName, awayName, canTrack = 
       .filter((_, i) => step === 1 || i % step === 0 || i === pts.length - 1)
       .map((p) => ({ ...p, up: Math.max(p.lead, 0), down: Math.min(p.lead, 0) }));
   }, [data, setNumber]);
+
+  if (!hasProFeature(undefined, 'momentum')) return null; // only matchId in scope, no team id
 
   if (isLoading) return <div className="card p-4 h-72 bg-grey-50 animate-pulse" aria-busy="true" />;
   if (isError) return <div className="card p-4 text-sm text-error-strong text-center">Couldn't load momentum. Try refreshing the page.</div>;

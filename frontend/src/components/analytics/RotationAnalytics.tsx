@@ -27,6 +27,7 @@ import {
   CHART_TOOLTIP_BG,
   CHART_TOOLTIP_TEXT,
 } from '../../lib/chartColors';
+import { hasProFeature } from '../../lib/proFeatures';
 
 const pct = (v: number | null) => (v == null ? '–' : `${v}%`);
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
@@ -58,6 +59,8 @@ export default function RotationAnalytics({ scope, id, canTrack = false, range, 
 }) {
   const { data, isLoading, isError, isPlaceholderData } = useRotations(scope, id, range);
   const chartWidth = useChartWidth(); // fixed while printing (8.7)
+
+  if (!hasProFeature(scope === 'team' ? id : undefined, 'rotations')) return null; // match scope: no team id in scope
 
   if (isLoading) return <div className="card p-4 h-48 animate-pulse bg-grey-50" aria-label="Loading rotations" />;
   if (isError || !data) return <p className="text-sm text-error-strong">Couldn't load rotations. Try refreshing the page.</p>;

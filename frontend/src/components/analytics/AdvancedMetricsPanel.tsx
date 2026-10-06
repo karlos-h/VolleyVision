@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useAdvancedMetrics } from '../../hooks';
 import type { DateRange } from '../../types';
+import { hasProFeature } from '../../lib/proFeatures';
 
 // Volleyball-style hitting percentage from a fraction: ".214", "-.100".
 function formatHitting(v: number | null): string {
@@ -54,6 +55,8 @@ export default function AdvancedMetricsPanel({ scope, id, canTrack = false, rang
   range?: DateRange;
 }) {
   const { data, isLoading, isError } = useAdvancedMetrics(scope, id, range);
+
+  if (!hasProFeature(scope === 'team' ? id : undefined, 'advancedAnalytics')) return null; // match scope: no team id in scope
 
   if (isLoading) return <div className="card h-40 bg-grey-50 animate-pulse" aria-busy="true" />;
   if (isError || !data) {
