@@ -80,7 +80,37 @@ What a request still costs: one user read (auth), one team and one membership re
 data — about 5 operations, each a round trip to the database. From Ohio to Singapore that is ~1 s of pure distance per
 guarded read, which is why the region note (`docs/region-decision.md`) matters more than any further query trimming.
 
-**Still to measure on a real deploy** (no Netlify credits on 6 Oct): the `fn` region, the cold-start time before/after
+## Staging draft, 7 Oct 2026 (after the pass; `connection_limit=3` set by Karlos)
+
+First real deployment measurement: `deploy.ps1 -Target staging -Draft` of v9.18.0, measured with `measure.mjs` from
+New Zealand (5 runs, warm instance; the smoke check had already warmed it, so no cold start was captured):
+
+| endpoint | ops | median wall ms | median db ms | ms per op | region |
+|---|---|---|---|---|---|
+| GET /health | 1 | 1399 | 1083 | 1083 | us-east-1 |
+| GET /auth/me | 2 | 2484 | 2168 | 1084 | us-east-1 |
+| GET /coach/dashboard (full, 6 ops) | 6 | 4216 | 7184 (sum; queries overlap) | ~1200 | us-east-1 |
+| GET /analytics/teams/:id | 5 | 4644 | 6515 (sum) | ~1300 | us-east-1 |
+| GET /teams/:id/my-role | 3 | 3749 | 3251 | 1084 | us-east-1 |
+| GET /analytics/matches/:id | 5 | 6196 | 6983 (sum) | ~1400 | us-east-1 |
+| GET /events/by-match/:id | 5 | 5508 | 6277 (sum) | ~1250 | us-east-1 |
+
+**What it says.** The function runs in **us-east-1 (N. Virginia)**, not Ohio, and every Prisma operation costs about
+**1.1 s** of database time from there to Singapore — five times the ~0.2 s the handoff assumed. `/health` is one
+`SELECT 1` and takes 1.1 s. Queries issued in parallel do overlap (Home: 7.2 s of summed query time in 4.0 s of wall
+time), so `connection_limit=3` is in effect. The pass did what it set out to do — Home is 6 operations instead of 12,
+`/my-role` 3 instead of 9 — but at 1.1 s per operation the remaining cost is distance, and only the region decision
+changes that: co-located, the same pages would take ~10–30 ms of database time.
+
+Why ~1.1 s rather than one round trip (~230 ms): Prisma over the transaction pooler with `pgbouncer=true` makes more
+than one round trip per operation (it resets prepared statements before each query), and each round trip crosses the
+Pacific. Worth checking once the region is settled; moot if the function and database share a region.
+
+**Function zip:** 21.8 MB. The Windows engine is gone (9.5.5 worked), but the Linux engine was packed twice — once by
+`external_node_modules`, once by `included_files` — and ~6 MB of WASM engines the Node runtime never loads came along
+with `@prisma/client`. Fixed in the follow-up below; re-check the size on the next draft.
+
+**Still to measure on a real deploy** (as of the 7 Oct draft): the `fn` region, the cold-start time before/after
 the smaller bundle (9.5.5: Windows engine excluded from the function zip; check the deploy log for the zip size), and
 the real per-operation cost. Run `measure.mjs` against a staging draft when credits return and append the table here.
 

@@ -2,7 +2,21 @@
 
 All notable changes to VolleyVision, reconstructed from the repository's commit and tag history. Versions are listed newest first, in chronological order of release. Untagged commits are listed under the tagged release they shipped with.
 
-## v9.18.0 — unreleased (tag pending G2/G3; no production deploy before 23 Oct)
+## v9.18.1 — 2026-10-07
+
+Follow-up to v9.18.0 after the first staging draft deploy (Netlify credits
+restored). Not deployed to production: Karlos is waiting for the support
+mailbox to exist first.
+
+**Internal**
+- The API function's zip packs the Linux Prisma engine once instead of twice
+  and no longer carries the WASM engines: 21.8 → 11 MB, bundling 11.7 → 5.4 s.
+- First real measurements (`docs/performance.md`): the function runs in
+  us-east-1 and each database operation costs ~1.1 s to Singapore — the query
+  trimming worked as planned, and the region decision
+  (`docs/region-decision.md`, revised for the Personal plan) is what's left.
+
+## v9.18.0 — 2026-10-06 (tagged; not deployed)
 
 Phase 9.5 of the rebuild roadmap: the speed pass, plus the clean-ups from the
 Phase 9 review. No migration, no new dependency. Works with the Android 9.13.0+
