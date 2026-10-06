@@ -6,6 +6,7 @@
 // Failures go to Sentry with a count only (paths hold file names).
 
 import * as Sentry from '@sentry/node';
+import { markFlushNeeded } from './sentryFlush';
 
 type RemoveResult = { error: { message: string } | null };
 type Remover = (paths: string[]) => Promise<RemoveResult>;
@@ -30,6 +31,7 @@ export async function removeStoredFiles(paths: string[], remove: Remover = remov
     } catch (err) {
       failed += chunk.length;
       console.error(`Could not remove ${chunk.length} stored file(s):`, err instanceof Error ? err.message : err);
+      markFlushNeeded();
       Sentry.captureException(err, { extra: { files: chunk.length } });
     }
   }

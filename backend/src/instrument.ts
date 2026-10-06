@@ -4,6 +4,7 @@
 import dotenv from 'dotenv';
 import * as Sentry from '@sentry/node';
 import { scrubRequest } from './lib/sentryScrub';
+import { wrapBeforeSend } from './lib/sentryFlush';
 
 // index.ts also calls dotenv.config(), but only after its own imports
 // evaluate; this file runs first, so it self-loads env the same way
@@ -31,7 +32,8 @@ if (dsn) {
     // become a second copy of that: no IP/user data by default, and
     // beforeSend below strips what sendDefaultPii alone doesn't cover.
     sendDefaultPii: false,
-    beforeSend: scrubRequest,
+    // Wrapped so api.js flushes only after an error (lib/sentryFlush.ts).
+    beforeSend: wrapBeforeSend(scrubRequest),
     // Errors are not the only events carrying request data: with tracing on,
     // transactions get the same `request` block and the same span attributes.
     beforeSendTransaction: scrubRequest,

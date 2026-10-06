@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { mapErrorToResponse } from '../lib/mapError';
+import { markFlushNeeded } from '../lib/sentryFlush';
 
 export class AppError extends Error {
   constructor(
@@ -27,6 +28,9 @@ export function errorHandler(
   const { status, body } = mapErrorToResponse(err);
   if (status === 500) {
     console.error('Unhandled error:', err);
+    // Sentry's Express handler captured this just before us; its beforeSend
+    // fires too late for the function's flush decision (lib/sentryFlush.ts).
+    markFlushNeeded();
   }
   res.status(status).json(body);
 }
