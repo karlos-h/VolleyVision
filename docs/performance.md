@@ -110,6 +110,11 @@ Pacific. Worth checking once the region is settled; moot if the function and dat
 `external_node_modules`, once by `included_files` — and ~6 MB of WASM engines the Node runtime never loads came along
 with `@prisma/client`. Fixed in the follow-up below; re-check the size on the next draft.
 
+**Cold start (measured 7 Oct):** the zip-fix draft, hit once after 9 minutes idle, answered `/health` with
+`cold;desc="1"`, `db;dur=2609` for its single query against ~1083 warm: about **1.5 s** extra for a fresh connection to
+the Singapore pooler and engine start, on top of whatever Lambda spends loading the (now 11 MB) zip before the handler
+runs, which the header can't see. Co-locating the database shrinks the connection part of that too.
+
 **Still to measure on a real deploy** (as of the 7 Oct draft): the `fn` region, the cold-start time before/after
 the smaller bundle (9.5.5: Windows engine excluded from the function zip; check the deploy log for the zip size), and
 the real per-operation cost. Run `measure.mjs` against a staging draft when credits return and append the table here.
