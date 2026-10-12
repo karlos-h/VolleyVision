@@ -132,3 +132,15 @@ instance is pointless (one request at a time per instance) and risks pgbouncer's
 **Recommendation:** keep `pgbouncer=true` on the transaction pooler (port 6543) and try `connection_limit=3` — on
 **staging first**, set by Karlos in the Netlify dashboard (never `netlify env:*`), then re-run `measure.mjs` on a draft
 deploy and compare `db;dur` against the baseline. Production waits until after 23 Oct and Karlos's go-ahead.
+
+## Home without the chart library (9.6.0.1, 12 Oct 2026)
+
+`DashboardPage` imported `MyStats` statically, and `MyStats` imports recharts, so every Home visit downloaded the
+recharts chunk (~118 kB gzip), even for a coach with no player records. `MyStats` is now `lazy()` behind a local
+`Suspense` (fallback keeps a `min-h-64` box), so the chunk loads only when "My stats" renders. From `vite build`:
+
+| Chunk | Before | After |
+|---|---|---|
+| `DashboardPage-*.js` | 14.7 kB (4.8 kB gzip); imports `recharts`, `PlayerRadarChart`, `TeamTrendChart`, `StatsOverview`, `printing` | 4.3 kB (2.0 kB gzip); imports `JoinByCodeCard`, `teamRoles`, `index`, `vendor` only |
+| `MyStats-*.js` | (inside DashboardPage) | 11.5 kB (3.8 kB gzip); imports `recharts` and the chart components |
+| `recharts-*.js` | 117.6 kB gzip, fetched on every Home visit | same chunk, fetched only when a chart renders |

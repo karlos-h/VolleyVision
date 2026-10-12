@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { lazy, Suspense, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCoachDashboard, useMyPlayerRecords } from '../hooks';
@@ -7,7 +7,11 @@ import type { TeamRole } from '../types';
 import { ROLE_BADGE } from '../lib/teamRoles';
 import { formatMatchDate } from '../lib/matchTime';
 import JoinByCodeCard from '../components/team/JoinByCodeCard';
-import MyStats from '../components/player/MyStats';
+import PageLoadingFallback from '../components/ui/PageLoadingFallback';
+
+// Lazy so Home only downloads the chart library (recharts, ~120 kB gzip) for
+// someone who actually has player records to chart.
+const MyStats = lazy(() => import('../components/player/MyStats'));
 
 // One home page for everyone (Phase 4.5) — there's no global coach/player
 // mode any more. "My teams" shows a card per team with the caller's role
@@ -96,7 +100,9 @@ export default function DashboardPage() {
       {hasStats && (
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-grey-600">My stats</h2>
-          <MyStats />
+          <Suspense fallback={<div className="min-h-64"><PageLoadingFallback /></div>}>
+            <MyStats />
+          </Suspense>
         </section>
       )}
     </div>
