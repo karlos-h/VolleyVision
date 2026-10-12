@@ -7,6 +7,7 @@ name: CI
 on:
   push:
     branches: [main, develop]
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -118,10 +119,26 @@ jobs:
         run: npm run build
       - name: The legal check still catches what it should
         run: node scripts/check-legal.test.mjs
+      - name: The version check still catches a stale versionName
+        run: node scripts/check-version.test.mjs
       - name: Legal pages match the app (company, support email, Terms version)
         run: node scripts/check-legal.mjs
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  # Tag pushes only: versionName in build.gradle (the app version) must equal
+  # the tag. The release PR sets it; v9.18.1 was tagged without that.
+  version:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/check-version.mjs
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
 
   # The Android shell (Phase 5): a production sync must pass the prod-config
   # check (no cleartext, no mixed content, no remote server URL) and the debug

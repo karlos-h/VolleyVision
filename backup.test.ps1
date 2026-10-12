@@ -52,6 +52,13 @@ try {
   Remove-Item -LiteralPath $dir -Recurse -Force
 }
 
+# Under -WhatIf, Remove-Item would skip clearing the connection string and leave
+# the full database URL in the caller's session.
+Write-Host 'env var cleanup'
+$envRemovals = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.GetCommandName() -eq 'Remove-Item' -and $n.Extent.Text -match 'Env:' }, $true)
+Check ($envRemovals.Count -gt 0) 'backup.ps1 removes its env var'
+foreach ($c in $envRemovals) { Check ($c.Extent.Text -match '-WhatIf:\$false') "Remove-Item Env: runs even under -WhatIf: $($c.Extent.Text)" }
+
 if ($failures) { Write-Host "backup.test.ps1: $failures FAILED" -ForegroundColor Red; exit 1 }
 Write-Host 'backup.test.ps1 passed' -ForegroundColor Green
 # Explicit: the -KeepDays 0 child run leaves $LASTEXITCODE = 1, and pwsh -Command
