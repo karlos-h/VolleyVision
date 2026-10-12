@@ -6,9 +6,10 @@ import { getApiErrorMessage } from '../lib/api';
 import PlayerRadarChart from '../components/charts/PlayerRadarChart';
 import TeamTrendChart from '../components/charts/TeamTrendChart';
 import PlayerRecordsManager from '../components/player/PlayerRecordsManager';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { legalHref } from '../lib/legal';
 import BlockedMembers from '../components/chat/BlockedMembers';
+import { useAuth } from '../context/AuthContext';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Admin', COACH: 'Coach', PLAYER: 'Player', VIEWER: 'Viewer',
@@ -32,6 +33,20 @@ export default function ProfilePage() {
   const { data: bests } = usePlayerBests();
   const { data: dashboard } = usePlayerDashboard();
   const updateProfile = useUpdateProfile();
+  const { logoutAll } = useAuth();
+  const navigate = useNavigate();
+  const [signOutAllError, setSignOutAllError] = useState('');
+
+  async function signOutEverywhere() {
+    if (!window.confirm('Sign out of VolleyVision on every device, including this one?')) return;
+    setSignOutAllError('');
+    try {
+      await logoutAll();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setSignOutAllError(getApiErrorMessage(err, 'Could not sign out of all devices. Try again.'));
+    }
+  }
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -263,7 +278,11 @@ export default function ProfilePage() {
           <a href={legalHref('terms')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[44px] text-sm text-navy-700 font-medium">Terms</a>
           <a href={legalHref('support')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[44px] text-sm text-navy-700 font-medium">Support</a>
         </div>
-        <Link to="/profile/delete-account" className="inline-flex items-center min-h-[44px] text-sm text-error-strong font-medium">Delete account</Link>
+        <div className="flex flex-wrap gap-x-5">
+          <button type="button" onClick={signOutEverywhere} className="inline-flex items-center min-h-[44px] text-sm text-navy-700 font-medium">Sign out of all devices</button>
+          <Link to="/profile/delete-account" className="inline-flex items-center min-h-[44px] text-sm text-error-strong font-medium">Delete account</Link>
+        </div>
+        {signOutAllError && <p className="text-sm text-error-strong" role="alert">{signOutAllError}</p>}
       </div>
     </div>
   );

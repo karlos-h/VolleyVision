@@ -18,15 +18,18 @@ export { Permission, getPermissionsForRole, roleHasPermission };
 // of the request at the first non-read operation. Null rows are memoised too
 // (one request only). Outside a request, or once it's off, every call reads.
 
-function memoized<T>(key: string, load: () => Promise<T>): Promise<T> {
+function memoized<T>(key: string, load: () => Promise<T>, alsoAs?: string): Promise<T> {
   const store = getRequestStore();
   if (!store?.memo) return load();
   const hit = store.memo.get(key);
   if (hit) return hit as Promise<T>;
   const p = load();
   store.memo.set(key, p);
+  if (alsoAs && !store.memo.has(alsoAs)) store.memo.set(alsoAs, p);
   // A failed read must not be served to later callers; they retry instead.
-  p.catch(() => { if (store.memo?.get(key) === p) store.memo.delete(key); });
+  p.catch(() => {
+    for (const k of [key, alsoAs]) if (k && store.memo?.get(k) === p) store.memo.delete(k);
+  });
   return p;
 }
 
@@ -35,6 +38,18 @@ function memoized<T>(key: string, load: () => Promise<T>): Promise<T> {
 export function loadUser(userId: string) {
   return memoized(`u:${userId}`, async () =>
     prisma.user.findUnique({ where: { id: userId }, select: { role: true, tokenVersion: true } }));
+}
+
+// requireAuth's read (9.6.0.2): loadUser's row plus whether this token's jti
+// was signed out of, in the same query. Memoised under its own key, so only a
+// read that applied this jti filter can ever say "not revoked"; it also seeds
+// u:<id>, its row being a superset, so later loadUser calls stay memo hits.
+export function loadAuthUser(userId: string, jti: string) {
+  return memoized(`u:${userId}:jti:${jti}`, async () =>
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, tokenVersion: true, revokedTokens: { where: { jti }, select: { jti: true } } },
+    }), `u:${userId}`);
 }
 
 export function loadTeam(teamId: string) {

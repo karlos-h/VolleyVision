@@ -294,6 +294,9 @@ model User {
   blocksMade     UserBlock[] @relation("BlocksMade")
   blocksReceived UserBlock[] @relation("BlocksReceived")
 
+  // 9.6.0.2: tokens this user signed out of, until they would have expired.
+  revokedTokens RevokedToken[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -836,6 +839,19 @@ model UserBlock {
   @@unique([blockerId, blockedId])
   @@index([blockedId])
   @@map("user_blocks")
+}
+
+// 9.6.0.2: a JWT signed out of before it expired (its jti). Kept only until
+// expiresAt, the token's own exp, after which the signature check refuses it
+// anyway. userId is nullable for rows not tied to an account.
+model RevokedToken {
+  jti       String   @id
+  userId    String?  @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
 }
 
 model FeedbackAttachment {

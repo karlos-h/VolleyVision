@@ -8,6 +8,7 @@ import { forgetSession, purgeUserQueue } from '../lib/eventQueue';
 import { setLeaveGuard } from '../lib/leaveGuard';
 import { flushStorage } from '../lib/nativeStorage';
 import { initialAuthState } from '../lib/authStart';
+import { endSession } from '../lib/logoutRequest';
 import { preloadLikelyPages } from '../lib/preloadPages';
 
 /** The user id inside a stored JWT (read locally; the server still verifies it). */
@@ -36,6 +37,8 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null; acceptTerms: boolean }) => Promise<void>;
   logout: () => void;
+  /** Ends every session of this account (9.6.0.2); throws if the server refuses. */
+  logoutAll: () => Promise<void>;
   /** Re-fetches /auth/me — used after verifying an email so the banner drops. */
   refreshUser: () => Promise<void>;
   onAccountDeleted: () => void;
@@ -109,17 +112,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   }, []);
 
-  const logout = useCallback(() => {
-    authApi.logout().catch(() => {});
-    clearToken();
-    // Queued taps stay (keyed by this user, no names); the cached user and
-    // match rosters don't.
+  // Queued taps stay (keyed by this user, no names); the cached user and
+  // match rosters don't.
+  const forgetDevice = useCallback(() => {
     clearOfflineCache();
     forgetSession();
     void flushStorage(); // the apps: the token removal reaches Preferences now
     setToken(null);
     setUser(null);
   }, []);
+
+  const logout = useCallback(() => {
+    endSession(getToken, clearToken, authApi.logout);
+    forgetDevice();
+  }, [forgetDevice]);
+
+  // Only after the server agreed: the token is dead then, so no logout call.
+  const logoutAll = useCallback(async () => {
+    await authApi.logoutAll();
+    clearToken();
+    forgetDevice();
+  }, [forgetDevice]);
 
   // Account deleted (9.4): the token is already dead server-side, so no logout
   // call. Unlike sign-out, this account's queued taps go too: nothing of it
@@ -147,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, refreshUser, onAccountDeleted }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, logoutAll, refreshUser, onAccountDeleted }}>
       {children}
     </AuthContext.Provider>
   );

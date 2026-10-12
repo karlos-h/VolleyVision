@@ -36,6 +36,10 @@ export interface AuthPayload {
   // only: a token minted before this shipped carries no `tv` at all, and
   // requireAuth/optionalAuth treat that as tv 0 — see lib/tokenVersion.ts.
   tv?: number;
+  // 9.6.0.2: each token's own id, so signing out can revoke just that one.
+  // Absent on tokens minted before then; those simply run out (exp).
+  jti?: string;
+  exp?: number;
 }
 
 export interface AuthResponse {
@@ -89,7 +93,29 @@ function jwtExpiresIn(): string {
 }
 
 export function generateToken(payload: AuthPayload): string {
-  return jwt.sign(payload, jwtSecret(), { expiresIn: jwtExpiresIn() } as jwt.SignOptions);
+  const jti = crypto.randomBytes(16).toString('base64url');
+  return jwt.sign({ ...payload, jti }, jwtSecret(), { expiresIn: jwtExpiresIn() } as jwt.SignOptions);
+}
+
+/**
+ * Sign-out (9.6.0.2): this token's jti is refused from now until its own exp,
+ * after which the signature check refuses it anyway. Idempotent, so a double
+ * tap or a retried request is still a 200.
+ */
+export async function revokeToken(payload: AuthPayload): Promise<void> {
+  if (!payload.jti || !payload.exp) return; // pre-9.6 token: covered by its exp
+  await prisma.revokedToken.createMany({
+    data: [{ jti: payload.jti, userId: payload.userId, expiresAt: new Date(payload.exp * 1000) }],
+    skipDuplicates: true,
+  });
+  // No scheduled job: sign-outs sweep the rows nothing can use any more. A
+  // failure here only leaves dead rows for the next one.
+  await prisma.revokedToken.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
+}
+
+/** Every token the user holds stops working (the same lever as a password reset). */
+export async function revokeAllTokens(userId: string): Promise<void> {
+  await prisma.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } }, select: { id: true } });
 }
 
 export function verifyToken(token: string): AuthPayload {

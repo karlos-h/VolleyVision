@@ -36,7 +36,8 @@ api.interceptors.request.use((config) => {
   if (isNative()) config.headers['X-Client'] = `${nativePlatform()}/${import.meta.env.VITE_APP_VERSION ?? 'unknown'}`;
   const token = getToken();
   const isPublicAuth = PUBLIC_AUTH_PATHS.some((p) => config.url?.startsWith(p));
-  if (token && !isPublicAuth) config.headers.Authorization = `Bearer ${token}`;
+  // An explicit header wins: sign-out sends the token it is ending (logoutRequest.ts).
+  if (token && !isPublicAuth && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -57,7 +58,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) responseHook?.();
     const hadAuth = !!error.config?.headers?.Authorization;
-    if (error.response?.status === 401 && hadAuth) {
+    // A sign-out refused because that token was already dead is no news: the
+    // device is signing out anyway, possibly into a new session by now.
+    if (error.response?.status === 401 && hadAuth && error.config?.url !== '/auth/logout') {
       clearToken();
       // The offline queue (vv_queue:*) is kept: it flushes once the same user
       // signs back in. The cached user and rosters go.
@@ -116,7 +119,8 @@ export const authApi = {
     api.post<AuthResponse>('/auth/register', data).then((r) => r.data),
   login: (data: { email: string; password: string }) =>
     api.post<AuthResponse>('/auth/login', data).then((r) => r.data),
-  logout: () => api.post('/auth/logout').then((r) => r.data),
+  logout: (authorization: string) => api.post('/auth/logout', null, { headers: { Authorization: authorization } }).then((r) => r.data),
+  logoutAll: () => api.post<{ message: string }>('/auth/logout-all').then((r) => r.data),
   me: () => api.get<User>('/auth/me').then((r) => r.data),
   forgotPassword: (data: { email: string }) =>
     api.post<{ message: string }>('/auth/forgot-password', data).then((r) => r.data),
