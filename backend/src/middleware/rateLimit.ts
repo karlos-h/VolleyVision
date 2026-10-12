@@ -6,6 +6,7 @@
 import { Request, RequestHandler } from 'express';
 import { PostgresRateLimiter } from '../lib/postgresRateLimit';
 import { normalizeEmail } from '../lib/email';
+import { pickClientIp } from '../lib/clientIp';
 import { RateLimiter, RateLimitOptions } from '../lib/rateLimit';
 import { AppError } from './errorHandler';
 
@@ -57,31 +58,23 @@ export function createRateLimit(config: RateLimitConfig): RequestHandler {
 }
 
 /**
- * Client IP for keying, best effort.
+ * Client IP for keying, best effort; the decision is lib/clientIp.ts.
  *
- * Netlify sets x-nf-client-connection-ip to the connecting address, so prefer
- * it. Falling back to x-forwarded-for, take the RIGHT-most entry, not the
- * left-most: proxies append as the request travels, so the left-most value is
- * whatever the caller wrote and the right-most is what the nearest proxy
- * observed. Reading the left-most made this key fully caller-chosen.
- *
- * ponytail: we cannot prove the platform overwrites either header rather than
- * passing a forged one through, so treat the IP arm as best-effort. Two things
- * make that acceptable: every limiter below pairs it with a key the caller
- * can't forge (their email, or their authenticated user id), and RateLimiter
- * caps its key count, so a forged-IP flood can't grow the map without bound.
- * Enable Express `trust proxy` with a known hop count if the IP arm ever needs
- * to stand on its own.
+ * ponytail: off Fly we cannot prove the platform overwrites the headers rather
+ * than passing a forged one through, so treat the IP arm as best-effort. Two
+ * things make that acceptable: every limiter below pairs it with a key the
+ * caller can't forge (their email, or their authenticated user id), and
+ * RateLimiter caps its key count, so a forged-IP flood can't grow the map
+ * without bound. On Fly a header only counts once Netlify's signature
+ * (middleware/proxySignature.ts) proves Netlify wrote it.
  */
 function clientIp(req: Request): string {
-  const nf = req.headers['x-nf-client-connection-ip'];
-  const direct = Array.isArray(nf) ? nf[0] : nf;
-  if (direct) return direct.trim();
-
-  const forwarded = req.headers['x-forwarded-for'];
-  const chain = Array.isArray(forwarded) ? forwarded.join(',') : forwarded;
-  const nearest = chain?.split(',').pop();
-  return (nearest ?? req.ip ?? 'unknown').trim();
+  return pickClientIp({
+    headers: req.headers,
+    proxyVerified: req.proxyVerified === true,
+    onFly: !!process.env.FLY_APP_NAME,
+    socketIp: req.ip ?? req.socket?.remoteAddress,
+  });
 }
 
 // ─── Instances ────────────────────────────────────────────────────────────────
