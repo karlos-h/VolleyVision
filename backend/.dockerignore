@@ -1,0 +1,11 @@
+node_modules
+dist
+.env*
+!.env.example
+!.env.staging.example
+*.dump
+*.sql
+coverage
+netlify-functions
+uploads
+.claude-flow
