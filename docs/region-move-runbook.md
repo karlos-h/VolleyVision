@@ -25,9 +25,12 @@ It holds everyone's data in plain text, and the storage export holds user files 
 
 Use the **Session pooler** string (Supabase, Connect, Session pooler; port 5432). Your network is IPv4-only and the direct host is IPv6-only. Set the variables in the terminal you run the scripts from; each script clears its own database variable when it finishes.
 
+Don't type a connection string: PSReadLine saves every command line to disk. Either turn history off for the session first (`Set-PSReadLineOption -HistorySaveStyle SaveNothing`), or read the value from a file. `backend\.env.staging`'s `DIRECT_URL` is the old staging project's session pooler string, so for the staging export:
+
 ```powershell
-$env:OLD_DB_URL = '<old project session pooler string>'   # export only
-$env:NEW_DB_URL = '<new project session pooler string>'   # import only
+Set-PSReadLineOption -HistorySaveStyle SaveNothing
+$env:OLD_DB_URL = ((Get-Content backend\.env.staging | Where-Object { $_ -like 'DIRECT_URL=*' }) -replace '^DIRECT_URL=', '').Trim('"', "'")
+$env:NEW_DB_URL = '<new project session pooler string>'   # import only; paste after SaveNothing
 ```
 
 For non-interactive runs, `-ConfirmRef <ref>` (or `$env:MOVE_CONFIRM_REF`) replaces the typed-ref prompt. You normally type the ref instead.
@@ -43,7 +46,7 @@ Timing: about 30 minutes. No users to warn.
    (Without `-EnvFile`, `backup.ps1` reads `backend/.env`, which points at production. Expect `Backup saved: ...`.)
 2. **[KARLOS]** Export the database:
    ```powershell
-   $env:OLD_DB_URL = '<old staging session pooler string>'
+   $env:OLD_DB_URL = ((Get-Content backend\.env.staging | Where-Object { $_ -like 'DIRECT_URL=*' }) -replace '^DIRECT_URL=', '').Trim('"', "'")
    .\scripts\move-db.ps1 -Export -From lnzircweyhwiemspuaav -Out D:\vv-move-staging
    ```
    Type the ref when asked. Expect a table with `data.dump written`, `counts.json` and `migrations.json` all `PASS`.
