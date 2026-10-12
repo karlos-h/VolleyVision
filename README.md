@@ -24,6 +24,7 @@ Leagues, match video (YouTube and upload), the AI assistant/match summary, heat 
 - **Backend:** Express 4 + TypeScript 5 + Prisma 5, against Supabase Postgres.
 - **Frontend:** React 18 + Vite 5 + TanStack Query 5 + Tailwind CSS 3.
 - **Deployment:** Netlify — the frontend as static assets, the entire backend as one Netlify Function.
+  `/api/v1/*` and `/health` are proxied (signed) to the Fly API by the `netlify/plugins/api-proxy` build plugin, chosen by `API_ORIGIN` (`function` = rollback to the Netlify Function).
 - **Error tracking:** Sentry (`@sentry/node` / `@sentry/react`).
 
 ## Repository layout

@@ -14,6 +14,8 @@ const modelHandlers = new Map<string, Record<string, AnyFn>>();
 const modelCalls = new Map<string, Record<string, any[][]>>();
 const models = new Map<string, Record<string, AnyFn>>();
 const rawCalls: any[][] = [];
+/** Set to make every $queryRaw/$executeRaw reject (a database outage). */
+export const rawFailure: { error: Error | null } = { error: null };
 
 /** Every $queryRaw/$executeRaw call's arguments, in order. */
 export function rawCallsMade(): any[][] {
@@ -54,6 +56,7 @@ export function resetDb(): void {
   modelHandlers.clear();
   modelCalls.clear();
   rawCalls.length = 0;
+  rawFailure.error = null;
 }
 
 /**
@@ -73,7 +76,7 @@ export const db: any = new Proxy(
       // Raw SQL (e.g. recordOneEvent's row lock) is a recorded no-op here;
       // only the integration tests prove what it does.
       if (prop === '$queryRaw' || prop === '$executeRaw') {
-        return async (...args: any[]) => { rawCalls.push(args); noteDbOperation(prop); return []; };
+        return async (...args: any[]) => { if (rawFailure.error) throw rawFailure.error; rawCalls.push(args); noteDbOperation(prop); return []; };
       }
       if (typeof prop !== 'string') return undefined;
       if (!models.has(prop)) models.set(prop, createModel(prop));

@@ -32,6 +32,11 @@ import { checkDatabase } from './lib/dbHealth';
 import { allowedOrigins } from './lib/corsOrigins';
 import { requestContext } from './lib/serverTiming';
 import { describePool } from './lib/dbPool';
+import { sentryRequestScope } from './lib/sentryRequest';
+import { installShutdown } from './lib/shutdown';
+import { startKeepAlive } from './lib/keepAlive';
+import { requireProxySignature } from './middleware/proxySignature';
+import { mountDebugRoutes } from './routes/debug';
 
 dotenv.config();
 
@@ -41,6 +46,14 @@ const PORT = process.env.PORT || 3001;
 // ─── Middleware ───────────────────────────────────────────────────────────────
 // First, so app;dur covers every middleware and each request gets its own store.
 app.use(requestContext);
+app.use(sentryRequestScope(Sentry));
+// Netlify (and any CDN in front of Fly) may cache a proxied response that carries
+// validators; API and health answers are per-user or live, so never.
+app.set('etag', false);
+app.use(['/api', '/health'], (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 app.use(helmet());
 // Compress JSON responses (brotli where the client supports it, else gzip).
 // Safe under serverless-http, which runs this app on Netlify: it treats a
@@ -51,6 +64,10 @@ app.use(compression());
 // allowedHeaders is left to cors's default, which echoes the preflight's
 // requested headers, so Authorization and the app's X-Client both pass.
 app.use(cors({ origin: allowedOrigins(process.env) }));
+// 9.6.R3: on Fly only Netlify's signed proxy gets in (GET /health/live is
+// exempt inside the middleware). After cors/helmet so a refusal still carries
+// their headers, before express.json so a refused body is never parsed.
+app.use(requireProxySignature);
 // Override morgan's built-in :url token (req.originalUrl) with req.path —
 // reset tokens, join codes, etc. sometimes ride in a query string, and that
 // string would otherwise land in plaintext request logs. 'dev' still uses this
@@ -62,6 +79,7 @@ app.use(express.json());
 // After CORS, so a 426 still carries the allow headers and preflights never
 // reach it; /health is outside /api/v1 and so never refused.
 app.use('/api/v1', minClientVersion);
+mountDebugRoutes(app); // R3 investigation, staging only; delete after R6
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 // All routes versioned under /api/v1 so Phase 2+ can introduce /api/v2 without
@@ -91,6 +109,11 @@ app.get('/health', async (_req, res) => {
   res.status(db ? 200 : 503).json({ status: db ? 'ok' : 'degraded', db: db ? 'ok' : 'unreachable' });
 });
 
+// Fly's health check: no database, so a Supabase blip can't restart the machine.
+app.get('/health/live', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // After every route so Sentry observes them all, before errorHandler so
 // its captured stack still reflects the original error. Safe to call
 // unconditionally: Sentry.captureException no-ops when instrument.ts
@@ -107,12 +130,21 @@ app.use(errorHandler);
 // line showed up in Sentry breadcrumbs). AWS_LAMBDA_FUNCTION_NAME is always
 // set inside the function.
 if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  app.listen(PORT, () => {
+  // 0.0.0.0: Fly's proxy reaches the machine on its private interface, not loopback.
+  const server = app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`\n⚡ VolleyVision API running on http://localhost:${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health\n`);
     // 9.5.8: the pool knob that decides whether Promise.all queries overlap.
     console.log(`   db pool: ${describePool(process.env.DATABASE_URL)}\n`);
   });
+  installShutdown({
+    server,
+    disconnect: () => prisma.$disconnect(),
+    flush: () => Sentry.close(2000),
+    exit: (code) => process.exit(code),
+    log: console.log,
+  });
+  startKeepAlive({ ping: () => prisma.$queryRaw`SELECT 1` });
 }
 
 export default app;

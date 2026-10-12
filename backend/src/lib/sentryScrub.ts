@@ -1,6 +1,7 @@
 // What the API sends to Sentry about a request (moved from instrument.ts in
 // 9.0.9, so it can be tested). Pure: no Sentry import.
 import { scrubUrl } from './scrubUrl';
+import { foldIds } from './sentryRequest';
 import { clientTag } from './clientVersion';
 
 // Strip the parts of a captured request that can carry personal data.
@@ -49,9 +50,11 @@ type ScrubbableEvent = {
 };
 
 // 9.0.9: the client's IP, as Netlify and common proxies/CDNs forward it.
+// 9.6.R3: Fly's too, and x-nf-sign: not an IP, but a token minted with the
+// proxy secret that anyone holding could replay against Fly until it expires.
 const IP_HEADERS = new Set([
   'x-forwarded-for', 'x-real-ip', 'x-nf-client-connection-ip', 'client-ip', 'forwarded',
-  'cf-connecting-ip', 'true-client-ip',
+  'cf-connecting-ip', 'true-client-ip', 'fly-client-ip', 'x-nf-sign',
 ]);
 
 export function scrubRequest<T extends ScrubbableEvent>(event: T): T {
@@ -79,7 +82,7 @@ export function scrubRequest<T extends ScrubbableEvent>(event: T): T {
   if (event.user) delete event.user.ip_address;
 
   // Without a matched route the transaction is named after the raw path.
-  if (event.transaction) event.transaction = scrubUrl(event.transaction);
+  if (event.transaction) event.transaction = foldIds(scrubUrl(event.transaction));
 
   // Spans carry their own copy: processSegmentSpan writes the same unfiltered
   // URL to url.full and the query to url.query, so clearing event.request

@@ -45,9 +45,18 @@
     "!backend/node_modules/@prisma/client/runtime/query_engine_bg.*",
   ]
 
-# Route the API through the same domain as the frontend so the SPA's default
-# same-origin "/api/v1" base URL (see frontend/.env.example) just works with no
-# VITE_API_URL needed.
+# The API now lives on Fly. This plugin puts signed proxy rules for /api/v1/* and
+# /health in front of the redirects below, targeting the Fly app named by
+# API_ORIGIN (the installed apps keep calling this site's /api/v1). deploy.ps1
+# sets API_ORIGIN in the shell; a site-level API_ORIGIN env var would win over
+# it, so neither Netlify site may define one. The build log line
+# "api-proxy: API_ORIGIN=..." proves which value was used.
+[[plugins]]
+  package = "./netlify/plugins/api-proxy"
+
+# Same-origin "/api/v1" base URL (see frontend/.env.example), no VITE_API_URL.
+# These two rewrites to the Netlify Function are now the ROLLBACK path only
+# (API_ORIGIN=function makes the plugin inject nothing); delete them in 9.7.
 [[redirects]]
   from = "/api/v1/*"
   to = "/.netlify/functions/api/api/v1/:splat"
