@@ -115,3 +115,9 @@ row-level-security migration applies as it did on production.
 
 **The proof it's staging:** the smoke check signs in as the `staging+…@volleyvision.test` seed users, which exist
 only in the staging database. `/health` reports only `{status, db}`, so it can't tell the two databases apart.
+
+## Proxy limits
+
+Netlify proxies `/api/v1/*` to Fly (the `api-proxy` plugin) and cuts a proxied request off at 26 seconds. Measure on staging before prod (R6): team delete with a large chat history, account deletion, and the request body size that gets through the proxy (the 20 MB upload test, 9.6.0.3). If one exceeds the limit it must be made faster or asynchronous, or called on the Fly URL directly.
+
+Note: staging auto-stops on Fly, and the Supabase Free project may pause after about 7 idle days. That is acceptable on staging; the first request after a pause is slow until the project is resumed.
