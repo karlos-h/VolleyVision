@@ -62,7 +62,9 @@ param(
   [switch]$NoBackup,
   [switch]$Migrate,
   [switch]$Seed,
-  [switch]$Draft
+  [switch]$Draft,
+  # 'function' is the rollback to the Netlify Function (until it is deleted in 9.7).
+  [ValidateSet('fly', 'function')][string]$ApiOrigin = 'fly'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -297,6 +299,17 @@ if ($Target -eq 'staging') {
   $netlifyArgs += @('--site', $ProdSiteId)
 }
 
+# Read by netlify/plugins/api-proxy at build time, which fails the build on any
+# other value. Not secret, so it is logged. Cleared again after the deploy.
+if ($ApiOrigin -eq 'function') {
+  $env:API_ORIGIN = 'function'
+} elseif ($Target -eq 'staging') {
+  $env:API_ORIGIN = 'https://volleyvision-api-staging.fly.dev'
+} else {
+  $env:API_ORIGIN = 'https://volleyvision-api.fly.dev'
+}
+Write-Host "API_ORIGIN=$($env:API_ORIGIN)"
+
 Write-Host "Deploying to $Target$(if ($Draft) { ' (draft)' }) with message: $Message"
 # Same PowerShell 5.1 trap as the migration check above: under Stop, npm's
 # harmless stderr warnings (e.g. "npm warn allow-scripts") become terminating
@@ -306,6 +319,7 @@ $ErrorActionPreference = 'Continue'
 & npx @netlifyArgs
 $deployExitCode = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'
+Remove-Item Env:API_ORIGIN -ErrorAction SilentlyContinue -WhatIf:$false
 if ($deployExitCode -ne 0) {
   Write-Host ""
   Write-Host "DEPLOY FAILED (exit code $deployExitCode). Check the output above for whether anything was published."
