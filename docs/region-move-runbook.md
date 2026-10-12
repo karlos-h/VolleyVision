@@ -38,9 +38,9 @@ Timing: about 30 minutes. No users to warn.
 
 1. **[KARLOS]** Safety copy of the old staging database. Docker running, then:
    ```powershell
-   .\backup.ps1 -OutDir D:\Backups
+   .\backup.ps1 -EnvFile backend\.env.staging -OutDir D:\Backups
    ```
-   (`backup.ps1` reads `backend/.env`, which points at production. For staging, point it at the staging file: `.\backup.ps1 -EnvFile backend\.env.staging -OutDir D:\Backups`. Expect `Backup saved: ...`.)
+   (Without `-EnvFile`, `backup.ps1` reads `backend/.env`, which points at production. Expect `Backup saved: ...`.)
 2. **[KARLOS]** Export the database:
    ```powershell
    $env:OLD_DB_URL = '<old staging session pooler string>'
@@ -84,9 +84,11 @@ Timing: about 30 minutes. No users to warn.
    ```
    Expect the dry run to list `users.profile_image` (or "no hits" if nobody has a photo) and nothing else; if another column shows `<- unexpected`, stop and tell Claude. After apply: `PASS: no column names the old project any more.`
 9. **[KARLOS]** Point staging at the new project: set the staging secrets on the Fly app `volleyvision-api-staging` and in the Netlify staging site's env (dashboard only; Claude never runs `netlify env:*`). Names: `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_PROJECT_REF` (the new ref). Full table and how to set them without shell history: `docs/fly-setup.md` and `docs/staging-setup.md`. Update `backend/.env.staging` (gitignored) the same way.
-10. **[KARLOS]** Deploy staging: `.\deploy.ps1 -Target staging`. The smoke check runs after it.
-11. **[CLAUDE]** Verify: `node backend/scripts/smoke.mjs https://volleyvision-staging.netlify.app`, plus the speed measurements in `docs/performance.md` (the point of the move). Report the table.
-12. **[KARLOS]** Before the production window: **pause the Sydney staging project** so a Sydney production project can be active (limit: 2 active; production's old project stays active until the very end of its own window). Staging is unpaused again whenever you want to rehearse.
+10. **[KARLOS]** Set the FULL Fly secret set on `volleyvision-api-staging`, not just the four above: the whole table in `docs/fly-setup.md`, including `JWT_SECRET` (the staging site's value), `CLIENT_URL`, `CORS_EXTRA_ORIGINS` (must include `https://localhost,capacitor://localhost`, or every installed Android app fails every call), the `SMTP_*` set, `SENTRY_DSN` and `SUPABASE_CHAT_BUCKET`. Then set `API_PROXY_SIGNING_SECRET` to the same random value on the Netlify staging site (dashboard, Runtime scope) and on the Fly app. Staging and prod get different values.
+11. **[CLAUDE]** Deploy and check the API directly, from `backend/`: `fly deploy -c fly.staging.toml --ha=false`, then `curl https://volleyvision-api-staging.fly.dev/health/live` (expect 200) and `curl https://volleyvision-api-staging.fly.dev/health` (expect 403: an unsigned direct call is refused, which proves the signature check is on).
+12. **[KARLOS]** Deploy the frontend as a draft first: `.\deploy.ps1 -Target staging -Draft -ApiOrigin fly`, then `.\deploy.ps1 -Target staging -ApiOrigin fly` once the draft looks right. The smoke check runs after it.
+13. **[CLAUDE]** Check `/health` THROUGH the Netlify URL (`https://volleyvision-staging.netlify.app/health`): expect 200 (proves the signed proxy works). Then verify: `node backend/scripts/smoke.mjs https://volleyvision-staging.netlify.app`, plus the speed measurements in `docs/performance.md` (the point of the move). Report the table.
+14. **[KARLOS]** Before the production window: **pause the Sydney staging project** so a Sydney production project can be active (limit: 2 active; production's old project stays active until the very end of its own window). Staging is unpaused again whenever you want to rehearse.
 
 Staging rollback: unpause the old staging project (pause the new one first if two others are active) and put the old staging values back in the env. Nothing else was changed.
 
@@ -94,7 +96,9 @@ Staging rollback: unpause the old staging project (pause the new one first if tw
 
 Timing: **a 60-minute window.** There is no maintenance flag in the app. **Announce the window beforehand** (players and coaches: "VolleyVision will be unavailable between X and Y"). **Writes made after the export starts are lost**: stat entries, chat, sign-ups. Don't let anyone track a live match during it. The old app keeps answering until the cut-over, so tell people to stop, not just warn them.
 
-Before the window **[KARLOS]**: staging move done and verified; Sydney staging paused (staging step 12); export folders `D:\vv-move-prod` ready on a drive with room; Docker running; the new-project values to hand.
+Prerequisites (do not start the window without both): the R3 header investigation on staging (`docs/fly-setup.md`, "Headers seen on Fly") confirmed Netlify forwards the client IP through the signed proxy, and `CORS_EXTRA_ORIGINS` is verified on the Fly prod app (it includes `https://localhost,capacitor://localhost`).
+
+Before the window **[KARLOS]**: staging move done and verified; Sydney staging paused (staging step 14); export folders `D:\vv-move-prod` ready on a drive with room; Docker running; the new-project values to hand.
 
 | Min | Step |
 |---|---|
@@ -103,10 +107,10 @@ Before the window **[KARLOS]**: staging move done and verified; Sydney staging p
 | 5-15 | 2-3 (export) |
 | 15-20 | 4-5 (create the Sydney project) |
 | 20-35 | 6-8 (import, storage, URLs) |
-| 35-50 | 9-10 (secrets, deploy, smoke) |
-| 50-60 | 11-12 (verify, reopen). Pausing the old project (13) comes later. |
+| 35-50 | 8-11 (env, secrets, Fly and Netlify deploys) |
+| 50-60 | 12-14 (verify, reopen). Pausing the old project (15) comes later. |
 
-1. **[KARLOS]** Safety copy: `.\backup.ps1 -OutDir D:\Backups`. Expect `Backup saved: ...`.
+1. **[KARLOS]** Safety copy: `.\backup.ps1` (its default output folder, `$HOME\Backups`: `deploy.ps1 -Target prod` looks for today's file there and aborts without it). Expect `Backup saved: ...`.
 2. **[KARLOS]** Export the database:
    ```powershell
    $env:OLD_DB_URL = '<old prod session pooler string>'
@@ -118,21 +122,23 @@ Before the window **[KARLOS]**: staging move done and verified; Sydney staging p
 5. **[KARLOS]** Import the database: `.\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-prod` with `NEW_DB_URL` set. Every row `PASS` (as staging step 6). **Do not go on after a FAIL**; tell Claude.
 6. **[KARLOS]** Import storage (`--from-dir D:\vv-move-prod\storage`, dry run then `--apply`; as staging step 7).
 7. **[KARLOS]** Rewrite URLs: `--apply --old-ref rkkhrmhorgdqkxflipui --new-ref <newref>`, with `DATABASE_URL` the NEW project's (as staging step 8).
-8. **[KARLOS]** Set the production secrets on the Fly app `volleyvision-api` and in the Netlify prod env: `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (`docs/fly-setup.md`). `JWT_SECRET` stays the same (a new one signs everybody out). Redeploy the Fly app so it picks them up.
-9. **[KARLOS]** Deploy the frontend: `.\deploy.ps1 -Target prod`. It aborts on pending migrations (none, the import applied them) and runs the smoke check.
-10. **[CLAUDE]** Verify against prod: `node backend/scripts/smoke.mjs https://volleyvision-app.netlify.app`, and check `/health` says `db ok`. **[KARLOS]** Sign in, open a team and a match, open a chat attachment and a profile photo.
-11. **[KARLOS]** Announce the app is open again. **From here on, writes go to the new database. Rollback is roll-forward only.**
-12. **[CLAUDE]** Record the move in `docs/audit/AUDIT-LOG.md` and the progress file.
-13. **[KARLOS]** Last step of the window: pause the old production project (Supabase dashboard, Pause project). Not earlier: see below.
+8. **[KARLOS]** Point `backend/.env` (gitignored) `DATABASE_URL` and `DIRECT_URL` at the NEW prod project's session-pooler strings, as the staging sequence does for `.env.staging`. Otherwise `deploy.ps1 -Target prod` runs `prisma migrate status` against the OLD project, which lacks `20261012000000_revoked_tokens` (the new project has it after the import), and aborts mid-window.
+9. **[KARLOS]** Set the production secrets on the Fly app `volleyvision-api` and in the Netlify prod env (dashboard only): `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the rest of the FULL set in the `docs/fly-setup.md` table: `JWT_SECRET`, `CLIENT_URL`, `CORS_EXTRA_ORIGINS`, the `SMTP_*` set, `SENTRY_DSN`, `SUPABASE_CHAT_BUCKET`. `JWT_SECRET` must be the SAME value the Netlify production site uses today: a different one signs every existing session out at the cut-over. `CORS_EXTRA_ORIGINS` must include `https://localhost,capacitor://localhost`, or every installed Android app fails every call. Set `API_PROXY_SIGNING_SECRET` to the same random value on the Netlify prod site (Runtime scope) and the Fly app; it must be DIFFERENT from staging's.
+10. **[CLAUDE]** From `backend/`, on Karlos's go: `fly deploy -c fly.prod.toml --ha=false`. Then `curl https://volleyvision-api.fly.dev/health/live` (expect 200) and `curl https://volleyvision-api.fly.dev/health` (expect 403: unsigned direct call refused, so the signature check is on).
+11. **[KARLOS]** Deploy the frontend: `.\deploy.ps1 -Target prod -ApiOrigin fly` (`-ApiOrigin` is mandatory for prod). It aborts on pending migrations (none: the import applied them and step 8 points it at the new project) and runs the smoke check.
+12. **[CLAUDE]** Verify against prod: `node backend/scripts/smoke.mjs https://volleyvision-app.netlify.app`, and check `/health` THROUGH the Netlify URL (`https://volleyvision-app.netlify.app/health`) returns 200 and says `db ok` (proves the signed proxy works). **[KARLOS]** On the web: sign in, open a team and a match, open a chat attachment and a profile photo. **[KARLOS]** On the Android phone: sign in, Home, open a match.
+13. **[KARLOS]** Announce the app is open again. **From here on, writes go to the new database. Rollback is roll-forward only.**
+14. **[CLAUDE]** Record the move in `docs/audit/AUDIT-LOG.md` and the progress file.
+15. **[KARLOS]** Last step of the window: pause the old production project (Supabase dashboard, Pause project). Not earlier: see below.
 
 ### The old function
 
-The Netlify Function stays reachable at `/.netlify/functions/api/...` on production after the cut-over, and it still points at the OLD database (its env was not changed). That is the rollback path, and also a trap: anything calling it keeps writing to the old, stale database. That is why pausing the old project is the **last** step: it makes the old function fail loudly instead of quietly writing into a dead copy. Don't pause until step 10-11 are clean.
+The Netlify Function stays reachable at `/.netlify/functions/api/...` on production after the cut-over, and it still points at the OLD database (its env was not changed). That is the rollback path, and also a trap: anything calling it keeps writing to the old, stale database. That is why pausing the old project is the **last** step: it makes the old function fail loudly instead of quietly writing into a dead copy. Don't pause until steps 12-13 are clean.
 
 ### Rollback
 
-- **Before reopening (steps 1-10, nothing announced as open):** the old database is still the truth, nothing was written to the new one that matters. Unpause the old project if you had paused it (**pause the new Sydney project first**: two active at most), put the old values back in the Fly secrets / Netlify env, and redeploy the frontend against the Netlify Function: `.\deploy.ps1 -Target prod -ApiOrigin function`. Announce a delay. Retry another day.
-- **After reopening (step 11 onwards):** **roll forward only.** The old database is stale as of the export and anything entered since is only in the new one. Fix the problem on the new project (re-run `scripts\move-db.ps1 -Import` is NOT possible: the target is no longer empty, by design). If it is truly unrecoverable, restore from the `backup.ps1` safety copy into a fresh project and accept losing what was written since step 1.
+- **Before reopening (steps 1-12, nothing announced as open):** the old database is still the truth, nothing was written to the new one that matters. Unpause the old project if you had paused it (**pause the new Sydney project first**: two active at most), put the old values back in the Fly secrets / Netlify env, and redeploy the frontend against the Netlify Function: `.\deploy.ps1 -Target prod -ApiOrigin function`. Announce a delay. Retry another day. `-ApiOrigin` is mandatory for `-Target prod` (there is no default for prod any more), so a routine prod deploy after a rollback can't silently point prod back at Fly: pass `function` or `fly` deliberately every time.
+- **After reopening (step 13 onwards):** **roll forward only.** The old database is stale as of the export and anything entered since is only in the new one. Fix the problem on the new project (re-run `scripts\move-db.ps1 -Import` is NOT possible: the target is no longer empty, by design). If it is truly unrecoverable, restore from the `backup.ps1` safety copy into a fresh project and accept losing what was written since step 1.
 - The 7-day fallback (C8): keep the paused old project and `D:\vv-move-prod` until it passes, then delete the project and the folder.
 
 ## If something fails

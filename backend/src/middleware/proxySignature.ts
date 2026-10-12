@@ -39,7 +39,12 @@ export function proxySignature(env: NodeJS.ProcessEnv = process.env): RequestHan
 
     // One generic 403 before any route runs: no database work, and nothing
     // that tells a prober why.
-    if (!verifyProxySignature(req.headers['x-nf-sign'], secret).ok) {
+    const verified = verifyProxySignature(req.headers['x-nf-sign'], secret);
+    // API_PROXY_SITE_URL (non-secret, fly.*.toml) pins the app to its own Netlify
+    // site, so staging's proxy can't be pointed at prod's app. Optional until R6
+    // confirms what site_url Netlify sends for draft deploys.
+    const site = env.API_PROXY_SITE_URL;
+    if (!verified.ok || (site && verified.claims.site_url !== site)) {
       res.status(403).json({ error: 'Forbidden.' });
       return;
     }

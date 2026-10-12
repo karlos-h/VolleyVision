@@ -199,7 +199,7 @@ try {
       $prismaExit = $LASTEXITCODE
     } finally {
       Pop-Location
-      foreach ($k in $saved.Keys) { if ($null -eq $saved[$k]) { Remove-Item "Env:$k" -ErrorAction SilentlyContinue -WhatIf:$false } else { Set-Item "Env:$k" $saved[$k] } }
+      foreach ($k in $saved.Keys) { if ($null -eq $saved[$k]) { Remove-Item "Env:$k" -ErrorAction SilentlyContinue -WhatIf:$false } else { Set-Item "Env:$k" $saved[$k] -WhatIf:$false } }
     }
     Add-Row 'prisma migrate deploy' ($prismaExit -eq 0) $(if ($prismaExit -eq 0) { 'schema applied' } else { (Hide $prismaOut).Trim() })
     if ($prismaExit -ne 0) { throw 'schema step failed' }

@@ -118,6 +118,6 @@ only in the staging database. `/health` reports only `{status, db}`, so it can't
 
 ## Proxy limits
 
-Netlify proxies `/api/v1/*` to Fly (the `api-proxy` plugin) and cuts a proxied request off at 26 seconds. Measure on staging before prod (R6): team delete with a large chat history, account deletion, and the request body size that gets through the proxy (the 20 MB upload test, 9.6.0.3). If one exceeds the limit it must be made faster or asynchronous, or called on the Fly URL directly.
+Netlify proxies `/api/v1/*` to Fly (the `api-proxy` plugin) and cuts a proxied request off at 26 seconds. Measure on staging before prod (R6): team delete with a large chat history, account deletion, and the request body size that gets through the proxy (the 20 MB upload test, 9.6.0.3). If one exceeds the limit it must be made faster or asynchronous. Calling the Fly URL directly is not an escape hatch: unsigned direct calls are refused with 403 (R3), so a long operation must fit the 26 s proxy timeout or be measured and shortened.
 
 Note: staging auto-stops on Fly, and the Supabase Free project may pause after about 7 idle days. That is acceptable on staging; the first request after a pause is slow until the project is resumed.

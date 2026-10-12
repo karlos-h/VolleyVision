@@ -64,7 +64,9 @@ param(
   [switch]$Seed,
   [switch]$Draft,
   # 'function' is the rollback to the Netlify Function (until it is deleted in 9.7).
-  [ValidateSet('fly', 'function')][string]$ApiOrigin = 'fly'
+  # No default: after a rollback to the function, a routine prod deploy must not
+  # silently point prod back at Fly. Mandatory for prod (checked below).
+  [ValidateSet('fly', 'function')][string]$ApiOrigin
 )
 
 $ErrorActionPreference = 'Stop'
@@ -301,6 +303,10 @@ if ($Target -eq 'staging') {
 
 # Read by netlify/plugins/api-proxy at build time, which fails the build on any
 # other value. Not secret, so it is logged. Cleared again after the deploy.
+if (-not $ApiOrigin) {
+  if ($Target -eq 'prod') { throw "-ApiOrigin fly|function is required for -Target prod." }
+  $ApiOrigin = 'fly'
+}
 if ($ApiOrigin -eq 'function') {
   $env:API_ORIGIN = 'function'
 } elseif ($Target -eq 'staging') {

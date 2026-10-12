@@ -7,11 +7,14 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 export function pickClientIp(opts: { headers: Headers; proxyVerified: boolean; onFly: boolean; socketIp?: string }): string {
   const { headers, proxyVerified, onFly, socketIp } = opts;
 
-  // Signed by Netlify, so Netlify's own view of the caller. The right-most
-  // x-forwarded-for hop here is Netlify's edge, shared by every user, so it is
-  // never a fallback. ponytail: no header means one shared bucket; if R6 shows
-  // none arrives, key on the edge hop and add per-account limits instead.
-  if (proxyVerified) return first(headers['x-nf-client-connection-ip'])?.trim() || 'unknown';
+  // Signed by Netlify, so Netlify's own view of the caller. If that header
+  // doesn't arrive (R6 checks), fall back to fly-client-ip: Netlify's edge hop,
+  // shared by many users but still several buckets rather than the single
+  // 'unknown' one that would lock everyone out together. ponytail: if R6 shows
+  // no client address at all, add per-account limits (R3 fallback plan).
+  if (proxyVerified) {
+    return first(headers['x-nf-client-connection-ip'])?.trim() || first(headers['fly-client-ip'])?.trim() || 'unknown';
+  }
 
   // On Fly but unsigned: the caller reached *.fly.dev directly and wrote every
   // header itself, so only the socket is believed. (requireProxySignature has

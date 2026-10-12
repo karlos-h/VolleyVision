@@ -1,4 +1,4 @@
-// Fly sends SIGTERM and kills the machine ~5 s later (kill_timeout), so finish
+// Fly sends SIGTERM and kills the machine 15 s later (kill_timeout), so finish
 // in-flight requests, release Postgres sessions (the session pooler has a small
 // cap) and flush Sentry, then exit. The timer is the backstop for a keep-alive
 // socket that never lets server.close() call back.

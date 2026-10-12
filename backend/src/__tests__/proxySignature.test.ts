@@ -68,6 +68,14 @@ async function main() {
     assert.equal((await get(base, '/health/live')).status, 200);
   });
 
+  // site_url pinned: a signature from another Netlify site (staging's proxy
+  // pointed at prod's app) is refused; the matching site passes.
+  await withApp({ FLY_APP_NAME: 'vv', API_PROXY_SIGNING_SECRET: SECRET, API_PROXY_SITE_URL: 'https://vv.test' }, async (base) => {
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': signed() })).status, 200, 'own site passes');
+    const other = jwt.sign({ iss: 'netlify', deploy_context: 'production', site_url: 'https://other.test' }, SECRET, { algorithm: 'HS256', expiresIn: 60 });
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': other })).status, 403, 'another site is refused');
+  });
+
   // Staging probe: the four address headers and nothing secret.
   await withApp({ FLY_APP_NAME: 'vv', API_PROXY_SIGNING_SECRET: SECRET, SENTRY_ENVIRONMENT: 'staging' }, async (base) => {
     const sig = signed();

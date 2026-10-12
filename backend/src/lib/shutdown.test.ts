@@ -38,3 +38,13 @@ async function main() {
   console.log('shutdown.test.ts passed');
 }
 main().catch((e) => { console.error(e); process.exit(1); });
+
+// Source scan: index.ts must actually call both on the listening path (an audit
+// found them imported and never used; nothing else would notice).
+{
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../index.ts'), 'utf8');
+  const listen = src.slice(src.indexOf('app.listen('));
+  assert.ok(listen.includes('installShutdown({'), 'index.ts: installShutdown is not called after app.listen');
+  assert.ok(listen.includes('startKeepAlive({'), 'index.ts: startKeepAlive is not called after app.listen');
+}
+console.log('shutdown.test.ts: wiring check passed');

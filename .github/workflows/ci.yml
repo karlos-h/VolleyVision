@@ -46,6 +46,12 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./backup.test.ps1
+      - name: The move scripts still refuse the old projects and never print a URL
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/move-db.test.ps1
+      - name: Storage copy and URL rewrite helpers
+        run: npx ts-node --transpile-only scripts/copy-storage.test.ts && npx ts-node --transpile-only scripts/rewrite-storage-urls.test.ts
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 

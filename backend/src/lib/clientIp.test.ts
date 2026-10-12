@@ -23,3 +23,8 @@ assert.equal(pickClientIp({ headers: NF, proxyVerified: false, onFly: true, sock
 assert.equal(pickClientIp({ headers: NF, proxyVerified: false, onFly: true }), 'unknown');
 
 console.log('clientIp.test.ts passed');
+
+// Verified but Netlify sent no client address: the edge hop, never one shared bucket.
+assert.equal(pickClientIp({ headers: { 'fly-client-ip': '198.51.100.7', 'x-forwarded-for': '203.0.113.9' }, proxyVerified: true, onFly: true, socketIp: '10.0.0.1' }), '198.51.100.7');
+assert.equal(pickClientIp({ headers: {}, proxyVerified: true, onFly: true, socketIp: '10.0.0.1' }), 'unknown');
+console.log('clientIp.test.ts: fallback cases passed');

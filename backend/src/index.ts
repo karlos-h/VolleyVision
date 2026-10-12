@@ -137,6 +137,14 @@ if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     // 9.5.8: the pool knob that decides whether Promise.all queries overlap.
     console.log(`   db pool: ${describePool(process.env.DATABASE_URL)}\n`);
   });
+  installShutdown({
+    server,
+    disconnect: () => prisma.$disconnect(),
+    flush: () => Sentry.close(2000),
+    exit: (code) => process.exit(code),
+    log: console.log,
+  });
+  startKeepAlive({ ping: () => prisma.$queryRaw`SELECT 1` });
 }
 
 export default app;
