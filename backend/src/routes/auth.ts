@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, logout, me, forgotPassword, resetPassword, verifyEmail, resendVerification } from '../controllers/auth';
+import { register, login, logout, logoutAll, me, forgotPassword, resetPassword, verifyEmail, resendVerification } from '../controllers/auth';
 import { requireAuth } from '../middleware/auth';
 import {
   forgotPasswordGlobalRateLimit,
@@ -19,7 +19,10 @@ const router = Router();
 // spray targets. IP and email arms are separate limiters (see rateLimit.ts).
 router.post('/register', registerRateLimit, register);
 router.post('/login', loginIpRateLimit, loginEmailRateLimit, login);
-router.post('/logout', logout);
+// Behind requireAuth: the token being signed out of is the credential, and an
+// already-dead one has nothing left to revoke.
+router.post('/logout', requireAuth, logout);
+router.post('/logout-all', requireAuth, logoutAll);
 // Public by design — the emailed reset token is itself the credential. Rate
 // limited on IP + email: unauthenticated, and it sends mail, so it is both an
 // email-bombing vector and the obvious endpoint to hammer for enumeration.

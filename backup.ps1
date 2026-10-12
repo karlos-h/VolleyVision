@@ -120,7 +120,7 @@ foreach ($raw in $candidates) {
     & $Docker run --rm -e DBURL -v "${OutDir}:/backup" postgres:17 `
       sh -c "pg_dump `"`$DBURL`" --no-owner --no-privileges -f /backup/$name"
   } finally {
-    Remove-Item Env:DBURL -ErrorAction SilentlyContinue
+    Remove-Item Env:DBURL -ErrorAction SilentlyContinue -WhatIf:$false
   }
   if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $file) -and (Get-Item -LiteralPath $file).Length -gt 0) {
     $kb = [math]::Round((Get-Item -LiteralPath $file).Length / 1KB)

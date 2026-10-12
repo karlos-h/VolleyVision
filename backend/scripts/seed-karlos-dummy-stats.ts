@@ -7,7 +7,10 @@
  * Idempotent — matches are created with fixed ids (dummy-karlos-m1..m6); if
  * they already exist this is a no-op.
  *
- *   npx ts-node scripts/seed-karlos-dummy-stats.ts
+ *   SEED_LINK_EMAIL=you@example.com npx ts-node scripts/seed-karlos-dummy-stats.ts
+ *
+ * SEED_LINK_EMAIL (optional) is the account the player record gets linked to;
+ * it's an env var because the repo is public and shouldn't carry anyone's address.
  */
 import { prisma } from '../src/lib/prisma';
 import { EventType } from '@prisma/client';
@@ -125,15 +128,16 @@ async function main() {
     process.exit(1);
   }
 
-  if (!player.userId) {
-    const karlosUser = await prisma.user.findUnique({ where: { email: 'karlos.hennings@gmail.com' } });
-    if (karlosUser) {
-      await prisma.player.update({ where: { id: player.id }, data: { userId: karlosUser.id } });
-      console.log(`🔗 Linked player #${JERSEY_NUMBER} to karlos.hennings@gmail.com`);
+  const linkEmail = process.env.SEED_LINK_EMAIL;
+  if (!player.userId && linkEmail) {
+    const linkUser = await prisma.user.findUnique({ where: { email: linkEmail } });
+    if (linkUser) {
+      await prisma.player.update({ where: { id: player.id }, data: { userId: linkUser.id } });
+      console.log(`🔗 Linked player #${JERSEY_NUMBER} to ${linkEmail}`);
     } else {
       console.warn(
         `⚠️  Player #${JERSEY_NUMBER} isn't linked to a user account, and no user with email ` +
-        `"karlos.hennings@gmail.com" was found to auto-link. The dummy matches/events will still be ` +
+        `"${linkEmail}" was found to auto-link. The dummy matches/events will still be ` +
         `created, but the player portal only shows stats for the LOGGED-IN user's linked player record — ` +
         `link this record from the Player Portal's "link a player record" flow to see them.`,
       );

@@ -3,13 +3,13 @@
 // channel-scoped messages, and message-scoped edit/delete.
 
 import { Router, Request, Response, NextFunction } from 'express';
-import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
 import { chatPostRateLimit, messageReportRateLimit, blockRateLimit } from '../middleware/rateLimit';
 import { requireChannelPermission, requireTeamPermission } from '../middleware/permissions';
 import { Permission } from '../services/permission.service';
 import { assertTermsAccepted } from '../services/auth.service';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { diskUpload, uploadTempGuard, uploadTotalGuard } from '../lib/uploadTemp';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_FILE_BYTES } from '../services/chatStorage.service';
 import {
   getTeamChannel,
@@ -25,14 +25,11 @@ import {
 const router = Router();
 
 // ─── Attachment upload (slice 4) ──────────────────────────────────────────────
-// Memory storage: bytes are proxied straight to Supabase, never written to
-// disk. The per-file cap here is the coarse 25 MB ceiling; the per-kind caps
+// Disk storage (lib/uploadTemp): a request never holds all its files in RAM.
+// The per-file cap here is the coarse 25 MB ceiling; the per-kind caps
 // (10 MB images) are enforced in chatStorage.assertAcceptable.
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_BYTES, files: MAX_ATTACHMENTS_PER_MESSAGE },
-});
+const upload = diskUpload({ fileSize: MAX_FILE_BYTES, files: MAX_ATTACHMENTS_PER_MESSAGE });
 
 // multer throws its own error types; normalize to the API's { error } shape.
 // Called only with multer's own errors (see uploadFiles), so a guard's 404 or a
@@ -52,7 +49,7 @@ function handleMulterError(err: any, _req: Request, res: Response, next: NextFun
 
 const parseFiles = upload.array('files', MAX_ATTACHMENTS_PER_MESSAGE);
 function uploadFiles(req: Request, res: Response, next: NextFunction) {
-  parseFiles(req, res, (err?: unknown) => (err ? handleMulterError(err, req, res, next) : next()));
+  parseFiles(req, res, (err?: unknown) => (err ? handleMulterError(err, req, res, next) : uploadTotalGuard(req, res, next)));
 }
 
 // The team's single TEAM channel (get-or-create; readable by every member).
@@ -90,6 +87,7 @@ router.post(
   chatPostRateLimit,
   requireChannelPermission(Permission.POST_MESSAGE),
   requireTermsAccepted,
+  uploadTempGuard,
   uploadFiles,
   uploadChannelMessage,
 );

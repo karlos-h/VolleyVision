@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, AuthPayload } from '../services/auth.service';
-import { loadUser } from '../services/permission.service';
+import { loadUser, loadAuthUser } from '../services/permission.service';
 import { isTokenCurrent } from '../lib/tokenVersion';
 import { AppError } from './errorHandler';
 
@@ -18,13 +18,20 @@ declare global {
  * (M7 part 2) — the DB read is what makes a password reset able to revoke a
  * stateless JWT that's already been handed out. A deleted user has no
  * tokenVersion to match, so it fails closed the same way a stale one does.
+ * A token signed out of (its jti in revoked_tokens, 9.6.0.2) fails the same way.
  */
 async function tokenIsCurrent(payload: AuthPayload): Promise<boolean> {
   // The shared per-request loader: optionalAuth then requireAuth on one route,
-  // and isGlobalAdmin later in the request, read this user row once.
-  const user = await loadUser(payload.userId);
-  if (!user) return false;
-  return isTokenCurrent(payload.tv, user.tokenVersion);
+  // and isGlobalAdmin later in the request, read this user row once. Tokens
+  // from before 9.6.0.2 have no jti and nothing to look up.
+  if (typeof payload.jti !== 'string') {
+    const user = await loadUser(payload.userId);
+    return !!user && isTokenCurrent(payload.tv, user.tokenVersion);
+  }
+  const user = await loadAuthUser(payload.userId, payload.jti);
+  // revokedTokens is always selected; `?.` only spares unit-test fakes that
+  // return a bare user row.
+  return !!user && !user.revokedTokens?.length && isTokenCurrent(payload.tv, user.tokenVersion);
 }
 
 /** Verifies the Bearer token and attaches the decoded payload to req.user. */
