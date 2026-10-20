@@ -23,9 +23,11 @@ It holds everyone's data in plain text, and the storage export holds user files 
 
 ## Common set-up, once per terminal **[KARLOS]**
 
-Use the **Session pooler** string (Supabase, Connect, Session pooler; port 5432). Your network is IPv4-only and the direct host is IPv6-only. Set the variables in the terminal you run the scripts from; each script clears its own database variable when it finishes.
+Use the **Session pooler** string (Supabase, Connect, Session pooler; port 5432). Your network is IPv4-only and the direct host is IPv6-only. Set the variables in the terminal you run the scripts from; each script clears its own database variable when it finishes. `backup.ps1` and `move-db.ps1` use the local PostgreSQL 18 client (`C:\Program Files\PostgreSQL8in`) when it is installed, as on Karlos's PC, otherwise Docker; `-PgBin ''` forces Docker.
 
-Don't type a connection string: PSReadLine saves every command line to disk. Either turn history off for the session first (`Set-PSReadLineOption -HistorySaveStyle SaveNothing`), or read the value from a file. `backend\.env.staging`'s `DIRECT_URL` is the old staging project's session pooler string, so for the staging export:
+**Primary way: `-EnvFile` / `--env-file`.** The three scripts read the values from the env file themselves and never print them, so nothing is typed (nothing reaches PSReadLine history) and Claude can run the steps without seeing the file. An env var that is already set wins over the file. `backend\.env.staging` for staging, `backend\.env` for prod; the file must point at the OLD project for the exports and at the NEW project for the imports (staging step 9 / prod step 8 update it). The env-var forms below stay as the alternative.
+
+Alternative, env vars. Don't type a connection string: PSReadLine saves every command line to disk. Either turn history off for the session first (`Set-PSReadLineOption -HistorySaveStyle SaveNothing`), or read the value from a file. `backend\.env.staging`'s `DIRECT_URL` is the old staging project's session pooler string, so for the staging export:
 
 ```powershell
 Set-PSReadLineOption -HistorySaveStyle SaveNothing
@@ -46,45 +48,42 @@ Timing: about 30 minutes. No users to warn.
    (Without `-EnvFile`, `backup.ps1` reads `backend/.env`, which points at production. Expect `Backup saved: ...`.)
 2. **[KARLOS]** Export the database:
    ```powershell
-   $env:OLD_DB_URL = ((Get-Content backend\.env.staging | Where-Object { $_ -like 'DIRECT_URL=*' }) -replace '^DIRECT_URL=', '').Trim('"', "'")
-   .\scripts\move-db.ps1 -Export -From lnzircweyhwiemspuaav -Out D:\vv-move-staging
+   .\scripts\move-db.ps1 -Export -From lnzircweyhwiemspuaav -Out D:\vv-move-staging -EnvFile backend\.env.staging
    ```
+   (Alternative: set `$env:OLD_DB_URL` as in the section above and drop `-EnvFile`.)
    Type the ref when asked. Expect a table with `data.dump written`, `counts.json` and `migrations.json` all `PASS`.
 3. **[KARLOS]** Export storage (dry run first, then for real):
    ```powershell
-   $env:OLD_SUPABASE_URL = '<old staging project URL>'
-   $env:OLD_SERVICE_ROLE_KEY = '<old staging service-role key>'
    cd backend
-   npx ts-node --transpile-only scripts/copy-storage.ts --export --to-dir D:\vv-move-staging\storage
-   npx ts-node --transpile-only scripts/copy-storage.ts --export --to-dir D:\vv-move-staging\storage --apply
+   npx ts-node --transpile-only scripts/copy-storage.ts --export --to-dir D:\vv-move-staging\storage --env-file .env.staging
+   npx ts-node --transpile-only scripts/copy-storage.ts --export --to-dir D:\vv-move-staging\storage --env-file .env.staging --apply
    ```
+   (`--env-file` reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`; the path is relative to where you run it, so `.env.staging` from `backend/`. Alternative: set `$env:OLD_SUPABASE_URL` and `$env:OLD_SERVICE_ROLE_KEY` and drop the flag.)
    Expect one `PASS` line per bucket (`team-chat`), with object count and bytes.
 4. **[KARLOS]** Pause the old staging project (Supabase dashboard, Project Settings, General, Pause project). This frees the active slot: **pause first, then create**.
 5. **[KARLOS]** Create the new project in Sydney: name `volleyvision-staging-syd`, region **Oceania (Sydney)**. Note its ref, the Session pooler string, the project URL and the service-role key. Tell Claude the ref (not a secret).
 6. **[KARLOS]** Import the database:
    ```powershell
-   $env:NEW_DB_URL = '<new staging session pooler string>'
-   .\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-staging
+   .\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-staging -EnvFile backend\.env.staging
    ```
+   (Needs `backend\.env.staging` already pointed at the NEW project: `DIRECT_URL` (else `DATABASE_URL`) = its session pooler string, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; do that part of step 9 first. Alternative: `$env:NEW_DB_URL = '<new staging session pooler string>'` and drop `-EnvFile`.)
    Expect `Import verified.` and this table, all `PASS`:
    `prisma migrate deploy`, `target is empty before restore`, `pg_restore`, `row counts match`, `old migrations are a prefix of the new`, `extra migrations = those added since export` (lists the 9.6 migrations), `RLS on for every public table`, `no anon/authenticated grants`, `no sequences in use (ids are cuids)`. Any `FAIL` ends in exit 1: stop and tell Claude.
 7. **[KARLOS]** Import storage:
    ```powershell
-   $env:NEW_SUPABASE_URL = '<new staging project URL>'
-   $env:NEW_SERVICE_ROLE_KEY = '<new staging service-role key>'
    cd backend
-   npx ts-node --transpile-only scripts/copy-storage.ts --import --from-dir D:\vv-move-staging\storage
-   npx ts-node --transpile-only scripts/copy-storage.ts --import --from-dir D:\vv-move-staging\storage --apply
+   npx ts-node --transpile-only scripts/copy-storage.ts --import --from-dir D:\vv-move-staging\storage --env-file .env.staging
+   npx ts-node --transpile-only scripts/copy-storage.ts --import --from-dir D:\vv-move-staging\storage --env-file .env.staging --apply
    ```
+   (Alternative: `$env:NEW_SUPABASE_URL` and `$env:NEW_SERVICE_ROLE_KEY`, no flag.)
    Expect `PASS ... match the manifest` per bucket.
 8. **[KARLOS]** Rewrite stored URLs (dry run, then apply). The `DATABASE_URL` here is the NEW project's:
    ```powershell
-   $env:DATABASE_URL = '<new staging session pooler string>'
    cd backend
-   npx ts-node --transpile-only scripts/rewrite-storage-urls.ts
-   npx ts-node --transpile-only scripts/rewrite-storage-urls.ts --apply --old-ref lnzircweyhwiemspuaav --new-ref <newref>
-   Remove-Item Env:DATABASE_URL
+   npx ts-node --transpile-only scripts/rewrite-storage-urls.ts --env-file .env.staging
+   npx ts-node --transpile-only scripts/rewrite-storage-urls.ts --env-file .env.staging --apply --old-ref lnzircweyhwiemspuaav --new-ref <newref>
    ```
+   (`--env-file` reads `DATABASE_URL`. Alternative: `$env:DATABASE_URL = '<new staging session pooler string>'`, no flag, then `Remove-Item Env:DATABASE_URL`.)
    Expect the dry run to list `users.profile_image` (or "no hits" if nobody has a photo) and nothing else; if another column shows `<- unexpected`, stop and tell Claude. After apply: `PASS: no column names the old project any more.`
 9. **[KARLOS]** Point staging at the new project: set the staging secrets on the Fly app `volleyvision-api-staging` and in the Netlify staging site's env (dashboard only; Claude never runs `netlify env:*`). Names: `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_PROJECT_REF` (the new ref). Full table and how to set them without shell history: `docs/fly-setup.md` and `docs/staging-setup.md`. Update `backend/.env.staging` (gitignored) the same way.
 10. **[KARLOS]** Set the FULL Fly secret set on `volleyvision-api-staging`, not just the four above: the whole table in `docs/fly-setup.md`, including `JWT_SECRET` (the staging site's value), `CLIENT_URL`, `CORS_EXTRA_ORIGINS` (must include `https://localhost,capacitor://localhost`, or every installed Android app fails every call), the `SMTP_*` set, `SENTRY_DSN` and `SUPABASE_CHAT_BUCKET`. Then set `API_PROXY_SIGNING_SECRET` to the same random value on the Netlify staging site (dashboard, Runtime scope) and on the Fly app. Staging and prod get different values.
@@ -116,15 +115,15 @@ Before the window **[KARLOS]**: staging move done and verified; Sydney staging p
 1. **[KARLOS]** Safety copy: `.\backup.ps1` (its default output folder, `$HOME\Backups`: `deploy.ps1 -Target prod` looks for today's file there and aborts without it). Expect `Backup saved: ...`.
 2. **[KARLOS]** Export the database:
    ```powershell
-   $env:OLD_DB_URL = '<old prod session pooler string>'
-   .\scripts\move-db.ps1 -Export -From rkkhrmhorgdqkxflipui -Out D:\vv-move-prod
+   .\scripts\move-db.ps1 -Export -From rkkhrmhorgdqkxflipui -Out D:\vv-move-prod -EnvFile backend\.env
    ```
+   (`backend\.env` is the old prod project until step 8. Alternative: `$env:OLD_DB_URL = '<old prod session pooler string>'` and drop `-EnvFile`.)
    All three rows `PASS`. This is the moment the data is frozen: anything written after it is lost.
-3. **[KARLOS]** Export storage (`--to-dir D:\vv-move-prod\storage`, as in staging step 3 with the production `OLD_SUPABASE_URL` and `OLD_SERVICE_ROLE_KEY`).
+3. **[KARLOS]** Export storage (`--to-dir D:\vv-move-prod\storage`, as in staging step 3 with `--env-file .env` from `backend/`, or the production `OLD_SUPABASE_URL` and `OLD_SERVICE_ROLE_KEY`).
 4. **[KARLOS]** Create the Sydney project (`volleyvision-prod-syd`, region Oceania (Sydney)). **Do not pause the old production project yet** (see "The old function" below): the 2-active limit is satisfied because Sydney staging is paused, so old prod and new prod are the two active ones. If the dashboard refuses to create it, the staging project isn't paused.
-5. **[KARLOS]** Import the database: `.\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-prod` with `NEW_DB_URL` set. Every row `PASS` (as staging step 6). **Do not go on after a FAIL**; tell Claude.
-6. **[KARLOS]** Import storage (`--from-dir D:\vv-move-prod\storage`, dry run then `--apply`; as staging step 7).
-7. **[KARLOS]** Rewrite URLs: `--apply --old-ref rkkhrmhorgdqkxflipui --new-ref <newref>`, with `DATABASE_URL` the NEW project's (as staging step 8).
+5. **[KARLOS]** Import the database: `.\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-prod -EnvFile backend\.env` once `backend\.env` points at the NEW project (the first part of step 8, done before this), or with `NEW_DB_URL` set and no `-EnvFile`. Every row `PASS` (as staging step 6). **Do not go on after a FAIL**; tell Claude.
+6. **[KARLOS]** Import storage (`--from-dir D:\vv-move-prod\storage --env-file .env`, dry run then `--apply`; as staging step 7).
+7. **[KARLOS]** Rewrite URLs: `--apply --old-ref rkkhrmhorgdqkxflipui --new-ref <newref>`, with `--env-file .env` (its `DATABASE_URL` is the NEW project's once step 8 is done) or `DATABASE_URL` set to the NEW project's (as staging step 8).
 8. **[KARLOS]** Point `backend/.env` (gitignored) `DATABASE_URL` and `DIRECT_URL` at the NEW prod project's session-pooler strings, as the staging sequence does for `.env.staging`. Otherwise `deploy.ps1 -Target prod` runs `prisma migrate status` against the OLD project, which lacks `20261012000000_revoked_tokens` (the new project has it after the import), and aborts mid-window.
 9. **[KARLOS]** Set the production secrets on the Fly app `volleyvision-api` and in the Netlify prod env (dashboard only): `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the rest of the FULL set in the `docs/fly-setup.md` table: `JWT_SECRET`, `CLIENT_URL`, `CORS_EXTRA_ORIGINS`, the `SMTP_*` set, `SENTRY_DSN`, `SUPABASE_CHAT_BUCKET`. `JWT_SECRET` must be the SAME value the Netlify production site uses today: a different one signs every existing session out at the cut-over. `CORS_EXTRA_ORIGINS` must include `https://localhost,capacitor://localhost`, or every installed Android app fails every call. Set `API_PROXY_SIGNING_SECRET` to the same random value on the Netlify prod site (Runtime scope) and the Fly app; it must be DIFFERENT from staging's.
 10. **[CLAUDE]** From `backend/`, on Karlos's go: `fly deploy -c fly.prod.toml --ha=false`. Then `curl https://volleyvision-api.fly.dev/health/live` (expect 200) and `curl https://volleyvision-api.fly.dev/health` (expect 403: unsigned direct call refused, so the signature check is on).
@@ -160,4 +159,4 @@ The Netlify Function stays reachable at `/.netlify/functions/api/...` on product
 
 ## Secret names, in one place
 
-`OLD_DB_URL`, `NEW_DB_URL`, `OLD_SUPABASE_URL`, `OLD_SERVICE_ROLE_KEY`, `NEW_SUPABASE_URL`, `NEW_SERVICE_ROLE_KEY`, `DATABASE_URL` (rewrite step only) are terminal variables, set in the shell for the move and never written to a file. The Fly and Netlify names are in `docs/fly-setup.md`.
+`OLD_DB_URL`, `NEW_DB_URL`, `OLD_SUPABASE_URL`, `OLD_SERVICE_ROLE_KEY`, `NEW_SUPABASE_URL`, `NEW_SERVICE_ROLE_KEY`, `DATABASE_URL` (rewrite step only) are what the scripts read; either `-EnvFile` / `--env-file` fills them from the env file in memory, or you set them in the shell for the move (never written to a file by us). The Fly and Netlify names are in `docs/fly-setup.md`.

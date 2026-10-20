@@ -59,6 +59,35 @@ $envRemovals = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Lan
 Check ($envRemovals.Count -gt 0) 'backup.ps1 removes its env var'
 foreach ($c in $envRemovals) { Check ($c.Extent.Text -match '-WhatIf:\$false') "Remove-Item Env: runs even under -WhatIf: $($c.Extent.Text)" }
 
+
+# Local-client path: the URL travels in PG* env vars, which must be cleared even under -WhatIf
+# (Remove-Item Env: above), and never printed.
+Write-Host 'PG* env cleanup'
+$clear = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Clear-PgEnv' }, $true)
+Check ($null -ne $clear -and $clear.Extent.Text -match 'PGPASSWORD' -and $clear.Extent.Text -match "-WhatIf:\`$false") 'Clear-PgEnv clears PGPASSWORD with -WhatIf:$false'
+$setters = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.TryStatementAst] -and $n.Body.Extent.Text -match '\bSet-PgEnv\b' }, $true)
+Check ($setters.Count -gt 0) 'Set-PgEnv is called inside a try'
+foreach ($t in $setters) { Check ($null -ne $t.Finally -and $t.Finally.Extent.Text -match '\bClear-PgEnv\b') 'that try has a finally calling Clear-PgEnv' }
+$pgPrints = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.GetCommandName() -match '^(Write-|Out-Host|echo|Fail$)' -and $n.Extent.Text -match 'PG(PASSWORD|USER|HOST|DATABASE)' }, $true)
+Check (@($pgPrints).Count -eq 0) 'no print statement mentions a PG* variable'
+
+# A bad -PgBin is refused with a clear message and no URL, before pg_dump or Docker runs.
+Write-Host '-PgBin'
+$td = Join-Path ([System.IO.Path]::GetTempPath()) ('vv-pgbin-' + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $td | Out-Null
+try {
+  $envFile = Join-Path $td 'fake.env'
+  Set-Content -LiteralPath $envFile -Value 'DIRECT_URL="postgresql://u:p@localhost:5/x"'
+  $ErrorActionPreference = 'Continue'
+  $out = & (Get-Process -Id $PID).Path -NoProfile -File $script -PgBin (Join-Path $td 'nope') -EnvFile $envFile -OutDir (Join-Path $td 'out') 2>&1 | Out-String
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  Check ($code -ne 0 -and $out -match 'PgBin' -and $out -match 'no pg_dump\.exe') 'a nonexistent -PgBin is refused with a clear message'
+  Check ($out -notmatch 'postgres(ql)?://|u:p@') '  (and prints no URL)'
+} finally {
+  Remove-Item -LiteralPath $td -Recurse -Force
+}
+
 if ($failures) { Write-Host "backup.test.ps1: $failures FAILED" -ForegroundColor Red; exit 1 }
 Write-Host 'backup.test.ps1 passed' -ForegroundColor Green
 # Explicit: the -KeepDays 0 child run leaves $LASTEXITCODE = 1, and pwsh -Command

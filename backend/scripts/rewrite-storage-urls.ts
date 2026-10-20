@@ -12,9 +12,13 @@
  *   DATABASE_URL=<NEW project>  npx ts-node --transpile-only scripts/rewrite-storage-urls.ts --apply --old-ref <ref> --new-ref <ref>
  *
  * Dry run unless --apply: counts plus up to 5 example user ids (never emails).
+ * --env-file <path> fills DATABASE_URL from that file's DATABASE_URL when unset
+ * (nothing typed), e.g. --env-file backend/.env.staging once it points at the NEW project.
  * Refuses a DATABASE_URL that names either old project. Never prints the URL.
  */
+import fs from 'node:fs';
 import { OLD_REFS } from './copy-storage';
+import { applyEnvFile } from './envFile';
 
 const REF = /^[a-z0-9]{20}$/;
 
@@ -41,6 +45,11 @@ async function main() {
   const argv = process.argv.slice(2);
   const val = (f: string) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
   const args = { apply: argv.includes('--apply'), oldRef: val('--old-ref'), newRef: val('--new-ref') };
+  const envFile = val('--env-file');
+  if (argv.includes('--env-file')) {
+    if (!envFile || envFile.startsWith('--') || !fs.existsSync(envFile)) { console.error('REFUSED: --env-file needs the path of an existing file.'); process.exit(1); }
+    applyEnvFile(fs.readFileSync(envFile, 'utf8'), { DATABASE_URL: 'DATABASE_URL' }, process.env);
+  }
   const url = process.env.DATABASE_URL ?? '';
   const err = guardError(url, args);
   if (err) { console.error(`REFUSED: ${err}`); process.exit(1); }

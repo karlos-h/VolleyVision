@@ -13,11 +13,15 @@
  *
  * The folder holds chat attachments and feedback files (players can be minors):
  * it must be outside the repo. Keys are read from the environment and never
- * printed. The service-role key is the only way in: the bucket has no policies.
+
+ * printed. --env-file <path> fills the four variables from that file's
+ * SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY when they are unset (so nothing is
+ * typed), e.g. --env-file backend/.env.staging. The service-role key is the only way in: the bucket has no policies.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { applyEnvFile } from './envFile';
 
 /** The Singapore projects: never import into them (same list as scripts/move-db.ps1). */
 export const OLD_REFS = ['rkkhrmhorgdqkxflipui', 'lnzircweyhwiemspuaav'];
@@ -69,7 +73,13 @@ export function localFile(dir: string, bucket: string, objectPath: string): stri
   return file;
 }
 
-export type Args = { mode: 'export' | 'import'; dir: string; apply: boolean };
+export type Args = { mode: 'export' | 'import'; dir: string; apply: boolean; envFile?: string };
+
+/** Which env vars --env-file fills for a mode, from the file's SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. */
+export function envMap(mode: 'export' | 'import'): Record<string, string> {
+  const p = mode === 'export' ? 'OLD' : 'NEW';
+  return { [`${p}_SUPABASE_URL`]: 'SUPABASE_URL', [`${p}_SERVICE_ROLE_KEY`]: 'SUPABASE_SERVICE_ROLE_KEY' };
+}
 export function parseArgs(argv: string[]): Args | string {
   const has = (f: string) => argv.includes(f);
   const val = (f: string) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
@@ -77,7 +87,9 @@ export function parseArgs(argv: string[]): Args | string {
   const mode = has('--export') ? 'export' : 'import';
   const dir = val(mode === 'export' ? '--to-dir' : '--from-dir');
   if (!dir || dir.startsWith('--')) return `--${mode} needs ${mode === 'export' ? '--to-dir' : '--from-dir'} <folder>.`;
-  return { mode, dir: path.resolve(dir), apply: has('--apply') };
+  const envFile = val('--env-file');
+  if (has('--env-file') && (!envFile || envFile.startsWith('--'))) return '--env-file needs a path.';
+  return { mode, dir: path.resolve(dir), apply: has('--apply'), ...(envFile ? { envFile: path.resolve(envFile) } : {}) };
 }
 
 // ---- Supabase calls (not unit-tested: no Supabase to talk to) ----
@@ -188,6 +200,11 @@ async function main() {
   if (isInside(path.resolve(__dirname, '..', '..'), args.dir)) {
     console.error(`REFUSED: ${args.dir} is inside the repo: it would hold user files. Pick a folder outside it.`);
     process.exit(1);
+  }
+  if (args.envFile) {
+    // Values stay in memory; only the four names are ever set, and nothing is printed.
+    if (!fs.existsSync(args.envFile)) { console.error('REFUSED: --env-file not found.'); process.exit(1); }
+    applyEnvFile(fs.readFileSync(args.envFile, 'utf8'), envMap(args.mode), process.env);
   }
   await (args.mode === 'export' ? exportAll(args.dir, args.apply) : importAll(args.dir, args.apply));
 }
