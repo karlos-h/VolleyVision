@@ -23,7 +23,7 @@ Facts: `data-inventory.md`. Where: Play Console → App content → Data safety.
 
 Google: **collected** means data leaves the device for us or our providers. **Shared** means it is transferred to a third party.
 Google does **not** count a transfer to a **service provider** that processes data on our behalf and on our instructions as sharing.
-Supabase (database and files), Netlify (hosting), Sentry (errors) and Google Gmail (sending email) are service providers.
+Supabase (database and files), Netlify (website hosting), Fly.io (the app's server, Sydney), Sentry (errors) and Google Gmail (sending email) are service providers.
 
 So everything below is **Collected**, and nothing is **Shared**. We sell nothing and pass nothing to advertisers.
 

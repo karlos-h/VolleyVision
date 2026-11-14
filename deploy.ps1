@@ -1,16 +1,21 @@
-# Deploys VolleyVision to Netlify (production by default, or staging) with an
-# accurate deploy message, then runs the smoke check against what it deployed.
+# Deploys VolleyVision (the API to Fly.io, then the frontend to Netlify) to
+# production or staging with an accurate deploy message, then runs the smoke
+# check against what it deployed. -Target is mandatory: there is no default.
 #
 # Usage (from repo root):
-#   .\deploy.ps1                      # prod; message auto-built from git state
-#   .\deploy.ps1 -Target staging      # the staging site, using backend/.env.staging
-#   .\deploy.ps1 -Message "hotfix x"  # explicit message override
-#   .\deploy.ps1 -SkipMigrationCheck  # skip the pending-migrations check below
-#   .\deploy.ps1 -Force               # prod from a dirty tree or a branch other than main
-#   .\deploy.ps1 -NoBackup            # prod without today's backup.ps1 file
+#   .\deploy.ps1 -Target prod -ApiOrigin fly      # backend (fly deploy), then frontend; message auto-built from git state
+#   .\deploy.ps1 -Target staging                  # the same against staging, using backend/.env.staging
+#   .\deploy.ps1 -Target prod -ApiOrigin fly -BackendOnly    # only the Fly API (+ /health/live check, smoke on the site)
+#   .\deploy.ps1 -Target prod -ApiOrigin fly -FrontendOnly   # only the Netlify site
+#   .\deploy.ps1 -Target prod -ApiOrigin function            # rollback: no Fly step, frontend proxies to the Netlify Function
+#   -Message "hotfix x"  # explicit message override
+#   -SkipMigrationCheck  # skip the pending-migrations check below
+#   -Force               # prod from a dirty tree or a branch other than main
+#   -NoBackup            # prod without today's backup.ps1 file
 #   .\deploy.ps1 -Target staging -Migrate   # prisma migrate deploy against staging, then stop
 #   .\deploy.ps1 -Target staging -Seed      # npm run db:seed:staging against staging, then stop
-#   .\deploy.ps1 -Target staging -Draft     # a draft deploy (free: no --prod) at rehearse-<sha>--<site>.netlify.app
+#   .\deploy.ps1 -Target staging -Draft     # Fly staging deploy + a free draft frontend (no --prod) at rehearse-<sha>--<site>.netlify.app
+#   .\deploy.ps1 -Target staging -Draft -Alias rehearse   # same, with a fixed draft URL <alias>--<site>.netlify.app
 #
 # The auto-built message is "<tag> (<sha>): <commit subject>", with a
 # "+ uncommitted local changes" suffix when the working tree is dirty —
@@ -33,10 +38,19 @@
 # with no credentials (read-only checks), against staging with the SMOKE_*
 # values from backend/.env.staging (logs in as the seed users).
 #
+# Backend (9.6.R8): with -ApiOrigin fly (and not -FrontendOnly) it runs
+# `fly deploy -c fly.<target>.toml --ha=false` from backend/ BEFORE the Netlify
+# deploy, aborts everything if that fails, then waits up to ~60 s for
+# https://<app>.fly.dev/health/live to answer 200. -ApiOrigin function is the
+# rollback path: no Fly step, and -BackendOnly is refused. -BackendOnly and
+# -FrontendOnly are mutually exclusive; with neither, both run, backend first.
+# All parameter checks run first, before any git, network or CLI call.
+#
 # -Draft (staging only, 9.5.0.8): on Netlify every production publish costs
 # credits, the staging site's included; a draft deploy is free. It uploads the
-# same local build without --prod, under the alias rehearse-<short sha>, and
-# smoke-checks that draft URL. The SPA calls the relative /api/v1, which
+# same local build without --prod, under the alias rehearse-<short sha> (or -Alias), and
+# smoke-checks that draft URL (-Alias <name> fixes the alias; the Fly staging
+# deploy still happens unless -FrontendOnly). The SPA calls the relative /api/v1, which
 # netlify.toml routes to the function on the same deploy, so the draft serves
 # both from one origin (no CORS change). Env vars come from the site's
 # dev/deploy-preview context; staging sets every value for all contexts.
@@ -55,7 +69,9 @@
 # - If the schema changed, run `npx prisma migrate deploy` from backend/ first
 #   (with backend/.env.staging loaded, for staging).
 param(
-  [ValidateSet('prod', 'staging')][string]$Target = 'prod',
+  # No default: a deploy must name where it goes (checked below, so a missing value
+  # fails with a message instead of a PowerShell prompt).
+  [ValidateSet('prod', 'staging')][string]$Target,
   [string]$Message,
   [switch]$SkipMigrationCheck,
   [switch]$Force,
@@ -63,6 +79,9 @@ param(
   [switch]$Migrate,
   [switch]$Seed,
   [switch]$Draft,
+  [switch]$BackendOnly,
+  [switch]$FrontendOnly,
+  [string]$Alias,
   # 'function' is the rollback to the Netlify Function (until it is deleted in 9.7).
   # No default: after a rollback to the function, a routine prod deploy must not
   # silently point prod back at Fly. Mandatory for prod (checked below).
@@ -76,6 +95,23 @@ $ProdUrl = 'https://volleyvision-app.netlify.app'
 # .env.staging would otherwise publish any branch straight to prod).
 $ProdSiteId = '7b2795e8-4722-40cf-bb35-b2fc4e17e813'
 $ProdProjectRef = 'rkkhrmhorgdqkxflipui'
+
+# Parameter checks first: every refusal below happens before any git, network
+# or CLI call.
+if (-not $Target) { throw "-Target prod|staging is required (there is no default)." }
+if ($BackendOnly -and $FrontendOnly) { throw "-BackendOnly and -FrontendOnly are mutually exclusive." }
+if ($BackendOnly -and $ApiOrigin -eq 'function') { throw "-BackendOnly needs -ApiOrigin fly: the Netlify Function has no separate backend deploy." }
+if (-not $ApiOrigin) {
+  if ($Target -eq 'prod') { throw "-ApiOrigin fly|function is required for -Target prod." }
+  $ApiOrigin = 'fly'
+}
+if ($PSBoundParameters.ContainsKey('Alias')) {
+  if (-not $Draft) { throw "-Alias only applies with -Draft." }
+  if ($Alias -cnotmatch '^[a-z0-9-]{1,37}$') { throw "-Alias must match ^[a-z0-9-]{1,37}$ (Netlify caps an alias at 37 characters)." }
+}
+$FlyApp = if ($Target -eq 'staging') { 'volleyvision-api-staging' } else { 'volleyvision-api' }
+$RunBackend = ($ApiOrigin -eq 'fly') -and -not $FrontendOnly
+$RunFrontend = -not $BackendOnly
 
 # Parses KEY=VALUE lines (comments and blanks skipped, one pair of surrounding
 # quotes stripped). Never prints values: the file holds staging secrets.
@@ -284,10 +320,54 @@ if (-not $Message) {
   }
 }
 
+function Find-Flyctl {
+  foreach ($name in @('fly', 'flyctl')) {
+    $cmd = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd) { return $cmd.Source }
+  }
+  $flyHome = Join-Path $HOME '.fly\bin\flyctl.exe'
+  if (Test-Path -LiteralPath $flyHome) { return $flyHome }
+  throw "flyctl not found: install it (https://fly.io/docs/flyctl/install/) or put fly / flyctl on PATH ($flyHome is also checked)."
+}
+
+# The API goes first: the frontend must never reach for an API that is not up.
+if ($RunBackend) {
+  $fly = Find-Flyctl
+  Write-Host "Deploying the API to Fly ($FlyApp)..."
+  Push-Location (Join-Path $PSScriptRoot 'backend')
+  try {
+    $ErrorActionPreference = 'Continue'
+    & $fly deploy -c "fly.$Target.toml" --ha=false
+    $flyExitCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+  } finally {
+    Pop-Location
+  }
+  if ($flyExitCode -ne 0) {
+    Write-Host ""
+    Write-Host "DEPLOY ABORTED: fly deploy failed (exit code $flyExitCode). The frontend was not deployed."
+    exit $flyExitCode
+  }
+  $healthUrl = "https://$FlyApp.fly.dev/health/live"
+  $healthy = $false
+  foreach ($attempt in 1..12) {
+    try {
+      $healthy = (Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 10).StatusCode -eq 200
+    } catch { $healthy = $false }
+    if ($healthy) { break }
+    Start-Sleep -Seconds 5
+  }
+  if (-not $healthy) {
+    Write-Host "DEPLOY ABORTED: $healthUrl did not return 200 within about 60 s. The frontend was not deployed."
+    exit 1
+  }
+  Write-Host "API is live: $healthUrl returned 200."
+}
+
 $netlifyArgs = @('netlify-cli@26.2.0', 'deploy', '--build', '--message', "$Message")
 if ($Draft) {
   # Netlify caps an alias at 37 characters; 'rehearse-' plus a short sha fits.
-  $draftAlias = 'rehearse-' + (git rev-parse --short HEAD)
+  $draftAlias = if ($Alias) { $Alias } else { 'rehearse-' + (git rev-parse --short HEAD) }
   $netlifyArgs += @('--alias', $draftAlias)
 } else {
   $netlifyArgs += '--prod'
@@ -303,33 +383,29 @@ if ($Target -eq 'staging') {
 
 # Read by netlify/plugins/api-proxy at build time, which fails the build on any
 # other value. Not secret, so it is logged. Cleared again after the deploy.
-if (-not $ApiOrigin) {
-  if ($Target -eq 'prod') { throw "-ApiOrigin fly|function is required for -Target prod." }
-  $ApiOrigin = 'fly'
-}
 if ($ApiOrigin -eq 'function') {
   $env:API_ORIGIN = 'function'
-} elseif ($Target -eq 'staging') {
-  $env:API_ORIGIN = 'https://volleyvision-api-staging.fly.dev'
 } else {
-  $env:API_ORIGIN = 'https://volleyvision-api.fly.dev'
+  $env:API_ORIGIN = "https://$FlyApp.fly.dev"
 }
 Write-Host "API_ORIGIN=$($env:API_ORIGIN)"
 
-Write-Host "Deploying to $Target$(if ($Draft) { ' (draft)' }) with message: $Message"
-# Same PowerShell 5.1 trap as the migration check above: under Stop, npm's
-# harmless stderr warnings (e.g. "npm warn allow-scripts") become terminating
-# NativeCommandErrors and abort the deploy before it starts. Run with Continue
-# and judge success by the CLI's exit code instead.
-$ErrorActionPreference = 'Continue'
-& npx @netlifyArgs
-$deployExitCode = $LASTEXITCODE
-$ErrorActionPreference = 'Stop'
-Remove-Item Env:API_ORIGIN -ErrorAction SilentlyContinue -WhatIf:$false
-if ($deployExitCode -ne 0) {
-  Write-Host ""
-  Write-Host "DEPLOY FAILED (exit code $deployExitCode). Check the output above for whether anything was published."
-  exit $deployExitCode
+if ($RunFrontend) {
+  Write-Host "Deploying to $Target$(if ($Draft) { ' (draft)' }) with message: $Message"
+  # Same PowerShell 5.1 trap as the migration check above: under Stop, npm's
+  # harmless stderr warnings (e.g. "npm warn allow-scripts") become terminating
+  # NativeCommandErrors and abort the deploy before it starts. Run with Continue
+  # and judge success by the CLI's exit code instead.
+  $ErrorActionPreference = 'Continue'
+  & npx @netlifyArgs
+  $deployExitCode = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  Remove-Item Env:API_ORIGIN -ErrorAction SilentlyContinue -WhatIf:$false
+  if ($deployExitCode -ne 0) {
+    Write-Host ""
+    Write-Host "DEPLOY FAILED (exit code $deployExitCode). Check the output above for whether anything was published."
+    exit $deployExitCode
+  }
 }
 
 Write-Host ""
@@ -340,7 +416,7 @@ if ($Target -eq 'staging') {
     if ($key.StartsWith('SMOKE_')) { $smokeEnv[$key] = $stagingVars[$key] }
   }
   $smokeUrl = $stagingVars['STAGING_URL']
-  if ($Draft) {
+  if ($Draft -and $RunFrontend) {
     # https://<alias>--<site-name>.netlify.app, derived from STAGING_URL's host.
     $siteHost = ([System.Uri]$stagingVars['STAGING_URL']).Host
     $smokeUrl = "https://$draftAlias--$siteHost"

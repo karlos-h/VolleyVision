@@ -19,11 +19,12 @@ export const LEGAL_LINKS: readonly [LegalPage, string][] = [['privacy', 'Privacy
 // The one config spot for the legal details (9.2). The static pages in
 // public/ repeat them, and scripts/check-legal.mjs fails CI if they differ.
 export const LEGAL_ENTITY = 'Himex Trading Ltd';
-export const SUPPORT_EMAIL = 'support@volleyvision.co.nz';
+export const SUPPORT_EMAIL = 'himextradingltd@gmail.com';
 /** True once Karlos has confirmed the mailbox receives mail. check-legal --release
  *  (prod deploys, store builds) refuses to run until then: the delete and support
  *  pages tell users to write to it. */
-export const SUPPORT_EMAIL_CONFIRMED = false;
+// Karlos, 14 Nov 2026: live Gmail mailbox until volleyvision.co.nz exists.
+export const SUPPORT_EMAIL_CONFIRMED = true;
 /** Equals CURRENT_TERMS_VERSION in backend/src/lib/terms.ts and the date on terms.html. */
 export const TERMS_VERSION = '2026-10-01';
 

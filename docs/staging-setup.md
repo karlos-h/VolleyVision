@@ -16,7 +16,7 @@ Before you start:
 ## 1. Supabase project
 
 1. Look up production's region first: Supabase dashboard → the **Volley Vision** project → Project Settings →
-   General → **Region**. Tell Claude the region too (the privacy policy needs it).
+   General → **Region**. Tell Claude the region too (the privacy policy needs it). Production is in **Sydney** (`ap-southeast-2`) since Phase 9.6; create staging in the same region.
 2. Create a new project in the **same organisation and the same region**:
    - Name: `volleyvision-staging`
    - Database password: generate a strong one and store it in your password manager.

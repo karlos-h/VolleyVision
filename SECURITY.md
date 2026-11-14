@@ -5,7 +5,7 @@
 Please report security problems privately, not in a public issue:
 
 - Use GitHub's private vulnerability reporting: the **Security** tab of this repository → **Report a vulnerability**.
-- Once the support mailbox is live, you can also email **support@volleyvision.co.nz**.
+- You can also email **himextradingltd@gmail.com**.
 
 Please include what you found, how to reproduce it, and what an attacker could do with it. Don't access, change or
 delete other people's data while testing, and give us a reasonable time to fix the problem before you share it.

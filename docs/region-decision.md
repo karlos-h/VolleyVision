@@ -1,5 +1,23 @@
 # Region decision (for Karlos, after 23 Oct)
 
+## Decision (Karlos, 7-9 Oct 2026)
+
+Run the API on **Fly.io `syd` (always on)** and move the database to **Supabase Sydney** (`ap-southeast-2`). Netlify
+stays on the **Personal** plan: it hosts the site and proxies `/api/v1/*` to Fly (Phase 9.6). This replaces the
+recommendation below (A) and the "Ohio" and "us-east-2" wording in it; the measured region was us-east-1.
+
+Measured result: pending the staging move (R6). To be filled in after `node backend/scripts/measure.mjs <staging url>`.
+
+| Request (median) | Before (us-east-1 to Singapore, 7 Oct) | After (Fly syd to Supabase Sydney) |
+|---|---|---|
+| `/health` | 1.4 s | TODO(R6) |
+| `/auth/me` | 2.5 s | TODO(R6) |
+| `/my-role` | 3.7 s | TODO(R6) |
+| Home | 4.2 s | TODO(R6) |
+| Match analytics | 6.2 s | TODO(R6) |
+
+Everything below is the earlier analysis, kept as history.
+
 **Written 6 Oct 2026 from the Phase 9.5 measurements** (`docs/performance.md`). Nothing here is changed by the code; it
 is your call once the Netlify credits reset.
 
@@ -21,22 +39,22 @@ the database:
 | Function ↔ database | Per operation | A 5-op guarded read | Home (4 ops, lite) |
 |---|---|---|---|
 | us-east-1 ↔ Singapore (today, **measured 7 Oct**) | **~1.1 s** | **~3.7–6 s** | **~4.2 s** (6 ops) |
-| Same region (Singapore ↔ Singapore, or Ohio ↔ Ohio) | ~1–2 ms | ~10 ms | ~8 ms |
+| Same region (for example Singapore ↔ Singapore) | ~1–2 ms | ~10 ms | ~8 ms |
 
-Add one browser-to-function round trip per request (NZ → Ohio ~180–200 ms, NZ → Singapore ~130 ms, NZ → Sydney
+Add one browser-to-function round trip per request (NZ → US East ~180–200 ms, NZ → Singapore ~130 ms, NZ → Sydney
 ~30–40 ms) and a cold start on the first request to a fresh instance. The query trimming (12 → 4 on Home, 9 → 3 on
 `/my-role`) halves the distance cost; it cannot remove it. Only putting the function and the database in the same
 region does that.
 
 (Caveat: the function's region hasn't been read yet — 9.5.1's `fn` field reports it on the first staging draft deploy.
-Netlify's default is Ohio; if it turns out to be elsewhere, the per-operation figure changes but the conclusion doesn't.)
+Netlify's default was assumed to be Ohio; it turned out to be us-east-1 (measured). If it were elsewhere, the per-operation figure changes but the conclusion doesn't.)
 
 ## Options
 
 | Option | Cost | Work | Expected page cost (guarded read, from NZ) |
 |---|---|---|---|
 | **A. Netlify Pro + function region `sin`** (Singapore, next to the DB) | US$20/month; also lifts the credit cap (3,000 credits ≈ 200 deploys) | A dashboard setting plus one redeploy | ~10 ms DB + ~130 ms RTT ≈ **0.15–0.3 s** |
-| **B. Move the database to the US** (new Supabase project in `us-east-2`, Ohio) | Free | High: `pg_dump`/restore, the chat-attachment bucket and files, env vars, downtime, the privacy policy's "Singapore" and `docs/store` | ~10 ms DB + ~190 ms RTT ≈ **0.2–0.4 s** |
+| **B. Move the database to the US** (new Supabase project in `us-east-1`, next to the function; first written as `us-east-2`, Ohio) | Free | High: `pg_dump`/restore, the chat-attachment bucket and files, env vars, downtime, the privacy policy's "Singapore" and `docs/store` | ~10 ms DB + ~190 ms RTT ≈ **0.2–0.4 s** |
 | **C. Netlify Pro + `syd`, and Supabase moved to Sydney** (`ap-southeast-2`) | US$20/month plus the database move | High (as B) | ~10 ms DB + ~35 ms RTT ≈ **0.05–0.15 s** |
 | **D. Stay as is** | Free | None | ~1.0 s DB + ~190 ms RTT ≈ **1.2–1.5 s** per guarded read, plus cold starts |
 

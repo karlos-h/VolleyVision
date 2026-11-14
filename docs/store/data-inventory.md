@@ -7,7 +7,7 @@ Items marked **Karlos to confirm** are facts the code can't show.
 **In one paragraph:** VolleyVision is a volleyball stats app run by Himex Trading Ltd (New Zealand). Coaches track
 matches; players and staff see stats and talk in team chat. Players can be under 18, and coaches can add players who
 have no account. There is no advertising, no analytics SDK and no tracking. Data is stored with Supabase and hosted on
-Netlify, both overseas.
+Netlify and Fly.io, all overseas.
 
 ## 1. What is stored, why, who sees it, how long
 
@@ -29,7 +29,7 @@ Netlify, both overseas.
 | Approval requests (pending changes, may hold names and emails) | Staff changes that need approval | Team managers | n/a | Team deletion; the requester's account deletion; emails removed when the invitee's account is deleted, if its email was verified |
 | **Audit log** (who did what, when; invitation email in some entries) | Security and team history | Not shown in the app | n/a | Kept. On account deletion the entries stay with the user replaced by "deleted-user", and their id removed, and their email if it was verified. |
 | **Rate-limit records** (keys include IP address, email or account id) | Stop abuse (login attempts, spam) | Nobody | n/a | Minutes to an hour (swept once the limit refills); deleted with the account (the email-keyed ones only if the email was verified) |
-| Server logs (Netlify Functions): request paths | Operating the service | Himex Trading Ltd | n/a | Netlify's log retention (**Karlos to confirm** the plan's retention) |
+| Server logs (Fly.io and Netlify): request paths | Operating the service | Himex Trading Ltd | n/a | Netlify's log retention (**Karlos to confirm** the plan's retention) |
 | **Error reports (Sentry, US):** error, stack trace, page path, app version, device/browser type | Fix crashes | Himex Trading Ltd | n/a | Sentry's retention for the plan. No user id or email is attached. Server events have IPs, request bodies, cookies, query strings and auth headers removed; the Sentry organisation stores no IP addresses (set by Karlos, 1 Oct). |
 | **On the device:** sign-in token, cached name, recent match rosters, queued offline taps | Offline use | You (on your device) | n/a | Sign-out (taps stay until synced); account deletion clears all of it. Apps: phone storage (UserDefaults / SharedPreferences); web: browser storage. |
 | **Local backups** of the whole database (`vv-backup-*.sql`, Karlos's PC) | Recovery | Himex Trading Ltd | n/a | 30 days (Karlos, 4 Oct; `backup.ps1` deletes older ones after each backup) |
@@ -50,8 +50,9 @@ tracking, data sales, location, contacts, health data. (Height and weight are op
 
 | Processor | What for | Where | Data |
 |---|---|---|---|
-| Supabase | Database and file storage | Singapore (AWS ap-southeast-1; from the pooler host, 1 Oct; Karlos to confirm in Dashboard → Project Settings → General) | Everything above except device data |
-| Netlify | Website hosting and the API (one function) | Global CDN; functions in the US by default | Requests in transit; request-path logs |
+| Supabase | Database and file storage | Sydney, Australia (AWS ap-southeast-2; moved from Singapore in Phase 9.6; Karlos to confirm in Dashboard → Project Settings → General) | Everything above except device data |
+| Netlify | Website hosting; passes API requests on to Fly.io | Global CDN (United States) | Requests in transit; request-path logs |
+| Fly.io | Runs the API (the app's server) | Sydney, Australia (`syd`) | Everything the API handles; request-path logs |
 | Sentry (Functional Software Inc.) | Error reports | US (`ingest.us.sentry.io`) | Scrubbed errors |
 | Google (Gmail) | Sending email | Google's servers | Recipient address and the email (verification, password reset, invitation, report notice, deletion confirmation) |
 | Apple, Google Play, Codemagic | Building and distributing the apps | US and global | App binaries; no user data from the app |

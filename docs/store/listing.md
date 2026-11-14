@@ -14,7 +14,7 @@ Limits checked 1 Oct 2026: Google title 30, short description 80, full descripti
 | Support URL | https://volleyvision-app.netlify.app/support |
 | Privacy URL | https://volleyvision-app.netlify.app/privacy |
 | Marketing URL | None (leave blank) |
-| Support email (Google contact) | support@volleyvision.co.nz |
+| Support email (Google contact) | himextradingltd@gmail.com |
 | Copyright (Apple) | © 2026 Himex Trading Ltd |
 | Bundle / package id | app.volleyvision |
 | Pricing | **Karlos to confirm** (assumed free, no in-app purchases) |
@@ -83,7 +83,7 @@ VolleyVision is for people 13 and over. Coaches can add roster records for playe
 
 Built in New Zealand by Himex Trading Ltd.
 
-Questions? support@volleyvision.co.nz
+Questions? himextradingltd@gmail.com
 ```
 
 Notes for Karlos:
