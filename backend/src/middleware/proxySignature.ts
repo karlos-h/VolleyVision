@@ -45,6 +45,11 @@ export function proxySignature(env: NodeJS.ProcessEnv = process.env): RequestHan
     // confirms what site_url Netlify sends for draft deploys.
     const site = env.API_PROXY_SITE_URL;
     if (!verified.ok || (site && verified.claims.site_url !== site)) {
+      // Staging only: the reason (never the token) so a rehearsal can tell a
+      // missing header from a wrong secret. Prod stays silent to probers' noise.
+      if (env.SENTRY_ENVIRONMENT === 'staging') {
+        console.warn(`proxy signature rejected: ${verified.ok ? 'site_url mismatch' : verified.reason}`);
+      }
       res.status(403).json({ error: 'Forbidden.' });
       return;
     }
