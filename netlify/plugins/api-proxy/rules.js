@@ -1,8 +1,8 @@
 // Pure so the staging-never-proxies-to-prod guarantee is testable without Netlify.
 // An exact allow-list (not a pattern): a typo or a missing variable must fail the
 // build rather than quietly send a site's traffic to the wrong API.
-const PROD = 'https://volleyvision-api.fly.dev';
-const STAGING = 'https://volleyvision-api-staging.fly.dev';
+const PROD = 'https://vv-api-himex.fly.dev';
+const STAGING = 'https://vv-api-himex-staging.fly.dev';
 const ALLOWED = [PROD, STAGING, 'function'];
 
 // Netlify adds an x-nf-sign JWS header signed with this site env var, so the

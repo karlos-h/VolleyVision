@@ -109,7 +109,7 @@ if ($PSBoundParameters.ContainsKey('Alias')) {
   if (-not $Draft) { throw "-Alias only applies with -Draft." }
   if ($Alias -cnotmatch '^[a-z0-9-]{1,37}$') { throw "-Alias must match ^[a-z0-9-]{1,37}$ (Netlify caps an alias at 37 characters)." }
 }
-$FlyApp = if ($Target -eq 'staging') { 'volleyvision-api-staging' } else { 'volleyvision-api' }
+$FlyApp = if ($Target -eq 'staging') { 'vv-api-himex-staging' } else { 'vv-api-himex' }
 $RunBackend = ($ApiOrigin -eq 'fly') -and -not $FrontendOnly
 $RunFrontend = -not $BackendOnly
 
