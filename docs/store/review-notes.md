@@ -37,13 +37,13 @@ User-generated content and safety (Guideline 1.2):
 - Filter: an objectionable-words filter runs on chat messages.
 - Report: long-press or use the menu on a message, then Report. Reports are reviewed within 48 hours by the developer.
 - Block: any member can be blocked from their messages. Blocked members' messages are hidden from you.
-- Contact: support@volleyvision.co.nz and https://volleyvision-app.netlify.app/support
+- Contact: himextradingltd@gmail.com and https://volleyvision-app.netlify.app/support
 
 Privacy: no ads, no tracking, no analytics SDKs. Crash reports go to Sentry without user id, email or IP. Privacy policy: https://volleyvision-app.netlify.app/privacy
 
 Permissions: camera and photo library are used only to attach a photo in chat. Nothing else uses them.
 
-Contact: support@volleyvision.co.nz
+Contact: himextradingltd@gmail.com
 ```
 
 **Karlos to confirm** the exact menu labels and tab names above before pasting (the wording is from the project description, not from reading the UI). Also add a **phone number** for the Apple contact field (Apple requires one; **Karlos to confirm**).

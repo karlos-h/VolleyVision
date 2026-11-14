@@ -1,7 +1,7 @@
 // Pure-logic checks for copy-storage.ts (no Supabase). npx ts-node --transpile-only scripts/copy-storage.test.ts
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { buildManifest, diffManifests, isInside, joinPath, localFile, parseArgs } from './copy-storage';
+import { envMap, buildManifest, diffManifests, isInside, joinPath, localFile, parseArgs } from './copy-storage';
 
 assert.equal(joinPath('', 'a.png'), 'a.png');
 assert.equal(joinPath('team/1', 'a.png'), 'team/1/a.png');
@@ -29,4 +29,8 @@ assert.deepEqual(parseArgs(['--import', '--from-dir', 'in', '--apply']), { mode:
 assert.equal(typeof parseArgs(['--export']), 'string');
 assert.equal(typeof parseArgs(['--export', '--import', '--to-dir', 'x']), 'string');
 assert.equal(typeof parseArgs([]), 'string');
+assert.deepEqual(parseArgs(['--export', '--to-dir', 'o', '--env-file', 'e.env']), { mode: 'export', dir: path.resolve('o'), apply: false, envFile: path.resolve('e.env') });
+assert.equal(typeof parseArgs(['--export', '--to-dir', 'o', '--env-file']), 'string');
+assert.deepEqual(envMap('export'), { OLD_SUPABASE_URL: 'SUPABASE_URL', OLD_SERVICE_ROLE_KEY: 'SUPABASE_SERVICE_ROLE_KEY' });
+assert.deepEqual(envMap('import'), { NEW_SUPABASE_URL: 'SUPABASE_URL', NEW_SERVICE_ROLE_KEY: 'SUPABASE_SERVICE_ROLE_KEY' });
 console.log('copy-storage.test.ts passed.');

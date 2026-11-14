@@ -1,6 +1,6 @@
 # Fly.io setup (API)
 
-The API runs as one always-on machine in `syd`. Two apps: `volleyvision-api` (prod, `backend/fly.prod.toml`) and `volleyvision-api-staging` (`backend/fly.staging.toml`, stops when idle). The Netlify Function stays as the rollback until Phase 9.7.
+The API runs as one always-on machine in `syd`. Two apps: `vv-api-himex` (prod, `backend/fly.prod.toml`) and `vv-api-himex-staging` (`backend/fly.staging.toml`, stops when idle). The Netlify Function stays as the rollback until Phase 9.7.
 
 ## Environment variables
 
@@ -56,7 +56,7 @@ To confirm on staging (R6), once staging is on Fly with the signed proxy:
 
 1. `GET https://volleyvision-staging.netlify.app/api/v1/debug/headers` (staging only: `SENTRY_ENVIRONMENT=staging`). It returns header names, the values of `x-nf-client-connection-ip`, `x-forwarded-for`, `fly-client-ip`, `x-real-ip`, `proxyVerified` and the socket address. Expect `proxyVerified: true` and your own public IP in `x-nf-client-connection-ip`.
 2. Same URL with `-H "x-nf-client-connection-ip: 1.2.3.4"`: the value must still be your real IP. If it shows `1.2.3.4`, Netlify passes the caller's header through and clientIp() must not trust it (fall back below).
-3. Same path on `https://volleyvision-api-staging.fly.dev`: expect `403`.
+3. Same path on `https://vv-api-himex-staging.fly.dev`: expect `403`.
 4. Record the results here, then delete `routes/debug.ts` and its mount.
 
 If no client address arrives through the proxy at all: key the per-IP limits on the verified proxy's hop (`fly-client-ip`) and add per-account limits where an IP arm stands alone (register, reset, verify). Not built unless R6 shows it is needed.

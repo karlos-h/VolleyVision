@@ -2,9 +2,10 @@
 
 For Karlos. Until the domain is live, the apps' legal links and the store listings use
 `https://volleyvision-app.netlify.app` (`DOMAIN_LIVE = false` in `frontend/src/lib/legal.ts`,
-`docs/store/`). The support address is already `support@volleyvision.co.nz`, but
-`SUPPORT_EMAIL_CONFIRMED = false` makes prod deploys and store builds refuse to run until you
-confirm the mailbox receives mail. Nothing here is urgent until an app build or a store
+`docs/store/`). The support address is the interim `himextradingltd@gmail.com` (a live Gmail mailbox, Karlos, 14 Nov 2026;
+`SUPPORT_EMAIL_CONFIRMED = true`). When the domain is live and `support@volleyvision.co.nz` receives mail, flip it back:
+change `SUPPORT_EMAIL` in `frontend/src/lib/legal.ts`, the same address in `frontend/public/*.html`, `SECURITY.md` and
+`docs/store/`, then re-run `node scripts/check-legal.mjs --release`. Nothing here is urgent until an app build or a store
 submission needs the links.
 
 ## 1. Buy it
@@ -12,7 +13,7 @@ submission needs the links.
 - Register `volleyvision.co.nz` with **Himex Trading Ltd** as the registrant (the organisation,
   not you personally), so it belongs to the company. Apple's organisation enrolment and the Play
   Console organisation account both check this.
-- Add the email service and create the mailbox `support@volleyvision.co.nz`. Send it a test email.
+- Add the email service and create the mailbox `support@volleyvision.co.nz` (replaces the interim Gmail address). Send it a test email.
 
 ## 2. Add it to the production site on Netlify
 
@@ -49,7 +50,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://volleyvision-app.netlif
 
 ## 5. Tell Claude
 
-- When the mailbox receives your test email, say so: Claude sets `SUPPORT_EMAIL_CONFIRMED = true`.
+- When the mailbox receives your test email, say so: Claude switches `SUPPORT_EMAIL` back to it (`SUPPORT_EMAIL_CONFIRMED` stays true).
 - When `https://volleyvision.co.nz/privacy` opens, say so: in **one commit** Claude sets
   `DOMAIN_LIVE = true` in `legal.ts` (the apps' legal links move to the domain), switches the
   privacy/support/delete URLs in `docs/store/*` back to the domain, and moves the smoke check and

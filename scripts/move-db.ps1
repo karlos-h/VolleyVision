@@ -11,6 +11,18 @@
 #   $env:NEW_DB_URL = '<new project, Session pooler>'
 #   .\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-staging
 #
+# Or let the script read the URL from an env file (nothing typed, nothing printed;
+# same as backup.ps1 -EnvFile). -Export takes DIRECT_URL (else DATABASE_URL) as
+# OLD_DB_URL, -Import takes it as NEW_DB_URL; an already-set env var wins:
+#   .\scripts\move-db.ps1 -Export -From <oldref> -Out D:\vv-move-staging -EnvFile backend\.env.staging
+#   .\scripts\move-db.ps1 -Import -To <newref> -In D:\vv-move-staging -EnvFile backend\.env.staging
+#
+# -PgBin is the folder holding pg_dump.exe, pg_restore.exe and psql.exe. It defaults
+# to the local PostgreSQL 18 client (C:\Program Files\PostgreSQL\18\bin) when that
+# is installed, else empty, which means Docker (postgres:17). -PgBin '' forces
+# Docker. A newer client against Supabase's Postgres 17 is fine. Locally the URL
+# reaches the tool through PGHOST/PGPASSWORD/... for that one call (cleared after).
+#
 # Both modes make you type the project ref before touching anything. For
 # non-interactive runs pass -ConfirmRef <ref> or set $env:MOVE_CONFIRM_REF.
 #
@@ -36,7 +48,9 @@ param(
   [string]$To,
   [string]$Out,
   [string]$In,
-  [string]$ConfirmRef = $env:MOVE_CONFIRM_REF
+  [string]$EnvFile,
+  [string]$ConfirmRef = $env:MOVE_CONFIRM_REF,
+  [string]$PgBin = $(if (Test-Path -LiteralPath 'C:\Program Files\PostgreSQL\18\bin\pg_dump.exe') { 'C:\Program Files\PostgreSQL\18\bin' } else { '' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +63,25 @@ $secrets = @()   # strings scrubbed from any output
 function Hide([string]$Text) {
   foreach ($s in $secrets) { if ($s) { $Text = $Text.Replace($s, '<redacted>') } }
   $Text
+}
+# Same quoting rules as backup.ps1's Read-EnvValue.
+function Read-EnvValue([string]$Path, [string]$Key) {
+  foreach ($line in Get-Content -LiteralPath $Path) {
+    if ($line -match "^\s*$Key\s*=\s*(.*)$") {
+      $v = $Matches[1].Trim()
+      if ($v.Length -ge 2 -and (($v.StartsWith('"') -and $v.EndsWith('"')) -or ($v.StartsWith("'") -and $v.EndsWith("'")))) {
+        $v = $v.Substring(1, $v.Length - 2)
+      }
+      return $v
+    }
+  }
+  return $null
+}
+# Value of DIRECT_URL, else DATABASE_URL, from -EnvFile; $null when absent. Never echoed.
+function Get-UrlFromEnvFile([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path)) { Fail '-EnvFile does not exist.' }
+  foreach ($k in 'DIRECT_URL', 'DATABASE_URL') { $v = Read-EnvValue $Path $k; if ($v) { return $v } }
+  $null
 }
 function Fail([string]$Msg) { Write-Host "REFUSED: $Msg" -ForegroundColor Red; exit 1 }
 
@@ -66,22 +99,65 @@ function ConvertTo-ContainerUrl([string]$Url) {
 }
 function Test-LocalUrl([string]$Url) { $Url -match '@(127\.0\.0\.1|localhost|\[::1\]):' }
 
-# Runs sh -c $Script in a postgres:17 container with $env:DBURL set; optional
-# SQL on stdin and a host folder mounted at /data.
-function Invoke-Pg([string]$ContainerUrl, [string]$Script, [string]$Sql, [string]$Mount) {
-  $dockerArgs = @('run', '--rm', '-e', 'DBURL', '--add-host=host.docker.internal:host-gateway')
-  if ($Sql) { $dockerArgs += '-i' }
-  if ($Mount) { $dockerArgs += @('-v', "${Mount}:/data") }
-  $dockerArgs += @('postgres:17', 'sh', '-c', $Script)
+# libpq reads these; the URL never goes on a command line. Never printed.
+function Set-PgEnv([string]$Url) {
+  $u = [System.Uri]$Url
+  $ui = $u.UserInfo; $i = $ui.IndexOf(':')
+  $env:PGHOST = $u.Host.Trim('[', ']')
+  $env:PGPORT = [string]$u.Port
+  $env:PGUSER = [System.Uri]::UnescapeDataString($(if ($i -ge 0) { $ui.Substring(0, $i) } else { $ui }))
+  $env:PGPASSWORD = [System.Uri]::UnescapeDataString($(if ($i -ge 0) { $ui.Substring($i + 1) } else { '' }))
+  $env:PGDATABASE = [System.Uri]::UnescapeDataString($u.AbsolutePath.TrimStart('/'))
+  if ($u.Query -match 'sslmode=(\w+)') { $env:PGSSLMODE = $Matches[1] }
+}
+function Clear-PgEnv {
+  foreach ($v in 'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE', 'PGSSLMODE') {
+    Remove-Item "Env:$v" -ErrorAction SilentlyContinue -WhatIf:$false
+  }
+}
+
+# Runs a postgres client ($Tool = pg_dump | pg_restore | psql) against $Url, with
+# optional SQL on stdin and a host folder $Data. $ToolArgs may use {db} (the
+# database argument) and {data} (the folder). Locally ($PgBin set) {db} is the
+# database name and the connection comes from PG* env vars; in Docker it is
+# "$DBURL" inside a postgres:17 container (-e DBURL), {data} is /data.
+function Invoke-Pg([string]$Url, [string]$Tool, [string[]]$ToolArgs, [string]$Sql, [string]$Data) {
   try {
-    $env:DBURL = $ContainerUrl
-    if ($Sql) { $res = $Sql | & $Docker @dockerArgs } else { $res = & $Docker @dockerArgs }
-  } finally { Remove-Item Env:DBURL -ErrorAction SilentlyContinue -WhatIf:$false }
-  if ($LASTEXITCODE -ne 0) { throw "docker/postgres command failed (exit $LASTEXITCODE)" }
+    if ($PgBin) {
+      Set-PgEnv $Url
+      $a = @($ToolArgs | ForEach-Object { $_.Replace('{db}', $env:PGDATABASE).Replace('{data}', $Data) })
+      $exe = Join-Path $PgBin "$Tool.exe"
+      if ($Sql) { $res = $Sql | & $exe @a } else { $res = & $exe @a }
+    } else {
+      $script = "$Tool " + (($ToolArgs | ForEach-Object { $_.Replace('{db}', '"$DBURL"').Replace('{data}', '/data') }) -join ' ')
+      $dockerArgs = @('run', '--rm', '-e', 'DBURL', '--add-host=host.docker.internal:host-gateway')
+      if ($Sql) { $dockerArgs += '-i' }
+      if ($Data) { $dockerArgs += @('-v', "${Data}:/data") }
+      $dockerArgs += @('postgres:17', 'sh', '-c', $script)
+      $env:DBURL = $Url
+      if ($Sql) { $res = $Sql | & $Docker @dockerArgs } else { $res = & $Docker @dockerArgs }
+    }
+  } finally {
+    Clear-PgEnv
+    Remove-Item Env:DBURL -ErrorAction SilentlyContinue -WhatIf:$false
+  }
+  if ($LASTEXITCODE -ne 0) { throw "$Tool failed (exit $LASTEXITCODE)" }
   ($res | Out-String).Trim()
 }
-function Invoke-Sql([string]$ContainerUrl, [string]$Sql) {
-  Invoke-Pg $ContainerUrl 'psql "$DBURL" -At -v ON_ERROR_STOP=1' $Sql
+function Invoke-Sql([string]$Url, [string]$Sql) {
+  Invoke-Pg $Url 'psql' @('{db}', '-At', '-v', 'ON_ERROR_STOP=1') $Sql
+}
+# Docker hosts need the localhost rewrite; local clients use the URL as is.
+function Get-ClientUrl([string]$Url) { if ($PgBin) { $Url } else { ConvertTo-ContainerUrl $Url } }
+function Assert-ClientReady {
+  if ($PgBin) {
+    foreach ($t in 'pg_dump', 'pg_restore', 'psql') {
+      if (-not (Test-Path -LiteralPath (Join-Path $PgBin "$t.exe"))) { Fail "-PgBin '$PgBin' has no $t.exe. Fix the folder, or pass -PgBin '' to use Docker." }
+    }
+  } else {
+    & $Docker info *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop and try again.' }
+  }
 }
 
 # Counts every public table except _prisma_migrations (rebuilt by migrate
@@ -112,6 +188,7 @@ if ($Export -eq $Import) { Fail 'give exactly one of -Export or -Import.' }
 # ---------------------------------------------------------------- Export
 if ($Export) {
   if (-not $From -or -not $Out) { Fail '-Export needs -From <ref> and -Out <folder>.' }
+  if (-not $env:OLD_DB_URL -and $EnvFile) { $env:OLD_DB_URL = Get-UrlFromEnvFile $EnvFile }
   if (-not $env:OLD_DB_URL) { Fail 'OLD_DB_URL is not set.' }
   $secrets = @($env:OLD_DB_URL)
   try {
@@ -126,15 +203,14 @@ if ($Export) {
     $url = ConvertTo-PgUrl $env:OLD_DB_URL
     if (-not $url) { Fail 'OLD_DB_URL is not a valid URL (check for unencoded special characters in the password).' }
     $secrets += $url
-    $cUrl = ConvertTo-ContainerUrl $url
-    & $Docker info *> $null
-    if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop and try again.' }
+    $cUrl = Get-ClientUrl $url
+    Assert-ClientReady
 
     New-Item -ItemType Directory -Force -Path $Out -WhatIf:$false | Out-Null
     $rows = @()
     try {
       Write-Host 'Exporting data.dump ...'
-      Invoke-Pg $cUrl 'pg_dump "$DBURL" -Fc --data-only --schema=public --exclude-table=_prisma_migrations --no-owner -f /data/data.dump' $null $Out | Out-Null
+      Invoke-Pg $cUrl 'pg_dump' @('{db}', '-Fc', '--data-only', '--schema=public', '--exclude-table=_prisma_migrations', '--no-owner', '-f', '{data}/data.dump') $null $Out | Out-Null
       $size = (Get-Item -LiteralPath (Join-Path $Out 'data.dump')).Length
       $rows += [pscustomobject]@{ Check = 'data.dump written'; Result = if ($size -gt 0) { 'PASS' } else { 'FAIL' }; Note = "$([math]::Round($size / 1KB)) KB" }
 
@@ -163,6 +239,7 @@ if ($Export) {
 
 # ---------------------------------------------------------------- Import
 if (-not $To -or -not $In) { Fail '-Import needs -To <ref> and -In <folder>.' }
+if (-not $env:NEW_DB_URL -and $EnvFile) { $env:NEW_DB_URL = Get-UrlFromEnvFile $EnvFile }
 if (-not $env:NEW_DB_URL) { Fail 'NEW_DB_URL is not set.' }
 $secrets = @($env:NEW_DB_URL)
 try {
@@ -179,9 +256,8 @@ try {
   $url = ConvertTo-PgUrl $env:NEW_DB_URL
   if (-not $url) { Fail 'NEW_DB_URL is not a valid URL (check for unencoded special characters in the password).' }
   $secrets += $url
-  $cUrl = ConvertTo-ContainerUrl $url
-  & $Docker info *> $null
-  if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop and try again.' }
+  $cUrl = Get-ClientUrl $url
+  Assert-ClientReady
 
   $rows = @()
   function Add-Row([string]$Check, [bool]$Ok, [string]$Note) {
@@ -209,7 +285,7 @@ try {
     $nonEmpty = Invoke-Sql $cUrl ($CountsSql -replace 'select coalesce\(json_object_agg\(table_name, c order by table_name\), ''\{\}''::json\) from', 'select coalesce(sum(c), 0) from')
     Add-Row 'target is empty before restore' ([int64]$nonEmpty -eq 0) "$nonEmpty rows"
     if ([int64]$nonEmpty -ne 0) { throw 'target already holds data' }
-    Invoke-Pg $cUrl 'pg_restore --data-only --no-owner --exit-on-error -d "$DBURL" /data/data.dump' $null "$In" | Out-Null
+    Invoke-Pg $cUrl 'pg_restore' @('--data-only', '--no-owner', '--exit-on-error', '-d', '{db}', '{data}/data.dump') $null "$In" | Out-Null
     Add-Row 'pg_restore' $true 'data restored'
 
     # 3. Verify.

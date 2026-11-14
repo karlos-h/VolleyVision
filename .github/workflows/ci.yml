@@ -46,6 +46,10 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./backup.test.ps1
+      - name: deploy.ps1 refuses bad parameter combinations before any deploy
+        working-directory: .
+        shell: pwsh
+        run: ./deploy.test.ps1
       - name: The move scripts still refuse the old projects and never print a URL
         working-directory: .
         shell: pwsh

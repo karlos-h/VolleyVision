@@ -10,8 +10,8 @@ const dir = '../../netlify/plugins/api-proxy';
 const { buildProxyRules, ALLOWED } = require(`${dir}/rules.js`);
 const plugin = require(`${dir}/index.js`);
 
-const PROD = 'https://volleyvision-api.fly.dev';
-const STAGING = 'https://volleyvision-api-staging.fly.dev';
+const PROD = 'https://vv-api-himex.fly.dev';
+const STAGING = 'https://vv-api-himex-staging.fly.dev';
 
 for (const origin of [PROD, STAGING]) {
   assert.deepEqual(buildProxyRules(origin), [
@@ -21,8 +21,8 @@ for (const origin of [PROD, STAGING]) {
 }
 assert.deepEqual(buildProxyRules('function'), []);
 
-const bad = [undefined, null, '', ' ', 'Function', 'http://volleyvision-api.fly.dev', `${PROD}/`,
-  'https://evil.example', 'https://volleyvision-api.fly.dev.evil.example', `${PROD}/api`];
+const bad = [undefined, null, '', ' ', 'Function', 'http://vv-api-himex.fly.dev', `${PROD}/`,
+  'https://evil.example', 'https://vv-api-himex.fly.dev.evil.example', `${PROD}/api`];
 for (const v of bad) assert.throws(() => buildProxyRules(v), /API_ORIGIN/, `accepted ${String(v)}`);
 assert.equal(ALLOWED.length, 3);
 
@@ -46,8 +46,8 @@ assert.equal(injected[0].to, `${STAGING}/api/v1/:splat`);
 assert.equal(injected[1].to, `${STAGING}/health`);
 assert.equal(injected[2].to, '/.netlify/functions/api/api/v1/:splat');
 assert.equal(run('function').length, 1);
-for (const v of [undefined, '', 'http://volleyvision-api.fly.dev', 'https://evil.example']) {
-  assert.throws(() => run(v), /FAIL: .*volleyvision-api\.fly\.dev.*volleyvision-api-staging\.fly\.dev.*function/s);
+for (const v of [undefined, '', 'http://vv-api-himex.fly.dev', 'https://evil.example']) {
+  assert.throws(() => run(v), /FAIL: .*vv-api-himex\.fly\.dev.*vv-api-himex-staging\.fly\.dev.*function/s);
 }
 
 console.log('check-api-proxy: ok');

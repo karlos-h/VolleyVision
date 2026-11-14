@@ -27,6 +27,27 @@ Check (-not ($text -split "`n" | Where-Object { $_ -notmatch '^\s*#' -and $_ -ma
 $printers = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.GetCommandName() -in 'Write-Host', 'Write-Output', 'Write-Warning', 'Write-Error', 'Fail' }, $true)
 $leaks = @($printers | Where-Object { $_.Extent.Text -match '\$env:(OLD|NEW)_DB_URL|\$url\b|\$cUrl\b' })
 Check ($leaks.Count -eq 0) 'no print statement mentions a URL variable'
+Check ($null -ne $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Read-EnvValue' }, $true)) 'Read-EnvValue is defined (-EnvFile)'
+# The env-file reader must never print what it reads (or the path's contents).
+$readers = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in 'Read-EnvValue', 'Get-UrlFromEnvFile' }, $true)
+foreach ($fn in $readers) {
+  $prints = $fn.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.GetCommandName() -match '^(Write-|Out-Host|echo)' }, $true)
+  Check ($prints.Count -eq 0) "$($fn.Name) has no Write-*"
+}
+$envPrints = @($printers | Where-Object { $_.Extent.Text -match '\$EnvFile|\$Matches|\$v\b' })
+Check ($envPrints.Count -eq 0) 'no print statement mentions the env file or a value read from it'
+
+
+# Local-client path: the URL travels in PG* env vars, which must be cleared even under -WhatIf
+# (Remove-Item Env: above), and never printed.
+Write-Host 'PG* env cleanup'
+$clear = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Clear-PgEnv' }, $true)
+Check ($null -ne $clear -and $clear.Extent.Text -match 'PGPASSWORD' -and $clear.Extent.Text -match "-WhatIf:\`$false") 'Clear-PgEnv clears PGPASSWORD with -WhatIf:$false'
+$setters = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.TryStatementAst] -and $n.Body.Extent.Text -match '\bSet-PgEnv\b' }, $true)
+Check ($setters.Count -gt 0) 'Set-PgEnv is called inside a try'
+foreach ($t in $setters) { Check ($null -ne $t.Finally -and $t.Finally.Extent.Text -match '\bClear-PgEnv\b') 'that try has a finally calling Clear-PgEnv' }
+$pgPrints = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.GetCommandName() -match '^(Write-|Out-Host|echo|Fail$)' -and $n.Extent.Text -match 'PG(PASSWORD|USER|HOST|DATABASE)' }, $true)
+Check (@($pgPrints).Count -eq 0) 'no print statement mentions a PG* variable'
 
 Write-Host 'refusals'
 $ps = (Get-Process -Id $PID).Path
@@ -64,6 +85,25 @@ try {
   Refused (Run @{ OLD_DB_URL = $fakeNew; MOVE_CONFIRM_REF = 'wrong' } @('-Export', '-From', 'abcdefghijklmnopqrst', '-Out', $td)) 'export with a wrong typed ref' "typed ref doesn't match"
   Refused (Run @{ OLD_DB_URL = $fakeNew; MOVE_CONFIRM_REF = 'abcdefghijklmnopqrst' } @('-Export', '-From', 'abcdefghijklmnopqrst', '-Out', (Join-Path $PSScriptRoot 'out'))) 'export into the repo' 'inside the repo'
   Refused (Run @{} @('-Export', '-Import')) 'both modes at once' 'exactly one'
+
+  # -EnvFile supplies OLD_DB_URL: the run must get past "OLD_DB_URL is not set". The URL is local,
+  # so it may go on to Docker/pg_dump and fail there; only the missing-env refusal and any URL echo are asserted.
+  $envFile = Join-Path $td 'fake.env'
+  Set-Content -LiteralPath $envFile -Value 'DIRECT_URL="postgresql://u:p@localhost:5/x"'
+  $outDir = Join-Path $td 'out'
+  $r = Run @{} @('-Export', '-From', $stg, '-Out', $outDir, '-EnvFile', $envFile, '-ConfirmRef', $stg)
+  Check ($r.Out -notmatch 'OLD_DB_URL is not set') '-EnvFile supplies OLD_DB_URL (no missing-env refusal)'
+  # Not just 'postgres': the script's own "docker/postgres command failed" message legitimately says it.
+  Check ($r.Out -notmatch 'postgres(ql)?://|u:p@') '-EnvFile run prints no connection string'
+  $r = Run @{} @('-Export', '-From', $stg, '-Out', $outDir, '-EnvFile', (Join-Path $td 'nope.env'), '-ConfirmRef', $stg)
+  Check ($r.Exit -eq 1 -and $r.Out -match 'does not exist') 'missing -EnvFile is refused'
+  # Import: a file naming an old project is still refused by the old-ref guard.
+  $oldEnv = Join-Path $td 'old.env'
+  Set-Content -LiteralPath $oldEnv -Value "DATABASE_URL=postgresql://postgres.${prod}:pw@host:5432/postgres"
+  Refused (Run @{} @('-Import', '-To', 'abcdefghijklmnopqrst', '-In', $td, '-EnvFile', $oldEnv)) 'import with an -EnvFile naming the old project' 'names the old project'
+  # A bad -PgBin is refused (before any client runs), naming the folder and no URL.
+  Refused (Run @{ OLD_DB_URL = $fakeNew } @('-Export', '-From', 'abcdefghijklmnopqrst', '-Out', $td, '-ConfirmRef', 'abcdefghijklmnopqrst', '-PgBin', (Join-Path $td 'nope'))) 'export with a nonexistent -PgBin' 'PgBin .* has no pg_dump\.exe'
+  Refused (Run @{ NEW_DB_URL = $fakeNew } @('-Import', '-To', 'abcdefghijklmnopqrst', '-In', $td, '-ConfirmRef', 'abcdefghijklmnopqrst', '-PgBin', (Join-Path $td 'nope'))) 'import with a nonexistent -PgBin' 'PgBin .* has no pg_dump\.exe'
 } finally {
   Remove-Item -LiteralPath $td -Recurse -Force
 }

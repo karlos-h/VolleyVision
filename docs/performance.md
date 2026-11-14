@@ -20,7 +20,7 @@
 **Local stack, 6 Oct 2026** (`backend-localdb` → Docker `vv-pg17` on the same PC, owner of a team with one live match;
 5 runs each, median). No Netlify credits, so this is local rather than the planned staging draft: **the operation
 counts are exact, the milliseconds are not representative**. Each operation here costs ~2–10 ms; from the Netlify
-function (Ohio by default) to the Singapore database it is ~200 ms, so multiply `ops` by ~0.2 s for the real cost.
+function (us-east-1, measured 7 Oct) to the Singapore database it is ~200 ms, so multiply `ops` by ~0.2 s for the real cost.
 
 | endpoint | status | min ms | median ms | median db ms | ops | cold | region |
 |---|---|---|---|---|---|---|---|
@@ -77,7 +77,7 @@ cost 5 ops each (`GET /matches/:id`, `GET /events/by-match/:id`); hidden tabs do
 The per-event cost is the next thing worth looking at after the region decision — recorded as a finding.
 
 What a request still costs: one user read (auth), one team and one membership read (visibility + role), then the
-data — about 5 operations, each a round trip to the database. From Ohio to Singapore that is ~1 s of pure distance per
+data — about 5 operations, each a round trip to the database. From us-east-1 to Singapore that is ~1 s of pure distance per
 guarded read, which is why the region note (`docs/region-decision.md`) matters more than any further query trimming.
 
 ## Staging draft, 7 Oct 2026 (after the pass; `connection_limit=3` set by Karlos)
@@ -95,7 +95,7 @@ New Zealand (5 runs, warm instance; the smoke check had already warmed it, so no
 | GET /analytics/matches/:id | 5 | 6196 | 6983 (sum) | ~1400 | us-east-1 |
 | GET /events/by-match/:id | 5 | 5508 | 6277 (sum) | ~1250 | us-east-1 |
 
-**What it says.** The function runs in **us-east-1 (N. Virginia)**, not Ohio, and every Prisma operation costs about
+**What it says.** The function runs in **us-east-1 (N. Virginia)**, not Ohio (the Netlify default people assume), and every Prisma operation costs about
 **1.1 s** of database time from there to Singapore — five times the ~0.2 s the handoff assumed. `/health` is one
 `SELECT 1` and takes 1.1 s. Queries issued in parallel do overlap (Home: 7.2 s of summed query time in 4.0 s of wall
 time), so `connection_limit=3` is in effect. The pass did what it set out to do — Home is 6 operations instead of 12,
@@ -126,7 +126,7 @@ pgbouncer=true]`, parsed from `DATABASE_URL` without ever printing it (`lib/dbPo
 it actually opened without the `metrics` preview feature (G1), so the URL is the only honest source.
 
 Why it matters: Home and the guarded reads run several queries in `Promise.all`. With `connection_limit=1` they run
-one after another, each paying the Ohio→Singapore round trip; with 3 they overlap. More than a handful per function
+one after another, each paying the us-east-1→Singapore round trip; with 3 they overlap. More than a handful per function
 instance is pointless (one request at a time per instance) and risks pgbouncer's pool under many warm instances.
 
 **Recommendation:** keep `pgbouncer=true` on the transaction pooler (port 6543) and try `connection_limit=3` — on

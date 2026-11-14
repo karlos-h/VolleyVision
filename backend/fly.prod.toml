@@ -1,6 +1,6 @@
 # Deploy from backend/: fly deploy -c fly.prod.toml --ha=false
 # Never `fly launch` (it rewrites this file) and never a bare `fly deploy`.
-app = "volleyvision-api"
+app = "vv-api-himex"
 primary_region = "syd"
 kill_signal = "SIGTERM"
 kill_timeout = "15s"
