@@ -1,30 +1,40 @@
 # VolleyVision
 
-VolleyVision is a volleyball performance analytics web app: coaches track matches live, players see their own stats, and teams get analytics built from every recorded event. It is in beta, aimed at a February 2027 launch with a local club, with a mobile app planned after that.
+VolleyVision is a volleyball performance analytics app for club teams. Coaches record matches point by point on a phone or tablet, even with no signal, and the team gets match, team and player analytics built from every recorded event. It is a React web app with an Express and Postgres API, also packaged as Android and iOS apps with Capacitor.
 
 ## What it does
 
-- **Auth and email verification** — register/login with a JWT session; every account must verify its email before it can join a team (invitation, join code, or claiming a player record). Password reset revokes existing sessions via a token version check.
-- **Teams, privately** — a team is visible only to its owner, an accepted member, or an admin. There is no public team listing.
-- **Coach roles** — one head coach (the team owner, changed only by ownership transfer) and up to two assistant coaches per team. The one-head-coach rule is also a database constraint.
-- **Invitations and join codes** — email invitations with a role, plus regenerable player/staff join codes for joining a team directly.
-- **Approval queue** — members on a restricted access tier get their mutations queued as `ApprovalRequest`s instead of applied immediately; the owner, a head coach or a manager approves or rejects them.
-- **Roster and players** — player records, linking a user account to a roster entry, a player portal and a coach portal.
-- **Match tracking** — live scoring, set/score adjustments, a scoreboard, and a spectator watch view.
-- **Analytics** — match, team and player analytics and a match report, built from the event log.
-- **Team chat** — one polled channel per team.
-- **Feedback** — in-app feedback with optional attachments, reviewed by admins.
-
-## Removed in September 2026
-
-Leagues, match video (YouTube and upload), the AI assistant/match summary, heat maps, coaching/training/season recommendations, rotation analytics, momentum charts, and opponent scouting reports were all built, then deleted (not just flagged off) in a September 2026 audit that refocused the app on its core. They're recoverable from the git tag `pre-feature-removal`. See `CHANGELOG.md` for the full audit trail.
+- **Live match tracking:** record each rally's events, score and serving side from the courtside tracker, with undo, set and score corrections, and a read-only live view for players and viewers.
+- **Offline tracking:** taps are saved on the device first and sent in order when the connection returns, each exactly once, even if the app is closed in between. A badge shows what is saved and what is still waiting.
+- **Analytics:** match, team and player dashboards, a match report, court zones and heat maps, side-out and break-point percentages, rotation and momentum panels, and serve, attack, block and serve receive figures, with date range filters.
+- **Exports:** CSV downloads of stats tables and print or save as PDF for dashboards (website only for now).
+- **Teams and roles:** anyone can start a team. Each team has one head coach (its owner), up to two assistant coaches, and manager, statistician, player and viewer roles. What you can do depends on your role in each team.
+- **Joining a team:** email invitations with a role, plus player and staff join codes. Every account must verify its email before joining a team.
+- **Approval queue:** members on a restricted access tier have their changes queued for the owner, a head coach or a manager to approve or reject.
+- **Privacy by default:** teams are visible only to their members. Players and viewers see team totals and their own stats; each player's individual stats go only to the team's staff and that player.
+- **Team chat:** one channel per team, with photo attachments, message reporting and member blocking.
+- **Accounts:** sign-up with Terms and age confirmation (13 or older), password reset that signs out other devices, and in-app account deletion.
+- **Feedback:** in-app feedback with optional attachments, reviewed by admins.
 
 ## Tech stack
 
 - **Backend:** Express 4 + TypeScript 5 + Prisma 5, against Supabase Postgres.
-- **Frontend:** React 18 + Vite 5 + TanStack Query 5 + Tailwind CSS 3.
-- **Deployment:** Netlify — the frontend as static assets, the entire backend as one Netlify Function.
+- **Frontend:** React 18 + Vite 5 + TanStack Query 5 + Tailwind CSS 3, with React Router and Recharts.
+- **Deployment:** Netlify: the frontend as static assets, the entire backend as one Netlify Function.
 - **Error tracking:** Sentry (`@sentry/node` / `@sentry/react`).
+- **Mobile:** Capacitor 8 shells for Android and iOS around the same frontend; iOS builds run on Codemagic.
+- **CI:** GitHub Actions (type-checks, unit, HTTP and integration tests, lint, web and Android builds, dependency audit).
+
+## Current status
+
+- **Beta.** A launch with a local club is planned for February 2027.
+- **`main` is release v9.18.1.** `CHANGELOG.md` lists every release, what it changed and whether it has been deployed.
+- **Android:** the app is built and tested, but it is not on Google Play yet.
+- **iOS:** set up to build in the cloud for internal TestFlight testing only. The first TestFlight build is still pending, and the app is not on the App Store.
+
+### Removed features
+
+Leagues, match video (YouTube and upload), the AI assistant and match summary, coaching and training recommendations, and opponent scouting reports were built, then deleted (not just flagged off) in a September 2026 audit that refocused the app on its core. Heat maps, rotation analytics and momentum were removed in the same audit and rebuilt later (v9.8.0 and v9.12.0). The removed code is recoverable from the git tag `pre-feature-removal`, and `CHANGELOG.md` has the full audit trail.
 
 ## Repository layout
 
@@ -44,11 +54,14 @@ frontend/                 Vite + React SPA
   src/hooks/               TanStack Query hooks
   src/lib/                 Axios client, token storage
   src/config/features.ts   Feature flags
+  android/, ios/           Capacitor projects for the Android and iOS apps
 docs/design/               Design notes and mockups
 docs/audit/AUDIT-LOG.md    September 2026 audit log
+docs/store/                App store listing, privacy and review notes
 CHANGELOG.md               Release history, newest first
 deploy.ps1                  Production deploy script
 backup.ps1                  Production database backup (pg_dump in Docker)
+codemagic.yaml              iOS cloud builds (TestFlight)
 ```
 
 ## Local development
@@ -76,7 +89,7 @@ npm install
 npm run dev        # :5173, proxies /api/v1 to the backend in dev
 ```
 
-Key backend env vars (see `backend/.env.example` for the full list): `DATABASE_URL` (pooled), `DIRECT_URL` (direct, migrations only), `JWT_SECRET` (required — auth 500s without it), `CLIENT_URL` (CORS origin), SMTP settings (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`; without them no email is sent, so nobody can verify their address or join a team), Supabase Storage settings (optional — degrades only attachment endpoints), `SENTRY_DSN`.
+Key backend env vars (see `backend/.env.example` for the full list): `DATABASE_URL` (pooled), `DIRECT_URL` (direct, migrations only), `JWT_SECRET` (required; auth 500s without it), `CLIENT_URL` (CORS origin), SMTP settings (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`; without them no email is sent, so nobody can verify their address or join a team), Supabase Storage settings (optional; without them only the attachment endpoints fail), `SENTRY_DSN`.
 
 Key frontend env var: `VITE_API_URL` (leave unset locally; only needed when the frontend is served from a different origin than the API), `VITE_SENTRY_DSN`.
 
@@ -109,7 +122,7 @@ npm run preview          # vite preview
 
 ## Testing
 
-Backend tests are plain `assert`-based TypeScript files at `backend/src/lib/*.test.ts`, run directly by `ts-node` via `npm test`. They must stay pure logic — importing anything that pulls in `lib/prisma` instantiates a `PrismaClient` at module load, which needs a platform-specific engine binary the test runner doesn't have. This is why the static role-permission map lives in `lib/rolePermissions.ts`, separate from `services/permission.service.ts`.
+Backend tests are plain `assert`-based TypeScript files at `backend/src/lib/*.test.ts`, run directly by `ts-node` via `npm test`. They must stay pure logic: importing anything that pulls in `lib/prisma` instantiates a `PrismaClient` at module load, which needs a platform-specific engine binary the test runner doesn't have. This is why the static role-permission map lives in `lib/rolePermissions.ts`, separate from `services/permission.service.ts`.
 
 Code that touches the database is tested with a fake Prisma client instead:
 - A test file imports `src/testing/installFakePrisma.ts` **first**, which swaps `lib/prisma` in the module cache for a recording fake.
@@ -141,9 +154,9 @@ The backend is layered `routes/` (Express wiring + validators) -> `controllers/`
 
 Team authorization is three stacked layers, and a new team-scoped endpoint needs to go through all of them:
 
-1. **Visibility** — a team is visible only to its owner, an accepted membership, or a global admin. Anyone else gets a 404, not a 403, so team ids never leak.
-2. **Role permissions** — a static `TeamRole` -> `Permission` map, with the team owner always resolved to head coach.
-3. **Access tiers** — a per-member dial (`VIEW_ONLY`, `APPROVAL_REQUIRED`, `FULL_ACCESS`) on roster, invitation and match actions. `VIEW_ONLY` is rejected outright; `APPROVAL_REQUIRED` mutations become queued `ApprovalRequest` rows instead of applying immediately.
+1. **Visibility:** a team is visible only to its owner, an accepted membership, or a global admin. Anyone else gets a 404, not a 403, so team ids never leak.
+2. **Role permissions:** a static `TeamRole` -> `Permission` map, with the team owner always resolved to head coach.
+3. **Access tiers:** a per-member dial (`VIEW_ONLY`, `APPROVAL_REQUIRED`, `FULL_ACCESS`) on roster, invitation and match actions. `VIEW_ONLY` is rejected outright; `APPROVAL_REQUIRED` mutations become queued `ApprovalRequest` rows instead of applying immediately.
 
 Rate limiting (login, register, password reset, join-code lookups) is backed by a Postgres token-bucket table rather than in-memory state, so every Netlify Function invocation shares the same budget instead of starting with an empty one.
 
@@ -157,7 +170,7 @@ Migrations are applied with, from `backend/`:
 npx prisma migrate deploy
 ```
 
-This must be run **before** deploying when the schema has changed. The Netlify build deliberately does not run migrations — the CLI masks secret env vars during a build, which makes `migrate` fail with error P1013.
+This must be run **before** deploying when the schema has changed. The Netlify build deliberately does not run migrations: the CLI masks secret env vars during a build, which makes `migrate` fail with error P1013.
 
 ## Deployment
 
@@ -192,7 +205,7 @@ Rolling a deploy back with Netlify's dashboard (Deploys → an older production 
 
 **v9.17.0 or later → v9.15.0 (or v9.16.0):** v9.17.0 added the `MESSAGE_REPORT` feedback type. Older code's Prisma client doesn't know that value, so once anyone has reported a chat message, the admin feedback list and the reporter's "My feedback" return 500 on the old code. Before publishing the older deploy, either:
 
-- retype those rows (Karlos runs this in the Supabase SQL editor; the reported message's snapshot is in each row's description, so the reports stay readable as ordinary feedback):
+- retype those rows (run this in the Supabase SQL editor; the reported message's snapshot is in each row's description, so the reports stay readable as ordinary feedback):
   ```sql
   UPDATE feedback SET type = 'GENERAL' WHERE type = 'MESSAGE_REPORT';
   ```
@@ -239,7 +252,7 @@ signs and uploads it (`codemagic.yaml`, workflow `ios-testflight`).
 CI's `ios-config` job runs both on Ubuntu and fails if the committed `ios/` differs from a fresh sync, so after
 changing `capacitor.config.ts`, a plugin or the Xcode project, run `npm run ios:prod` and commit what it changes.
 
-**Before the first build (Karlos, once):** an Apple Developer account (organisation, Himex Trading Ltd), the App ID
+**Before the first build (once):** an Apple Developer account (organisation, Himex Trading Ltd), the App ID
 `app.volleyvision`, the app in App Store Connect, an App Store Connect API key (App Manager) added to Codemagic, an
 Apple Distribution certificate and an App Store provisioning profile fetched into Codemagic, and an internal
 TestFlight group with automatic distribution. Then replace the three `REPLACE_WITH_*` values in `codemagic.yaml`:
@@ -254,7 +267,7 @@ the key itself, certificates and profiles live only in Codemagic.
   first. It only uploads; submitting for review is done in App Store Connect.
 
 Nothing starts a build automatically (no `triggering:` section), which keeps it inside the free 500 macOS minutes a
-month; a build takes about 10–20 minutes. Once Apple has processed an `ios-testflight` upload, the build reaches the
+month; a build takes about 10 to 20 minutes. Once Apple has processed an `ios-testflight` upload, the build reaches the
 internal group's iPhones through TestFlight on its own.
 
 **If the first build fails before any script runs:** errors such as "integration not found" or "no matching
@@ -275,7 +288,7 @@ Codemagic set-up above isn't finished (the API key's name, the certificate or th
 - **Production API:** needs `capacitor://localhost` in `CORS_EXTRA_ORIGINS` (see Building the Android app).
 - **Device checks:** `docs/ios-device-checklist.md`.
 - **Not yet:** push notifications, universal links (emails open the website in Safari), CSV and Print (hidden in
-  the apps), and the App Store itself (Phase 9: account deletion, privacy policy link, chat reporting, age rating).
+  the apps), and store release (neither the App Store nor Google Play listing is live).
 
 ## Security
 
