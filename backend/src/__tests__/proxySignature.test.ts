@@ -71,6 +71,13 @@ async function main() {
     assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': signed() })).status, 200, 'own site passes');
     const other = jwt.sign({ iss: 'netlify', deploy_context: 'production', site_url: 'https://other.test' }, SECRET, { algorithm: 'HS256', expiresIn: 60 });
     assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': other })).status, 403, 'another site is refused');
+    const sign = (site_url: string, expiresIn = 60) => jwt.sign({ iss: 'netlify', deploy_context: 'branch-deploy', site_url }, SECRET, { algorithm: 'HS256', expiresIn });
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': sign('https://rehearse--vv.test') })).status, 200, "the site's own draft deploy passes");
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': sign('https://evil-vv.test') })).status, 403, 'a look-alike host is refused');
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': sign('https://vv.test.evil.example') })).status, 403, 'a suffix trick is refused');
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': sign('http://vv.test') })).status, 403, 'plain http is refused');
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': sign('https://vv.test', 300) })).status, 200, "Netlify's own 5 minute lifetime passes");
+    assert.equal((await get(base, '/api/v1/thing', { 'x-nf-sign': sign('https://vv.test', 3600) })).status, 403, 'a long-lived signature is refused');
   });
 
   console.log('proxySignature.test.ts passed');

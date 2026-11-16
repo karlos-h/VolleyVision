@@ -4,7 +4,7 @@
 // rate-limit key. Off Fly (local dev, tests, the Netlify Function) no request
 // passes through the proxy, so the check is off.
 import { RequestHandler } from 'express';
-import { verifyProxySignature } from '../lib/proxySignature';
+import { siteMatches, verifyProxySignature } from '../lib/proxySignature';
 
 declare global {
   namespace Express {
@@ -41,10 +41,11 @@ export function proxySignature(env: NodeJS.ProcessEnv = process.env): RequestHan
     // that tells a prober why.
     const verified = verifyProxySignature(req.headers['x-nf-sign'], secret);
     // API_PROXY_SITE_URL (non-secret, fly.*.toml) pins the app to its own Netlify
-    // site, so staging's proxy can't be pointed at prod's app. Not set yet: the two
-    // apps are separated by having different secrets. Set it at the prod cutover.
+    // site (and that site's draft deploys), so staging's proxy can't be pointed at
+    // prod's app even if a secret were reused. Set for staging; prod's is set at
+    // the cutover, once its real site_url (a custom domain would change it) is seen.
     const site = env.API_PROXY_SITE_URL;
-    if (!verified.ok || (site && verified.claims.site_url !== site)) {
+    if (!verified.ok || (site && !siteMatches(verified.claims.site_url, site))) {
       // Staging only: the reason (never the token) so a rehearsal can tell a
       // missing header from a wrong secret. Prod stays silent to probers' noise.
       if (env.SENTRY_ENVIRONMENT === 'staging') {

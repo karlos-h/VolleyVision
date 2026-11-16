@@ -8,6 +8,27 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 
 export type ProxySignatureResult = { ok: true; claims: JwtPayload } | { ok: false; reason: string };
 
+// Netlify signs with exp about 300 s ahead (measured on staging, 16 Nov 2026).
+// Anything much further out wasn't minted by Netlify's proxy for this request,
+// and would stay replayable for as long as it claims.
+export const MAX_SIGNATURE_TTL_SECONDS = 600;
+
+/**
+ * True when the signed site_url is the pinned site or one of its draft/branch
+ * deploys, which Netlify signs as https://<alias>--<site host> (measured on
+ * staging: rehearse--volleyvision-staging.netlify.app, deploy_context branch-deploy).
+ */
+export function siteMatches(claimed: unknown, pinned: string): boolean {
+  if (typeof claimed !== 'string') return false;
+  try {
+    const got = new URL(claimed);
+    const want = new URL(pinned);
+    return got.protocol === 'https:' && (got.host === want.host || got.host.endsWith(`--${want.host}`));
+  } catch {
+    return false;
+  }
+}
+
 export function verifyProxySignature(
   header: string | string[] | undefined,
   secret: string | undefined,
@@ -28,6 +49,7 @@ export function verifyProxySignature(
     // jsonwebtoken accepts a token with no exp; one that never expires could be
     // replayed forever by anyone who ever saw it. Netlify always sends exp.
     if (typeof claims === 'string' || typeof claims.exp !== 'number') return { ok: false, reason: 'no-exp' };
+    if (claims.exp - Math.floor(now / 1000) > MAX_SIGNATURE_TTL_SECONDS) return { ok: false, reason: 'exp-too-far' };
     return { ok: true, claims };
   } catch (err) {
     return { ok: false, reason: err instanceof jwt.TokenExpiredError ? 'expired' : 'invalid' };
