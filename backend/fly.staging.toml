@@ -14,6 +14,8 @@ kill_timeout = "15s"
   PORT = "8080"
   # Keeps Server-Timing and measurement on.
   SENTRY_ENVIRONMENT = "staging"
+  # Only this Netlify site (and its drafts) may use this app; see middleware/proxySignature.ts.
+  API_PROXY_SITE_URL = "https://volleyvision-staging.netlify.app"
   # Filled in 9.6.S:
   # GOOGLE_WEB_CLIENT_ID = ""
   # GOOGLE_IOS_CLIENT_ID = ""
