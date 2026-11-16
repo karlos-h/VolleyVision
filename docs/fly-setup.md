@@ -52,7 +52,7 @@ What the code does (R3):
 - `lib/clientIp.ts`: signed requests key on `x-nf-client-connection-ip` (or one shared `unknown` bucket if it is absent); unsigned Fly requests on the socket address; off Fly (the Netlify Function, local dev) unchanged.
 - `x-nf-sign` and `fly-client-ip` are dropped from Sentry events with the other address headers.
 
-To confirm on staging (R6), once staging is on Fly with the signed proxy:
+How it was confirmed on staging (R6); the `/debug/headers` probe used here was deleted afterwards:
 
 1. `GET https://volleyvision-staging.netlify.app/api/v1/debug/headers` (staging only: `SENTRY_ENVIRONMENT=staging`). It returns header names, the values of `x-nf-client-connection-ip`, `x-forwarded-for`, `fly-client-ip`, `x-real-ip`, `proxyVerified` and the socket address. Expect `proxyVerified: true` and your own public IP in `x-nf-client-connection-ip`.
 2. Same URL with `-H "x-nf-client-connection-ip: 1.2.3.4"`: the value must still be your real IP. If it shows `1.2.3.4`, Netlify passes the caller's header through and clientIp() must not trust it (fall back below).
@@ -61,4 +61,4 @@ To confirm on staging (R6), once staging is on Fly with the signed proxy:
 
 If no client address arrives through the proxy at all: key the per-IP limits on the verified proxy's hop (`fly-client-ip`) and add per-account limits where an IP arm stands alone (register, reset, verify). Not built unless R6 shows it is needed.
 
-Results: _pending R6._
+Results (staging draft, 16 Nov 2026): (1) `proxyVerified: true`, `x-nf-client-connection-ip` = the caller's public IP, `fly-client-ip` = a Netlify edge address, `x-real-ip` absent. (2) A caller-sent `x-nf-client-connection-ip: 1.2.3.4` was overwritten by Netlify with the real IP. (3) The same path on `vv-api-himex-staging.fly.dev` answered `403`. So clientIp() can trust the header on signed requests and the fallback above is not needed. Gotcha found on the way: with no `API_PROXY_SIGNING_SECRET` env var on the Netlify site, the proxy still forwards but sends no `x-nf-sign`, and Fly answers 403 to everything.

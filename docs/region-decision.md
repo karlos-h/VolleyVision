@@ -6,15 +6,15 @@ Run the API on **Fly.io `syd` (always on)** and move the database to **Supabase 
 stays on the **Personal** plan: it hosts the site and proxies `/api/v1/*` to Fly (Phase 9.6). This replaces the
 recommendation below (A) and the "Ohio" and "us-east-2" wording in it; the measured region was us-east-1.
 
-Measured result: pending the staging move (R6). To be filled in after `node backend/scripts/measure.mjs <staging url>`.
+Measured on staging, 16 Nov 2026 (`node backend/scripts/measure.mjs <staging draft url> --runs 3`, from Christchurch): a database operation costs about 5 ms from Fly `syd` to Supabase Sydney (about 110 ms to Singapore and 160 ms to Tokyo from the same machine).
 
 | Request (median) | Before (us-east-1 to Singapore, 7 Oct) | After (Fly syd to Supabase Sydney) |
 |---|---|---|
-| `/health` | 1.4 s | TODO(R6) |
-| `/auth/me` | 2.5 s | TODO(R6) |
-| `/my-role` | 3.7 s | TODO(R6) |
-| Home | 4.2 s | TODO(R6) |
-| Match analytics | 6.2 s | TODO(R6) |
+| `/health` | 1.4 s | 0.07 s |
+| `/auth/me` | 2.5 s | 0.08 s |
+| `/my-role` | 3.7 s | 0.07 s |
+| Home | 4.2 s | 0.09 s |
+| Match analytics | 6.2 s | 0.10 s |
 
 Everything below is the earlier analysis, kept as history.
 

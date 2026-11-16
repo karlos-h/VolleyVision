@@ -36,7 +36,6 @@ import { sentryRequestScope } from './lib/sentryRequest';
 import { installShutdown } from './lib/shutdown';
 import { startKeepAlive } from './lib/keepAlive';
 import { requireProxySignature } from './middleware/proxySignature';
-import { mountDebugRoutes } from './routes/debug';
 
 dotenv.config();
 
@@ -79,7 +78,6 @@ app.use(express.json());
 // After CORS, so a 426 still carries the allow headers and preflights never
 // reach it; /health is outside /api/v1 and so never refused.
 app.use('/api/v1', minClientVersion);
-mountDebugRoutes(app); // R3 investigation, staging only; delete after R6
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 // All routes versioned under /api/v1 so Phase 2+ can introduce /api/v2 without

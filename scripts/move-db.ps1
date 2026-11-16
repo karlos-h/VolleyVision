@@ -296,7 +296,8 @@ try {
     foreach ($p in $want.PSObject.Properties) {
       if ($null -eq $got.($p.Name) -or [int64]$got.($p.Name) -ne [int64]$p.Value) { $bad += "$($p.Name): want $($p.Value), got $($got.($p.Name))" }
     }
-    foreach ($p in $got.PSObject.Properties) { if ($null -eq $want.($p.Name)) { $bad += "$($p.Name): not in the export" } }
+    # A table created by a migration added since the export isn't in counts.json; it must be empty.
+    foreach ($p in $got.PSObject.Properties) { if ($null -eq $want.($p.Name) -and [int64]$p.Value -ne 0) { $bad += "$($p.Name): not in the export, $($p.Value) rows" } }
     $total = ($want.PSObject.Properties | Measure-Object -Property Value -Sum).Sum
     Add-Row 'row counts match' ($bad.Count -eq 0) $(if ($bad) { $bad -join '; ' } else { "$(($want.PSObject.Properties | Measure-Object).Count) tables, $total rows" })
 
