@@ -52,7 +52,7 @@ What the code does (R3):
 - `lib/clientIp.ts`: signed requests key on `x-nf-client-connection-ip` (or one shared `unknown` bucket if it is absent); unsigned Fly requests on the socket address; off Fly (the Netlify Function, local dev) unchanged.
 - `x-nf-sign` and `fly-client-ip` are dropped from Sentry events with the other address headers.
 
-To confirm on staging (R6), once staging is on Fly with the signed proxy:
+How it was confirmed on staging (R6); the `/debug/headers` probe used here was deleted afterwards:
 
 1. `GET https://volleyvision-staging.netlify.app/api/v1/debug/headers` (staging only: `SENTRY_ENVIRONMENT=staging`). It returns header names, the values of `x-nf-client-connection-ip`, `x-forwarded-for`, `fly-client-ip`, `x-real-ip`, `proxyVerified` and the socket address. Expect `proxyVerified: true` and your own public IP in `x-nf-client-connection-ip`.
 2. Same URL with `-H "x-nf-client-connection-ip: 1.2.3.4"`: the value must still be your real IP. If it shows `1.2.3.4`, Netlify passes the caller's header through and clientIp() must not trust it (fall back below).
