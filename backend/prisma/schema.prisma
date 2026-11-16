@@ -17,7 +17,9 @@ generator client {
   // target that runtime can load. rhel-openssl-1.0.x was for the older Amazon
   // Linux 2 (Node 18) runtime and is dropped: it was dead weight in a ~74 MB
   // bundle. Revisit if NODE_VERSION (netlify.toml) ever drops below 20.
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  // debian-openssl-3.0.x: the Fly image (node:24-bookworm-slim). Keep rhel until
+  // the Netlify Function is retired (Phase 9.7); it is the rollback.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
   // omitApi: lets lib/prisma.ts hide Team join codes from every query that does
   // not explicitly select them. GA in Prisma 6; drop this line when upgrading.
   previewFeatures = ["omitApi"]
@@ -293,6 +295,9 @@ model User {
   // 9.1: members this user has blocked in chat, and who blocked them.
   blocksMade     UserBlock[] @relation("BlocksMade")
   blocksReceived UserBlock[] @relation("BlocksReceived")
+
+  // 9.6.0.2: tokens this user signed out of, until they would have expired.
+  revokedTokens RevokedToken[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -836,6 +841,19 @@ model UserBlock {
   @@unique([blockerId, blockedId])
   @@index([blockedId])
   @@map("user_blocks")
+}
+
+// 9.6.0.2: a JWT signed out of before it expired (its jti). Kept only until
+// expiresAt, the token's own exp, after which the signature check refuses it
+// anyway. userId is nullable for rows not tied to an account.
+model RevokedToken {
+  jti       String   @id
+  userId    String?  @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
 }
 
 model FeedbackAttachment {

@@ -16,6 +16,7 @@ import { trimCachedMatches } from './lib/offlineCache';
 import { isAppOutdatedError } from './lib/api';
 import PageLoadingFallback from './components/ui/PageLoadingFallback';
 import { scrubUrls, scrubTransaction } from './lib/scrubUrl';
+import { shouldInitSentry } from './lib/sentryInit';
 
 // Fail-soft: unset VITE_SENTRY_DSN is normal in local dev (see
 // backend/src/instrument.ts for the equivalent backend guard). Session
@@ -23,7 +24,7 @@ import { scrubUrls, scrubTransaction } from './lib/scrubUrl';
 // can include minors, and DOM/video capture is exactly the second copy of
 // that data Sentry must not become.
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
-if (sentryDsn) {
+if (sentryDsn && shouldInitSentry(import.meta.env)) {
   Sentry.init({
     dsn: sentryDsn,
     // VITE_SENTRY_ENVIRONMENT=staging on the staging site, which builds in

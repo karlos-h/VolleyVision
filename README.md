@@ -20,7 +20,8 @@ VolleyVision is a volleyball performance analytics app for club teams. Coaches r
 
 - **Backend:** Express 4 + TypeScript 5 + Prisma 5, against Supabase Postgres.
 - **Frontend:** React 18 + Vite 5 + TanStack Query 5 + Tailwind CSS 3, with React Router and Recharts.
-- **Deployment:** Netlify: the frontend as static assets, the entire backend as one Netlify Function.
+- **Deployment:** the frontend as static assets on Netlify; the API as one always-on Fly.io machine in Sydney, next to the Supabase database.
+  Netlify proxies `/api/v1/*` and `/health` (signed) to the Fly API through the `netlify/plugins/api-proxy` build plugin, chosen by `API_ORIGIN` (`function` = rollback to the old Netlify Function).
 - **Error tracking:** Sentry (`@sentry/node` / `@sentry/react`).
 - **Mobile:** Capacitor 8 shells for Android and iOS around the same frontend; iOS builds run on Codemagic.
 - **CI:** GitHub Actions (type-checks, unit, HTTP and integration tests, lint, web and Android builds, dependency audit).
@@ -28,7 +29,7 @@ VolleyVision is a volleyball performance analytics app for club teams. Coaches r
 ## Current status
 
 - **Beta.** A launch with a local club is planned for February 2027.
-- **`main` is release v9.18.1.** `CHANGELOG.md` lists every release, what it changed and whether it has been deployed.
+- **`main` is release v9.19.0.** `CHANGELOG.md` lists every release, what it changed and whether it has been deployed.
 - **Android:** the app is built and tested, but it is not on Google Play yet.
 - **iOS:** set up to build in the cloud for internal TestFlight testing only. The first TestFlight build is still pending, and the app is not on the App Store.
 
@@ -139,7 +140,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every
 
 ## Staging and tests
 
-Every change is meant to be proven on staging (a second Supabase project and a second Netlify site) before production. Staging exists since 3 Oct 2026: Supabase `volleyvision-staging` (Singapore) and the Netlify site https://volleyvision-staging.netlify.app. Its environment variables are set in the Netlify dashboard, never with the CLI: on 3 Oct, `netlify env:set --site <staging>` run from this folder (then linked to the production site) changed production. The folder is unlinked since 6 Oct, and `deploy.ps1` names the site with `--site` every time.
+Every change is meant to be proven on staging (a second Supabase project and a second Netlify site) before production. Staging exists since 3 Oct 2026: Supabase `volleyvision-staging` (Sydney from Phase 9.6, moved from Singapore) and the Netlify site https://volleyvision-staging.netlify.app. Its environment variables are set in the Netlify dashboard, never with the CLI: on 3 Oct, `netlify env:set --site <staging>` run from this folder (then linked to the production site) changed production. The folder is unlinked since 6 Oct, and `deploy.ps1` names the site with `--site` every time.
 
 - **Integration tests** (`backend/src/__integration__/`): the real app against a real, local Postgres. `authz-matrix.test.ts` is the single place authorization expectations live: every team-scoped route, called as an outsider, a viewer and a player. `rls.test.ts` checks every public table has row-level security on. Run them locally against a throwaway database with `DATABASE_URL=postgresql://…@localhost:…/… npm run test:integration`. The runner refuses any non-local database.
 - **Staging seed** (`npm run db:seed:staging`): pre-verified users for every role plus an outsider, two teams and two matches. It refuses any database that isn't the staging project.
@@ -177,11 +178,12 @@ This must be run **before** deploying when the schema has changed. The Netlify b
 From the repository root:
 
 ```powershell
-.\deploy.ps1                   # production
-.\deploy.ps1 -Target staging   # the staging site, using backend/.env.staging
+.\deploy.ps1 -Target prod -ApiOrigin fly   # production: the API to Fly, then the frontend to Netlify
+.\deploy.ps1 -Target staging   # staging, using backend/.env.staging
+.\deploy.ps1 -Target prod -ApiOrigin fly -BackendOnly    # only the API (-FrontendOnly: only the site)
 ```
 
-The Netlify build, function and redirect config is `netlify.toml` at the repo root. `deploy.ps1` builds the site locally and publishes it (`netlify deploy --prod --build --site <id>`, always naming the target site), with a deploy message built from the current git state. It first runs `npx prisma migrate status` against the target's database and aborts if migrations are pending or the database is unreachable (`-SkipMigrationCheck` bypasses this). A production deploy also refuses a dirty working tree or a branch other than `main` unless you pass `-Force`. After deploying, it runs the smoke check: read-only against production, logged in as the seed users on staging. It requires the Netlify CLI to be logged in as the account that owns the site. Don't rely on a push to `main` to deploy: always use the script.
+The Netlify build, function and redirect config is `netlify.toml` at the repo root. `deploy.ps1` (`-Target` is mandatory) first deploys the API to Fly (`fly deploy -c fly.<target>.toml --ha=false` from `backend/`, then waits for `/health/live`; skipped with `-FrontendOnly` or `-ApiOrigin function`), then builds the site locally and publishes it (`netlify deploy --prod --build --site <id>`, always naming the target site; skipped with `-BackendOnly`), with a deploy message built from the current git state. It first runs `npx prisma migrate status` against the target's database and aborts if migrations are pending or the database is unreachable (`-SkipMigrationCheck` bypasses this). A production deploy also refuses a dirty working tree or a branch other than `main` unless you pass `-Force`. After deploying, it runs the smoke check: read-only against production, logged in as the seed users on staging. It requires the Netlify CLI to be logged in as the account that owns the site. Don't rely on a push to `main` to deploy: always use the script.
 
 ### Backups
 

@@ -1,0 +1,42 @@
+# Deploy from backend/: fly deploy -c fly.staging.toml --ha=false
+# Never `fly launch` (it rewrites this file) and never a bare `fly deploy`.
+app = "vv-api-himex-staging"
+primary_region = "syd"
+kill_signal = "SIGTERM"
+kill_timeout = "15s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret values only. Secrets are set in the Fly dashboard (docs/fly-setup.md).
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  # Keeps Server-Timing and measurement on.
+  SENTRY_ENVIRONMENT = "staging"
+  # Only this Netlify site (and its drafts) may use this app; see middleware/proxySignature.ts.
+  API_PROXY_SITE_URL = "https://volleyvision-staging.netlify.app"
+  # Filled in 9.6.S:
+  # GOOGLE_WEB_CLIENT_ID = ""
+  # GOOGLE_IOS_CLIENT_ID = ""
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # /health/live, not /health: no database call, so a Supabase blip never
+  # restarts the machine.
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health/live"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+
+# No release_command: migrations stay manual (prisma migrate deploy).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

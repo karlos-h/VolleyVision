@@ -1,0 +1,5 @@
+{
+  // Tests stay out of dist: the Docker image and the Netlify Function ship it whole.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/__tests__", "src/__integration__", "src/testing"]
+}

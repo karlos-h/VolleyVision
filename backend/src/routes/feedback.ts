@@ -3,10 +3,10 @@
 // lists their own; requireAdmin gates the cross-user list and triage.
 
 import { Router, Request, Response, NextFunction } from 'express';
-import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
 import { requireAdmin } from '../middleware/permissions';
 import { chatPostRateLimit, sentryTestRateLimit } from '../middleware/rateLimit';
+import { diskUpload, uploadTempGuard, uploadTotalGuard } from '../lib/uploadTemp';
 import { MAX_ATTACHMENTS_PER_FEEDBACK, MAX_FILE_BYTES } from '../services/feedbackStorage.service';
 import {
   createFeedback,
@@ -18,13 +18,10 @@ import {
 
 const router = Router();
 
-// Memory storage: bytes are proxied straight to Supabase, never written to
-// disk. The per-file cap here is the coarse 25 MB ceiling; the per-kind caps
+// Disk storage (lib/uploadTemp): a request never holds all its files in RAM.
+// The per-file cap here is the coarse 25 MB ceiling; the per-kind caps
 // (10 MB images) are enforced in feedbackStorage.assertAcceptable.
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_BYTES, files: MAX_ATTACHMENTS_PER_FEEDBACK },
-});
+const upload = diskUpload({ fileSize: MAX_FILE_BYTES, files: MAX_ATTACHMENTS_PER_FEEDBACK });
 
 // multer throws its own error types; normalize to the API's { error } shape.
 function handleMulterError(err: any, _req: Request, res: Response, next: NextFunction) {
@@ -44,8 +41,10 @@ router.post(
   '/feedback',
   requireAuth,
   chatPostRateLimit,
+  uploadTempGuard,
   upload.array('files', MAX_ATTACHMENTS_PER_FEEDBACK),
   handleMulterError,
+  uploadTotalGuard,
   createFeedback,
 );
 router.get('/feedback/mine', requireAuth, listMine);

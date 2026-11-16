@@ -1181,13 +1181,13 @@ support mailbox not yet live, `?lite=1` opt-in, Claude runs `netlify unlink`, lo
 | 9.5.6 (G2) | Single-key rate limit = one statement (bit-exact parity); multi-key keeps the transaction; 2 s cap | `rateLimit.test.ts` integration (7 cases, real Postgres) |
 | 9.5.7 | Additive `viewer` on match responses; match pages skip `/my-role`; batch/poll costs recorded | `http.matchViewer.test.ts` |
 | 9.5.8 | Startup pool line (local + staging); `connection_limit=3` recommended on staging (C3) | `dbPool.test.ts` |
-| 9.5.9 | `docs/region-decision.md` (recommends A: Netlify Pro + `sin`) | – |
+| 9.5.9 | `docs/region-decision.md` (recommends A: Netlify Pro + `sin`; **superseded:** Karlos chose Fly.io syd + Supabase Sydney, Phase 9.6) | – |
 | 9.5.10 | `lib/proFeatures.ts`, always on, six panels wrapped | `proFeatures.test.ts` |
 
 **Measured (local stack; operation counts exact, milliseconds not representative; `docs/performance.md`):** Home 12 → 4
 (lite), `/teams/:id/my-role` 6/9 → 3, guarded reads 6 → 5, no second `/my-role` on the match pages, limiter ~29 → 11 ms
 per call; a tracking batch ≈ 8–11 ops per event (recorded, locking unchanged). **Function region:** not yet read
-(`fn` needs a Netlify deploy); the Ohio default is assumed in the region note.
+(`fn` needs a Netlify deploy); the Ohio default is assumed in the region note (history: the measured region was us-east-1).
 
 **Reviews:** independent Opus audit of 9.5.3/9.5.4/9.5.10 (1 MED fixed, 1 LOW recorded); `/code-review high` 3 fixed
 (flush flag mirrors Sentry's capture rule; `Server-Timing` fails closed on Lambda; capture-site scan) + 7 LOW recorded;
@@ -1202,3 +1202,34 @@ Measured there: **function region `us-east-1`**, **~1.1 s per Prisma operation**
 function zip (21.8 MB) no longer carries the Windows engine, but the Linux engine was packed twice and the unused WASM
 engines came along; follow-up fix below. Region note revised: B (free, move the database to us-east-1) or Pro for A/C.
 Production deploy still refused by design: the support mailbox isn't set up (`SUPPORT_EMAIL_CONFIRMED = false`).
+
+### Phase 9.6 of the rebuild roadmap: clean-ups and the move to Sydney (branches `rebuild/p9-6-0-cleanups`, `rebuild/p9-6-region`, 2026-10 to 11)
+
+One additive migration (`20261012000000_revoked_tokens`), no new dependency. Karlos chose Fly.io `syd` (always on) plus
+Supabase Sydney (`ap-southeast-2`) on 7-9 Oct, with Netlify staying on Personal (site plus `/api/v1/*` proxy). Support
+address changed to `himextradingltd@gmail.com` on 14 Nov (`SUPPORT_EMAIL_CONFIRMED = true`, `DOMAIN_LIVE` still false).
+Privacy policy dated 14 November 2026 (Fly.io and Sydney added); no new Terms version.
+
+| Item | Change | Test |
+|---|---|---|
+| 9.6.0.1 | Home loads the chart library only when it shows charts | browser |
+| 9.6.0.2 (G1 + G2 ✔, 12 Oct) | Logout revokes the token server-side (`revoked_tokens`); Sign out of all devices | `logoutRequest.test.ts`, `http.logout.test.ts`, `logout.test.ts` (integration) |
+| 9.6.0.3 | Uploads spool to disk, one file in memory at a time, 60 MB per request | `http.uploadTemp.test.ts` |
+| 9.6.0.4 | `versionName` must equal the tag (CI on tag pushes, PR checklist); `backup.ps1 -WhatIf` no longer leaves `DBURL` set | `check-version.test.mjs`, `backup.test.ps1` |
+| 9.6.0.5 | No Sentry events from local development (`shouldInitSentry`, drift-checked) | `sentryInit.test.ts` |
+| 9.6.0.6 (G7 ✔) | Local Claude Code settings only (not in git): the saved database URL rules removed; deny rules for `netlify env:*`, `fly secrets`, Fly production deploys; ask rule for `deploy.ps1 … prod` | – |
+| 9.6.0.7 | Public-repo hygiene: no personal email, placeholder DSNs, keystores and fly secrets ignored, `SECURITY.md` | – |
+| R1 (G1 ✔, 13 Oct) | Dockerfile, `fly.prod/staging.toml`, plain Node server on 0.0.0.0, graceful shutdown, `GET /health/live`, Sentry transaction naming, no-store on the API, CI docker job | `shutdown.test.ts`, `http.healthLive.test.ts`, CI `docker` |
+| R2 | `api-proxy` build plugin injects signed proxy rules per `API_ORIGIN`; `deploy.ps1 -ApiOrigin` | `check-api-proxy.test.mjs` |
+| R3 (G2 ✔, 13 Oct) | Fly refuses unsigned traffic (Netlify `x-nf-sign`); client IP trusted only when signed; staging-only `/debug/headers` probe (deleted after R6) | `proxySignature.test.ts`, `clientIp.test.ts` |
+| R4 | 6-hourly keep-alive ping, serializable-transaction integration test, session-pooler notes | `keepAlive.test.ts`, `serializable.test.ts` |
+| R5 | `move-db.ps1`, `copy-storage.ts`, `rewrite-storage-urls.ts`, region-move runbook; scripts read the env file themselves (`-EnvFile`, `--env-file`) and use the local PostgreSQL client when installed; local export to import verified 9/9 | `move-db.test.ps1`, `copy-storage.test.ts`, `rewrite-storage-urls.test.ts`, `envFile.test.ts` |
+| R6 (16 Nov) | Staging moved to Fly `syd` + Supabase Sydney: import verified 9/9, smoke 10/10, signed proxy and client-IP header confirmed, 20 MB upload 201; medians about 0.1 s (`docs/region-decision.md`). Not run on staging: `serializable.test.ts` (tests never point at a non-local database) | `smoke.mjs`, `measure.mjs` |
+| R7 | Production move | **pending** |
+
+**Reviews:** independent Opus audit of R1-R5 found 1 HIGH, 3 MED and 6 LOW; 9 fixed (shutdown and keep-alive wired in,
+edge-hop fallback for the rate-limit key, optional `site_url` pinning, `-ApiOrigin` mandatory for prod, move and
+storage tests in CI, dockerignore globs, runbook Fly readiness and `.env` step).
+
+**Superseded:** the 9.5.9 region recommendation (A: Netlify Pro + `sin`) is replaced by this decision; see
+`docs/region-decision.md`.

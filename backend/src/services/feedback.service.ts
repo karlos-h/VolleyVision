@@ -10,6 +10,7 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { beforeCursorWhere, clampPageSize } from '../lib/chat';
 import { resolveUploadContentType } from '../lib/fileSignature';
+import { readUpload } from '../lib/uploadTemp';
 import { removeStoredFiles } from '../lib/storageCleanup';
 import { isEnumValue, parseRequiredText, parseSeverity, parseType } from '../lib/feedbackValidation';
 import {
@@ -95,14 +96,19 @@ export async function createFeedback(input: CreateFeedbackInput) {
   // contentType is verified against the file's bytes here so a byte/type
   // mismatch also rejects the batch up front. uploadAttachment re-derives it —
   // it stays the choke point that decides what Storage is actually told.
-  const prepared = input.files.map((file) => ({
-    file,
-    kind: assertAcceptable(file),
-    contentType: resolveUploadContentType(file.mimetype, file.buffer),
-  })).map((p) => ({
-    ...p,
-    dims: p.kind === AttachmentKind.IMAGE ? imageDimensions(p.file.buffer) : null,
-  }));
+  // At most one file's bytes in memory at a time: each is read for its checks,
+  // then dropped and re-read for the upload (the files are on disk, lib/uploadTemp).
+  const prepared = [];
+  for (const file of input.files) {
+    const kind = assertAcceptable(file);
+    const buffer = await readUpload(file);
+    prepared.push({
+      file,
+      kind,
+      contentType: resolveUploadContentType(file.mimetype, buffer),
+      dims: kind === AttachmentKind.IMAGE ? imageDimensions(buffer) : null,
+    });
+  }
 
   // Object keys embed the feedback id, so mint it before the row exists.
   const feedbackId = randomUUID();
@@ -110,7 +116,7 @@ export async function createFeedback(input: CreateFeedbackInput) {
   try {
     for (const p of prepared) {
       const key = buildFeedbackObjectKey({ feedbackId, originalName: p.file.originalname, contentType: p.contentType });
-      await uploadAttachment({ key, buffer: p.file.buffer, mimeType: p.file.mimetype });
+      await uploadAttachment({ key, buffer: await readUpload(p.file), mimeType: p.file.mimetype });
       uploaded.push({ p, storagePath: key });
     }
 

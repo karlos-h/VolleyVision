@@ -7,6 +7,7 @@ name: CI
 on:
   push:
     branches: [main, develop]
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -45,6 +46,16 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./backup.test.ps1
+      - name: deploy.ps1 refuses bad parameter combinations before any deploy
+        working-directory: .
+        shell: pwsh
+        run: ./deploy.test.ps1
+      - name: The move scripts still refuse the old projects and never print a URL
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/move-db.test.ps1
+      - name: Storage copy and URL rewrite helpers
+        run: npx ts-node --transpile-only scripts/copy-storage.test.ts && npx ts-node --transpile-only scripts/rewrite-storage-urls.test.ts
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 
@@ -118,10 +129,28 @@ jobs:
         run: npm run build
       - name: The legal check still catches what it should
         run: node scripts/check-legal.test.mjs
+      - name: The version check still catches a stale versionName
+        run: node scripts/check-version.test.mjs
+      - name: The api-proxy plugin still refuses an unknown API_ORIGIN
+        run: node scripts/check-api-proxy.test.mjs
       - name: Legal pages match the app (company, support email, Terms version)
         run: node scripts/check-legal.mjs
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  # Tag pushes only: versionName in build.gradle (the app version) must equal
+  # the tag. The release PR sets it; v9.18.1 was tagged without that.
+  version:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/check-version.mjs
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
 
   # The Android shell (Phase 5): a production sync must pass the prod-config
   # check (no cleartext, no mixed content, no remote server URL) and the debug
@@ -189,3 +218,21 @@ jobs:
             git status --porcelain -- ios
             echo "ios/ differs from a fresh sync: run npm run ios:prod and commit the result"; exit 1
           fi
+
+  # The Fly image must build and boot with only placeholder env: catches a
+  # missing runtime file, a broken Prisma engine target or a bad CMD.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t vv-api backend
+      - name: Boots and answers /health/live
+        run: |
+          docker run -d --name vv-api -p 8080:8080             -e NODE_ENV=production -e PORT=8080 -e JWT_SECRET=ci             -e DATABASE_URL=postgresql://x:y@127.0.0.1:1/x             -e DIRECT_URL=postgresql://x:y@127.0.0.1:1/x vv-api
+          for i in $(seq 1 10); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health/live)" = 200 ] && ok=1 && break
+            sleep 1
+          done
+          docker logs vv-api
+          docker stop vv-api
+          [ -n "$ok" ]

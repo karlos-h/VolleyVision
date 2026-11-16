@@ -2,6 +2,44 @@
 
 All notable changes to VolleyVision, reconstructed from the repository's commit and tag history. Versions are listed newest first, in chronological order of release. Untagged commits are listed under the tagged release they shipped with.
 
+## v9.19.0 — 2026-11-14
+
+Phase 9.6 of the rebuild roadmap: the app moves to Sydney, plus the clean-ups
+that came with it. One additive migration (`20261012000000_revoked_tokens`), no
+new dependency. Works with the Android 9.13.0+ apps: every API change adds
+fields or routes.
+
+**Much faster: the app now runs in Sydney**
+- The server now runs on Fly.io in Sydney and the database is in Supabase
+  Sydney, instead of a server in the US talking to a database in Singapore.
+  Netlify still serves the website and passes the app's requests on to the
+  server.
+- Measured on staging: pages that took 1.4 to 6.2 seconds now answer in about
+  0.1 seconds (`docs/region-decision.md` has the table).
+
+**Sign-in and account**
+- Logging out now signs you out on the server too, so a copied sign-in token
+  stops working straight away.
+- New: Sign out of all devices (Profile).
+
+**Smaller fixes**
+- Uploads are limited to 60 MB per message in total, and files are held on
+  disk while they are processed instead of in memory.
+- Home loads faster for people without player stats: the chart library loads
+  only when Home shows charts.
+- The support address is now himextradingltd@gmail.com until
+  volleyvision.co.nz exists. The privacy policy (updated 14 November 2026) now
+  lists Fly.io (Sydney) and Supabase in Sydney. The Terms are unchanged.
+
+**Internal**
+- Docker image and Fly config for the API, a plain Node server with graceful
+  shutdown, `/health/live`, a 6-hourly keep-alive ping, and Fly refusing
+  traffic that Netlify has not signed.
+- `scripts/move-db.ps1`, storage copy and URL rewrite scripts and a runbook
+  (`docs/region-move-runbook.md`) for the database move.
+- `versionName` must equal the tag (CI on tag pushes); no Sentry events from
+  local development; public-repo hygiene and `SECURITY.md`.
+
 ## v9.18.1 — 2026-10-07
 
 Follow-up to v9.18.0 after the first staging draft deploy (Netlify credits

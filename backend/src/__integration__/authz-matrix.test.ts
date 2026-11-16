@@ -308,6 +308,8 @@ async function main() {
     }
     assert.equal((await call(base, 'POST', '/api/v1/events', undefined, { matchId: f.match.id })).status, 401, 'anonymous POST event');
     assert.equal((await call(base, 'POST', '/api/v1/events/batch', undefined, { matchId: f.match.id, events: [] })).status, 401, 'anonymous POST event batch');
+    assert.equal((await call(base, 'POST', '/api/v1/auth/logout')).status, 401, 'anonymous logout: nothing to revoke');
+    assert.equal((await call(base, 'POST', '/api/v1/auth/logout-all')).status, 401, 'anonymous logout-all');
 
     // 4.0.1 per-player rule: non-staff get team totals plus only their own row.
     // p2 is the test player's record; p1 (who has the event) and pDel are other players.

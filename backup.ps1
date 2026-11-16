@@ -7,6 +7,13 @@
 #   .\backup.ps1                              # -> $HOME\Backups\vv-backup-<date>.sql
 #   .\backup.ps1 -OutDir D:\Backups           # somewhere else
 #   .\backup.ps1 -WhatIf                      # back up, but only list what pruning would delete
+#   .\backup.ps1 -PgBin ''                    # force Docker even if PostgreSQL is installed
+#
+# -PgBin is the folder holding pg_dump.exe. It defaults to the local PostgreSQL 18
+# client (C:\Program Files\PostgreSQL\18\bin) when that is installed, else empty,
+# which means Docker. A newer pg_dump against Supabase's Postgres 17 is fine. The
+# local path hands the URL to pg_dump through PGHOST/PGPASSWORD/... for that one
+# call (cleared after), never on the command line.
 #
 # After a successful backup it deletes this script's own backups
 # (vv-backup-yyyy-MM-dd-HHmm.sql in -OutDir, by the date in the name) older than
@@ -32,7 +39,8 @@
 param(
   [string]$OutDir = (Join-Path $HOME 'Backups'),
   [string]$EnvFile = (Join-Path $PSScriptRoot 'backend\.env'),
-  [ValidateRange(1, 3650)][int]$KeepDays = 30
+  [ValidateRange(1, 3650)][int]$KeepDays = 30,
+  [string]$PgBin = $(if (Test-Path -LiteralPath 'C:\Program Files\PostgreSQL\18\bin\pg_dump.exe') { 'C:\Program Files\PostgreSQL\18\bin' } else { '' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,6 +61,43 @@ function Read-EnvValue([string]$Path, [string]$Key) {
     }
   }
   return $null
+}
+
+# Local pg_dump gets the URL through libpq's own PG* environment variables (set
+# for the child only, cleared right after), never on the command line, where the
+# process list would show it. Never printed.
+function Set-PgEnv([string]$Url) {
+  $u = [System.Uri]$Url
+  $ui = $u.UserInfo; $i = $ui.IndexOf(':')
+  $env:PGHOST = $u.Host.Trim('[', ']')
+  $env:PGPORT = [string]$u.Port
+  $env:PGUSER = [System.Uri]::UnescapeDataString($(if ($i -ge 0) { $ui.Substring(0, $i) } else { $ui }))
+  $env:PGPASSWORD = [System.Uri]::UnescapeDataString($(if ($i -ge 0) { $ui.Substring($i + 1) } else { '' }))
+  $env:PGDATABASE = [System.Uri]::UnescapeDataString($u.AbsolutePath.TrimStart('/'))
+  if ($u.Query -match 'sslmode=(\w+)') { $env:PGSSLMODE = $Matches[1] }
+}
+function Clear-PgEnv {
+  foreach ($v in 'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE', 'PGSSLMODE') {
+    Remove-Item "Env:$v" -ErrorAction SilentlyContinue -WhatIf:$false
+  }
+}
+
+# Dumps $Url (already ConvertTo-PgDumpUrl'd) to $OutDir\$name with the local
+# pg_dump when -PgBin is set, else in a postgres:17 container.
+function Invoke-PgDump([string]$Url) {
+  try {
+    if ($PgBin) {
+      Set-PgEnv $Url
+      & (Join-Path $PgBin 'pg_dump.exe') --no-owner --no-privileges -f $file
+    } else {
+      $env:DBURL = $Url
+      & $Docker run --rm -e DBURL -v "${OutDir}:/backup" postgres:17 `
+        sh -c "pg_dump `"`$DBURL`" --no-owner --no-privileges -f /backup/$name"
+    }
+  } finally {
+    Clear-PgEnv
+    Remove-Item Env:DBURL -ErrorAction SilentlyContinue -WhatIf:$false
+  }
 }
 
 # libpq-safe URL: no Prisma query options; session pooler instead of the
@@ -94,8 +139,12 @@ $candidates = @('DIRECT_URL', 'DATABASE_URL') |
   Select-Object -Unique
 if (-not $candidates) { throw "Neither DIRECT_URL nor DATABASE_URL is set in $EnvFile." }
 
-& $Docker info *> $null
-if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop and try again.' }
+if ($PgBin) {
+  if (-not (Test-Path -LiteralPath (Join-Path $PgBin 'pg_dump.exe'))) { throw "-PgBin '$PgBin' has no pg_dump.exe. Fix the folder, or pass -PgBin '' to use Docker." }
+} else {
+  & $Docker info *> $null
+  if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop and try again.' }
+}
 
 $sep = [System.IO.Path]::DirectorySeparatorChar
 $repoRoot = [System.IO.Path]::GetFullPath($PSScriptRoot).TrimEnd($sep) + $sep
@@ -115,13 +164,7 @@ foreach ($raw in $candidates) {
     continue
   }
   Write-Host "Backing up ($($target.Where)) to $file ..."
-  try {
-    $env:DBURL = $target.Url
-    & $Docker run --rm -e DBURL -v "${OutDir}:/backup" postgres:17 `
-      sh -c "pg_dump `"`$DBURL`" --no-owner --no-privileges -f /backup/$name"
-  } finally {
-    Remove-Item Env:DBURL -ErrorAction SilentlyContinue
-  }
+  Invoke-PgDump $target.Url
   if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $file) -and (Get-Item -LiteralPath $file).Length -gt 0) {
     $kb = [math]::Round((Get-Item -LiteralPath $file).Length / 1KB)
     $tables = (Select-String -LiteralPath $file -Pattern '^CREATE TABLE' | Measure-Object).Count

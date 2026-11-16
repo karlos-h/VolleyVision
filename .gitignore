@@ -39,3 +39,9 @@ CLAUDE.md
 # backup.ps1 dumps: everyone's data in plain text. Not *.sql: that would stop
 # new prisma/migrations/*/migration.sql files from being committed.
 vv-backup-*.sql
+
+# Signing keys and Fly secret files: never in a public repo, wherever they end up
+# (frontend/android/.gitignore only covers its own folder).
+*.jks
+*.keystore
+fly.*.secrets

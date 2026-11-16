@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import * as Sentry from '@sentry/node';
 import { scrubRequest } from './lib/sentryScrub';
 import { wrapBeforeSend } from './lib/sentryFlush';
+import { shouldInitSentry } from './lib/sentryInit';
 
 // index.ts also calls dotenv.config(), but only after its own imports
 // evaluate; this file runs first, so it self-loads env the same way
@@ -16,8 +17,8 @@ const dsn = process.env.SENTRY_DSN;
 
 // Fail-soft, same convention as lib/supabase.ts's lazy client: no DSN is the
 // normal state in local dev and in `npm test`, and Sentry must never be why
-// either fails to boot.
-if (dsn) {
+// either fails to boot. Local dev stays off too (lib/sentryInit.ts).
+if (dsn && shouldInitSentry(process.env)) {
   Sentry.init({
     dsn,
     // SENTRY_ENVIRONMENT first: staging runs with NODE_ENV=production (the

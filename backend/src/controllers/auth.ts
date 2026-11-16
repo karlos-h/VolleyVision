@@ -7,6 +7,8 @@ import {
   getCurrentUser,
   requestPasswordReset,
   resetPassword as resetPasswordService,
+  revokeToken,
+  revokeAllTokens,
 } from '../services/auth.service';
 import { verifyEmail as verifyEmailService, resendVerification as resendVerificationService } from '../services/emailVerification.service';
 
@@ -71,10 +73,25 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
   }
 }
 
-// Logout is handled client-side (discard the token).
-// This endpoint exists as a clean hook for future server-side token revocation.
-export function logout(_req: Request, res: Response) {
-  res.json({ message: 'Logged out successfully.' });
+// The app discards its copy too; this makes a copied token useless as well.
+export async function logout(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw new AppError(401, 'Authentication required.');
+    await revokeToken(req.user);
+    res.json({ message: 'Logged out successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function logoutAll(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw new AppError(401, 'Authentication required.');
+    await revokeAllTokens(req.user.userId);
+    res.json({ message: 'Signed out of all devices.' });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function me(req: Request, res: Response, next: NextFunction) {

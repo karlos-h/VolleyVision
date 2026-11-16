@@ -20,7 +20,7 @@
 **Local stack, 6 Oct 2026** (`backend-localdb` → Docker `vv-pg17` on the same PC, owner of a team with one live match;
 5 runs each, median). No Netlify credits, so this is local rather than the planned staging draft: **the operation
 counts are exact, the milliseconds are not representative**. Each operation here costs ~2–10 ms; from the Netlify
-function (Ohio by default) to the Singapore database it is ~200 ms, so multiply `ops` by ~0.2 s for the real cost.
+function (us-east-1, measured 7 Oct) to the Singapore database it is ~200 ms, so multiply `ops` by ~0.2 s for the real cost.
 
 | endpoint | status | min ms | median ms | median db ms | ops | cold | region |
 |---|---|---|---|---|---|---|---|
@@ -77,7 +77,7 @@ cost 5 ops each (`GET /matches/:id`, `GET /events/by-match/:id`); hidden tabs do
 The per-event cost is the next thing worth looking at after the region decision — recorded as a finding.
 
 What a request still costs: one user read (auth), one team and one membership read (visibility + role), then the
-data — about 5 operations, each a round trip to the database. From Ohio to Singapore that is ~1 s of pure distance per
+data — about 5 operations, each a round trip to the database. From us-east-1 to Singapore that is ~1 s of pure distance per
 guarded read, which is why the region note (`docs/region-decision.md`) matters more than any further query trimming.
 
 ## Staging draft, 7 Oct 2026 (after the pass; `connection_limit=3` set by Karlos)
@@ -95,7 +95,7 @@ New Zealand (5 runs, warm instance; the smoke check had already warmed it, so no
 | GET /analytics/matches/:id | 5 | 6196 | 6983 (sum) | ~1400 | us-east-1 |
 | GET /events/by-match/:id | 5 | 5508 | 6277 (sum) | ~1250 | us-east-1 |
 
-**What it says.** The function runs in **us-east-1 (N. Virginia)**, not Ohio, and every Prisma operation costs about
+**What it says.** The function runs in **us-east-1 (N. Virginia)**, not Ohio (the Netlify default people assume), and every Prisma operation costs about
 **1.1 s** of database time from there to Singapore — five times the ~0.2 s the handoff assumed. `/health` is one
 `SELECT 1` and takes 1.1 s. Queries issued in parallel do overlap (Home: 7.2 s of summed query time in 4.0 s of wall
 time), so `connection_limit=3` is in effect. The pass did what it set out to do — Home is 6 operations instead of 12,
@@ -110,6 +110,11 @@ Pacific. Worth checking once the region is settled; moot if the function and dat
 `external_node_modules`, once by `included_files` — and ~6 MB of WASM engines the Node runtime never loads came along
 with `@prisma/client`. Fixed in the follow-up below; re-check the size on the next draft.
 
+**Cold start (measured 7 Oct):** the zip-fix draft, hit once after 9 minutes idle, answered `/health` with
+`cold;desc="1"`, `db;dur=2609` for its single query against ~1083 warm: about **1.5 s** extra for a fresh connection to
+the Singapore pooler and engine start, on top of whatever Lambda spends loading the (now 11 MB) zip before the handler
+runs, which the header can't see. Co-locating the database shrinks the connection part of that too.
+
 **Still to measure on a real deploy** (as of the 7 Oct draft): the `fn` region, the cold-start time before/after
 the smaller bundle (9.5.5: Windows engine excluded from the function zip; check the deploy log for the zip size), and
 the real per-operation cost. Run `measure.mjs` against a staging draft when credits return and append the table here.
@@ -121,9 +126,29 @@ pgbouncer=true]`, parsed from `DATABASE_URL` without ever printing it (`lib/dbPo
 it actually opened without the `metrics` preview feature (G1), so the URL is the only honest source.
 
 Why it matters: Home and the guarded reads run several queries in `Promise.all`. With `connection_limit=1` they run
-one after another, each paying the Ohio→Singapore round trip; with 3 they overlap. More than a handful per function
+one after another, each paying the us-east-1→Singapore round trip; with 3 they overlap. More than a handful per function
 instance is pointless (one request at a time per instance) and risks pgbouncer's pool under many warm instances.
 
 **Recommendation:** keep `pgbouncer=true` on the transaction pooler (port 6543) and try `connection_limit=3` — on
 **staging first**, set by Karlos in the Netlify dashboard (never `netlify env:*`), then re-run `measure.mjs` on a draft
 deploy and compare `db;dur` against the baseline. Production waits until after 23 Oct and Karlos's go-ahead.
+
+## Home without the chart library (9.6.0.1, 12 Oct 2026)
+
+`DashboardPage` imported `MyStats` statically, and `MyStats` imports recharts, so every Home visit downloaded the
+recharts chunk (~118 kB gzip), even for a coach with no player records. `MyStats` is now `lazy()` behind a local
+`Suspense` (fallback keeps a `min-h-64` box), so the chunk loads only when "My stats" renders. From `vite build`:
+
+| Chunk | Before | After |
+|---|---|---|
+| `DashboardPage-*.js` | 14.7 kB (4.8 kB gzip); imports `recharts`, `PlayerRadarChart`, `TeamTrendChart`, `StatsOverview`, `printing` | 4.3 kB (2.0 kB gzip); imports `JoinByCodeCard`, `teamRoles`, `index`, `vendor` only |
+| `MyStats-*.js` | (inside DashboardPage) | 11.5 kB (3.8 kB gzip); imports `recharts` and the chart components |
+| `recharts-*.js` | 117.6 kB gzip, fetched on every Home visit | same chunk, fetched only when a chart renders |
+
+## Database connection on Fly (9.6.R4)
+
+- Use the Supabase **session pooler** (port 5432, `postgres.<ref>` user) **without `pgbouncer=true`**: prepared statements work and each query is about one round trip. Keep `connection_limit=8`.
+- `runSerializable` therefore has real session semantics. The old "serializable over pgbouncer unverified" note in AUDIT-LOG is resolved by design; `src/__integration__/serializable.test.ts` proves it on local Postgres (two racing read-then-write transactions: one is aborted, retried once, both land, no lost update). Not run against staging: tests never point at a non-local database.
+- A keep-alive `SELECT 1` runs every 6 h (`lib/keepAlive.ts`), because Free Supabase projects pause after about 7 idle days. That covers prod only: the staging machine stops when idle, so staging's project can still pause.
+- The rate limiter stays Postgres-backed with its 2 s cap.
+- Fly health check is `GET /health/live` (no DB, so a DB blip doesn't restart the machine); `/health` keeps the DB check. API and health responses are `Cache-Control: no-store` with no ETag.
