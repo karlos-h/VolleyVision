@@ -148,7 +148,7 @@ recharts chunk (~118 kB gzip), even for a coach with no player records. `MyStats
 ## Database connection on Fly (9.6.R4)
 
 - Use the Supabase **session pooler** (port 5432, `postgres.<ref>` user) **without `pgbouncer=true`**: prepared statements work and each query is about one round trip. Keep `connection_limit=8`.
-- `runSerializable` therefore has real session semantics. The old "serializable over pgbouncer unverified" note in AUDIT-LOG is resolved by design; `src/__integration__/serializable.test.ts` proves it on local Postgres (two racing read-then-write transactions: one is aborted, retried once, both land, no lost update). Run it once against staging Sydney in R6.
-- A keep-alive `SELECT 1` runs every 6 h (`lib/keepAlive.ts`), because Free Supabase projects pause after about 7 idle days.
+- `runSerializable` therefore has real session semantics. The old "serializable over pgbouncer unverified" note in AUDIT-LOG is resolved by design; `src/__integration__/serializable.test.ts` proves it on local Postgres (two racing read-then-write transactions: one is aborted, retried once, both land, no lost update). Not run against staging: tests never point at a non-local database.
+- A keep-alive `SELECT 1` runs every 6 h (`lib/keepAlive.ts`), because Free Supabase projects pause after about 7 idle days. That covers prod only: the staging machine stops when idle, so staging's project can still pause.
 - The rate limiter stays Postgres-backed with its 2 s cap.
 - Fly health check is `GET /health/live` (no DB, so a DB blip doesn't restart the machine); `/health` keeps the DB check. API and health responses are `Cache-Control: no-store` with no ETag.

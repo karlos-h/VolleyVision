@@ -14,8 +14,8 @@ fields or routes.
   Sydney, instead of a server in the US talking to a database in Singapore.
   Netlify still serves the website and passes the app's requests on to the
   server.
-- TODO(R6 numbers): add the measured page times from the staging move here
-  (`docs/region-decision.md` has the table to fill).
+- Measured on staging: pages that took 1.4 to 6.2 seconds now answer in about
+  0.1 seconds (`docs/region-decision.md` has the table).
 
 **Sign-in and account**
 - Logging out now signs you out on the server too, so a copied sign-in token
