@@ -30,7 +30,7 @@ The API runs as one always-on machine in `syd`. Two apps: `vv-api-himex` (prod, 
 ## Setting secrets without leaving them in PowerShell history
 
 - Easiest: Fly dashboard, the app, Secrets.
-- Or put `NAME=value` lines in a temporary file and run `fly secrets import -a <app> < secrets.txt`, then delete the file.
+- Or put `NAME=value` lines in a temporary file and run `Get-Content secrets.txt | fly secrets import -a <app>`, then delete the file.
 - A plain `fly secrets set NAME=value` is saved by PSReadLine. If you insist, run `Set-PSReadLineOption -HistorySaveStyle SaveNothing` first.
 
 ## Deploy
@@ -49,7 +49,7 @@ What the code does (R3):
 
 - Netlify signs each proxied request (`signed = "API_PROXY_SIGNING_SECRET"` on the proxy rule) with an `x-nf-sign` header: an HS256 JWS over `{ deploy_context, exp, iss: "netlify", netlify_id, site_url }` ([Netlify docs](https://docs.netlify.com/manage/routing/redirects/rewrites-proxies/#signed-proxy-redirects)). The secret is a Netlify site env var (Runtime scope) and the same value is the Fly secret `API_PROXY_SIGNING_SECRET`; staging and prod each get their own value.
 - On Fly (`FLY_APP_NAME` set), `middleware/proxySignature.ts` answers `403 Forbidden.` to anything without a valid signature (HS256 only, issuer `netlify`, `exp` required, 60 s clock tolerance), except `GET /health/live`. Secret missing: `503` on everything but `/health/live`, logged once.
-- `lib/clientIp.ts`: signed requests key on `x-nf-client-connection-ip` (or one shared `unknown` bucket if it is absent); unsigned Fly requests on the socket address; off Fly (the Netlify Function, local dev) unchanged.
+- `lib/clientIp.ts`: signed requests key on `x-nf-client-connection-ip` (if it is absent, `fly-client-ip`, Netlify's edge hop, then one shared `unknown` bucket); unsigned Fly requests on the socket address; off Fly (the Netlify Function, local dev) unchanged.
 - `x-nf-sign` and `fly-client-ip` are dropped from Sentry events with the other address headers.
 
 How it was confirmed on staging (R6); the `/debug/headers` probe used here was deleted afterwards:

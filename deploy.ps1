@@ -51,8 +51,8 @@
 # same local build without --prod, under the alias rehearse-<short sha> (or -Alias), and
 # smoke-checks that draft URL (-Alias <name> fixes the alias; the Fly staging
 # deploy still happens unless -FrontendOnly). The SPA calls the relative /api/v1, which
-# netlify.toml routes to the function on the same deploy, so the draft serves
-# both from one origin (no CORS change). Env vars come from the site's
+# the api-proxy plugin routes to Fly staging (the function with -ApiOrigin function),
+# so the draft serves both from one origin (no CORS change). Env vars come from the site's
 # dev/deploy-preview context; staging sets every value for all contexts.
 #
 # Notes:

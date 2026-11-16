@@ -1221,10 +1221,10 @@ Privacy policy dated 14 November 2026 (Fly.io and Sydney added); no new Terms ve
 | 9.6.0.7 | Public-repo hygiene: no personal email, placeholder DSNs, keystores and fly secrets ignored, `SECURITY.md` | – |
 | R1 (G1 ✔, 13 Oct) | Dockerfile, `fly.prod/staging.toml`, plain Node server on 0.0.0.0, graceful shutdown, `GET /health/live`, Sentry transaction naming, no-store on the API, CI docker job | `shutdown.test.ts`, `http.healthLive.test.ts`, CI `docker` |
 | R2 | `api-proxy` build plugin injects signed proxy rules per `API_ORIGIN`; `deploy.ps1 -ApiOrigin` | `check-api-proxy.test.mjs` |
-| R3 (G2 ✔, 13 Oct) | Fly refuses unsigned traffic (Netlify `x-nf-sign`); client IP trusted only when signed; staging-only `/debug/headers` | `proxySignature.test.ts`, `clientIp.test.ts` |
+| R3 (G2 ✔, 13 Oct) | Fly refuses unsigned traffic (Netlify `x-nf-sign`); client IP trusted only when signed; staging-only `/debug/headers` probe (deleted after R6) | `proxySignature.test.ts`, `clientIp.test.ts` |
 | R4 | 6-hourly keep-alive ping, serializable-transaction integration test, session-pooler notes | `keepAlive.test.ts`, `serializable.test.ts` |
 | R5 | `move-db.ps1`, `copy-storage.ts`, `rewrite-storage-urls.ts`, region-move runbook; scripts read the env file themselves (`-EnvFile`, `--env-file`) and use the local PostgreSQL client when installed; local export to import verified 9/9 | `move-db.test.ps1`, `copy-storage.test.ts`, `rewrite-storage-urls.test.ts`, `envFile.test.ts` |
-| R6 | Staging move and measurements | **pending** |
+| R6 (16 Nov) | Staging moved to Fly `syd` + Supabase Sydney: import verified 9/9, smoke 10/10, signed proxy and client-IP header confirmed, 20 MB upload 201; medians about 0.1 s (`docs/region-decision.md`). Not run on staging: `serializable.test.ts` (tests never point at a non-local database) | `smoke.mjs`, `measure.mjs` |
 | R7 | Production move | **pending** |
 
 **Reviews:** independent Opus audit of R1-R5 found 1 HIGH, 3 MED and 6 LOW; 9 fixed (shutdown and keep-alive wired in,

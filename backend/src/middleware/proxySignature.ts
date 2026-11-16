@@ -41,8 +41,8 @@ export function proxySignature(env: NodeJS.ProcessEnv = process.env): RequestHan
     // that tells a prober why.
     const verified = verifyProxySignature(req.headers['x-nf-sign'], secret);
     // API_PROXY_SITE_URL (non-secret, fly.*.toml) pins the app to its own Netlify
-    // site, so staging's proxy can't be pointed at prod's app. Optional until R6
-    // confirms what site_url Netlify sends for draft deploys.
+    // site, so staging's proxy can't be pointed at prod's app. Not set yet: the two
+    // apps are separated by having different secrets. Set it at the prod cutover.
     const site = env.API_PROXY_SITE_URL;
     if (!verified.ok || (site && verified.claims.site_url !== site)) {
       // Staging only: the reason (never the token) so a rehearsal can tell a
