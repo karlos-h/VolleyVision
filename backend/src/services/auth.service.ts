@@ -126,8 +126,13 @@ export function verifyToken(token: string): AuthPayload {
   }
 }
 
-export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
+/**
+ * A null hash is an account with no password (Google-only, 9.6.S): never a
+ * match, but still one bcrypt comparison so it takes as long as a wrong password.
+ */
+export async function verifyPassword(plain: string, hash: string | null): Promise<boolean> {
+  const matches = await bcrypt.compare(plain, hash ?? DUMMY_PASSWORD_HASH);
+  return hash !== null && matches;
 }
 
 const VALID_SIGNUP_INTENTS = new Set(['COACH', 'PLAYER', 'UNSURE']);
