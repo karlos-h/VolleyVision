@@ -22,7 +22,9 @@ change adds fields or routes. Not deployed to production yet.
 - An account with no password deletes itself by confirming with Google, and
   can set a password with "Forgot password".
 - Not in the apps yet: the Android app gets Google sign-in in a later release,
-  and the iPhone app when Sign in with Apple ships with it.
+  and the iPhone app when Sign in with Apple ships with it. An account made
+  with Google needs a password (Forgot password sets one) to sign in on either
+  app until then.
 
 **Security**
 - Google's token is checked on the server only: signed by Google, issued for

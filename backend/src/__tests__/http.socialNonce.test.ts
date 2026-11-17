@@ -93,7 +93,7 @@ async function main() {
   let nn = fresh();
   assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(fresh()), nonce: nn, purpose: 'signin' }, deps)), rejected, 'token answers another nonce');
   assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(nn), nonce: undefined, purpose: 'signin' }, deps)), rejected, 'no nonce sent');
-  assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(nn), nonce: nn, purpose: 'delete' }, deps)), rejected, 'sign-in nonce used to delete');
+  assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(nn), nonce: nn, purpose: 'delete' }, deps)), { status: 403, code: 'SOCIAL_TOKEN_REJECTED' }, 'sign-in nonce used to delete (403: the caller is signed in)');
   assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(nn, 'another-app'), nonce: nn, purpose: 'signin' }, deps)), rejected, 'wrong audience');
   assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: 'garbage', nonce: nn, purpose: 'signin' }, deps)), rejected, 'garbage token');
   const expired = signNonce(SECRET, 'signin', Date.now() - 6 * 60 * 1000);

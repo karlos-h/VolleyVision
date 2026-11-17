@@ -55,9 +55,9 @@ export async function verifyGoogleSignIn(
   deps: { keys?: JWTVerifyGetKey; audiences?: string[] } = {},
 ): Promise<ProviderIdentity> {
   const nonce = verifyNonce(input.nonce, jwtSecret(), input.purpose);
-  if (!nonce.ok) throw rejected(`nonce ${nonce.reason}`);
+  if (!nonce.ok) throw rejected(`nonce ${nonce.reason}`, input.purpose);
   // A link/delete nonce only works for the account it was issued to.
-  if (input.purpose !== 'signin' && (!input.userId || nonce.value.uid !== input.userId)) throw rejected('nonce for another account');
+  if (input.purpose !== 'signin' && (!input.userId || nonce.value.uid !== input.userId)) throw rejected('nonce for another account', input.purpose);
 
   const token = await verifyGoogleIdToken(input.idToken, {
     keys: deps.keys ?? remoteGoogleKeys(),
@@ -70,7 +70,7 @@ export async function verifyGoogleSignIn(
       console.warn(`social sign-in unavailable: ${token.reason}`);
       throw new AppError(503, 'Sign in with Google is not available right now. Try again in a minute.');
     }
-    throw rejected(`id token ${token.reason}`);
+    throw rejected(`id token ${token.reason}`, input.purpose);
   }
 
   // Single use, last: only a nonce that passed every check is spent, and the
@@ -78,7 +78,7 @@ export async function verifyGoogleSignIn(
   try {
     await prisma.revokedToken.create({ data: { jti: nonce.value.jti, expiresAt: nonce.value.expiresAt } });
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw rejected('nonce replayed');
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw rejected('nonce replayed', input.purpose);
     throw err;
   }
   // Same best-effort sweep as sign-out: rows nothing can use any more.
@@ -86,7 +86,10 @@ export async function verifyGoogleSignIn(
   return token.identity;
 }
 
-function rejected(reason: string): AppError {
+// 401 when signing in. 403 when linking or deleting: those callers are already
+// signed in, and the app treats any 401 as "your session ended" and signs out,
+// which would throw away a session over a stale Google token.
+function rejected(reason: string, purpose: NoncePurpose): AppError {
   console.warn(`social sign-in rejected: ${reason}`);
-  return new AppError(401, REJECTED, 'SOCIAL_TOKEN_REJECTED');
+  return new AppError(purpose === 'signin' ? 401 : 403, REJECTED, 'SOCIAL_TOKEN_REJECTED');
 }

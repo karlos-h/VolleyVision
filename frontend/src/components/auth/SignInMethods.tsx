@@ -97,7 +97,9 @@ export default function SignInMethods() {
         <button type="button" onClick={() => { setNotice(''); setMode('remove'); }} className="inline-flex items-center min-h-[44px] text-sm text-navy-700 font-medium">Remove Google</button>
       )}
       {mode === 'idle' && hasGoogle && !hasPassword && (
-        <p className="text-sm text-grey-600 mt-2">Google is the only way into this account. Set a password before removing it.</p>
+        <p className="text-sm text-grey-600 mt-2">
+          Google is the only way into this account. Set a password before removing it, and to sign in on the Android or iPhone app, which don't have Google sign-in yet.
+        </p>
       )}
 
       {mode === 'connect' && (

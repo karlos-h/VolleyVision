@@ -37,7 +37,14 @@ export default function GoogleButton({ purpose, text = 'continue_with', onToken 
     const slot = document.createElement('div');
     const width = holder.current.clientWidth;
     holder.current.replaceChildren(slot);
+    const started = Date.now();
     const timer = window.setTimeout(() => setRound((r) => r + 1), NONCE_REFRESH_MS);
+    // Timers do not tick while a laptop sleeps: coming back to the page after
+    // the nonce has gone stale gets a fresh one before the next click.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - started > NONCE_REFRESH_MS) setRound((r) => r + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
     (async () => {
       try {
         const { nonce } = await authApi.nonce(purpose);
@@ -61,6 +68,7 @@ export default function GoogleButton({ purpose, text = 'continue_with', onToken 
       cancelled = true;
       slot.remove();
       window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [purpose, text, round]);
 
@@ -69,9 +77,9 @@ export default function GoogleButton({ purpose, text = 'continue_with', onToken 
     <div>
       <div ref={holder} className="flex justify-center min-h-[44px]" />
       {failed && (
-        <p className="text-center text-chalk-500 text-sm mt-2" role="status">
+        <p className="text-center text-grey-600 text-sm mt-2" role="status">
           Google sign-in isn't available right now.{' '}
-          <button type="button" className="text-navy-700 font-medium underline" onClick={() => setRound((r) => r + 1)}>
+          <button type="button" className="inline-flex items-center min-h-[44px] text-navy-700 font-medium underline" onClick={() => setRound((r) => r + 1)}>
             Try again
           </button>
         </p>

@@ -42,9 +42,9 @@ export default function GoogleSignIn({ text, signedInPath = '/dashboard', afterS
   return (
     <div className="mt-5">
       <div className="flex items-center gap-3 mb-4" aria-hidden="true">
-        <span className="h-px flex-1 bg-court-700" />
-        <span className="text-chalk-500 text-xs uppercase tracking-wide">or</span>
-        <span className="h-px flex-1 bg-court-700" />
+        <span className="h-px flex-1 bg-grey-200" />
+        <span className="text-grey-600 text-xs uppercase tracking-wide">or</span>
+        <span className="h-px flex-1 bg-grey-200" />
       </div>
       <GoogleButton purpose="signin" text={text} onToken={handleToken} />
     </div>
