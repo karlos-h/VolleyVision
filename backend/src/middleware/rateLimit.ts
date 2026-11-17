@@ -231,6 +231,14 @@ export const joinCodeRateLimit = createRateLimit({
   message: 'Too many join code attempts. Wait a few minutes and try again.',
 });
 
+/** Social sign-in nonces (9.6.S2): stateless to issue, so generous; per IP. */
+export const socialNonceRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  keyFn: (req) => [`social-nonce:ip:${clientIp(req)}`],
+  message: 'Too many sign-in attempts. Wait a few minutes and try again.',
+});
+
 /**
  * Verify-email — public and token-consuming, same defence-in-depth rationale
  * as resetPasswordRateLimit: the token itself is high entropy, this just

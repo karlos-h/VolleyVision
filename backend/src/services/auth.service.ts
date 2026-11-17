@@ -119,11 +119,20 @@ export async function revokeAllTokens(userId: string): Promise<void> {
 }
 
 export function verifyToken(token: string): AuthPayload {
+  let payload: unknown;
   try {
-    return jwt.verify(token, jwtSecret()) as AuthPayload;
+    payload = jwt.verify(token, jwtSecret(), { algorithms: ['HS256'] });
   } catch {
     throw new AppError(401, 'Invalid or expired token.');
   }
+  // A session token and nothing else (9.6.S2). Nonces and sign-up tokens are
+  // signed with their own derived keys, so they already fail above; this is the
+  // second lock: a session names a user and a token version, and has no `typ`.
+  const p = payload as Partial<AuthPayload> & { typ?: unknown };
+  if (typeof payload !== 'object' || payload === null || typeof p.userId !== 'string' || !p.userId || typeof p.tv !== 'number' || p.typ !== undefined) {
+    throw new AppError(401, 'Invalid or expired token.');
+  }
+  return payload as AuthPayload;
 }
 
 /**

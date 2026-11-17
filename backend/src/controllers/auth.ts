@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../middleware/errorHandler';
 import { isEmailAddress, normalizeEmail } from '../lib/email';
+import { isNoncePurpose } from '../lib/socialTokens';
+import { issueNonce } from '../services/socialAuth.service';
 import {
   registerUser,
   loginUser,
@@ -99,6 +101,17 @@ export async function me(req: Request, res: Response, next: NextFunction) {
     if (!req.user) throw new AppError(401, 'Authentication required.');
     const user = await getCurrentUser(req.user.userId);
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /auth/nonce?purpose=signin|link|delete: step one of a social sign-in (9.6.S2). */
+export function nonce(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { purpose } = req.query;
+    if (!isNoncePurpose(purpose)) throw new AppError(400, 'purpose must be signin, link or delete.');
+    res.json(issueNonce(purpose));
   } catch (err) {
     next(err);
   }

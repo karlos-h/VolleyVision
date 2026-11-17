@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, logout, logoutAll, me, forgotPassword, resetPassword, verifyEmail, resendVerification } from '../controllers/auth';
+import { register, login, logout, logoutAll, me, nonce, forgotPassword, resetPassword, verifyEmail, resendVerification } from '../controllers/auth';
 import { requireAuth } from '../middleware/auth';
 import {
   forgotPasswordGlobalRateLimit,
@@ -11,6 +11,7 @@ import {
   verifyEmailRateLimit,
   resendVerificationRateLimit,
   resendVerificationIpRateLimit,
+  socialNonceRateLimit,
 } from '../middleware/rateLimit';
 
 const router = Router();
@@ -32,6 +33,9 @@ router.post('/forgot-password', forgotPasswordRateLimit, forgotPasswordGlobalRat
 // Brute-force defence in depth on the reset token itself (see rateLimit.ts).
 router.post('/reset-password', resetPasswordRateLimit, resetPassword);
 router.get('/me', requireAuth, me);
+// Public: a nonce is only useful together with a Google token that echoes it.
+// It costs no database work, so the limit is just against being hammered.
+router.get('/nonce', socialNonceRateLimit, nonce);
 // Public by design — the emailed verification token is itself the credential.
 // Rate limited on IP only (defence in depth, see rateLimit.ts).
 router.post('/verify-email', verifyEmailRateLimit, verifyEmail);

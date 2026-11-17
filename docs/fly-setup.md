@@ -21,6 +21,7 @@ The API runs as one always-on machine in `syd`. Two apps: `vv-api-himex` (prod, 
 | `SENTRY_ENVIRONMENT` | no | In toml (staging only) | `staging` keeps Server-Timing and measurement on. |
 | `CLIENT_URL` | no | The site that serves the SPA, per app | Prod and staging differ. |
 | `CORS_EXTRA_ORIGINS` | no | Comma-separated | Must include `https://localhost,capacitor://localhost` or the apps fail every call. |
+| `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID` | no | Google Cloud OAuth client ids (9.6.S) | The audiences a Google ID token must be issued for. Unset = Google sign-in answers 503. |
 | `API_PROXY_SIGNING_SECRET` | **secret** | Generate; the same value goes into the Netlify proxy | Added by R3. |
 | `STAGING_PROJECT_REF` | no | Staging Supabase ref | Only `db:seed:staging`; not needed on Fly. |
 | `NODE_ENV`, `PORT` | no | In toml | `production`, `8080`. |
