@@ -53,11 +53,16 @@ function signTyped(payload: object, secret: string, label: Label, ttlSeconds: nu
   );
 }
 
-export function signNonce(secret: string, purpose: NoncePurpose, now: number = Date.now()): string {
-  return signTyped({ typ: 'nonce', purpose }, secret, 'vv-nonce', NONCE_TTL_SECONDS, now);
+/**
+ * `uid` ties a link or delete nonce to the signed-in account that asked for it,
+ * so it can only ever confirm that action for that account. Sign-in nonces have
+ * none: nobody is signed in yet.
+ */
+export function signNonce(secret: string, purpose: NoncePurpose, now: number = Date.now(), uid?: string): string {
+  return signTyped({ typ: 'nonce', purpose, ...(uid ? { uid } : {}) }, secret, 'vv-nonce', NONCE_TTL_SECONDS, now);
 }
 
-export type NonceClaims = { jti: string; purpose: NoncePurpose; expiresAt: Date };
+export type NonceClaims = { jti: string; purpose: NoncePurpose; expiresAt: Date; uid: string | null };
 
 /** The nonce is ours, unexpired, and was issued for exactly this purpose. */
 export function verifyNonce(nonce: unknown, secret: string, purpose: NoncePurpose, now: number = Date.now()): Verified<NonceClaims> {
@@ -65,7 +70,10 @@ export function verifyNonce(nonce: unknown, secret: string, purpose: NoncePurpos
   if (!v.ok) return v;
   // A sign-in nonce must never confirm a deletion (or the reverse).
   if (v.value.purpose !== purpose) return { ok: false, reason: 'wrong-purpose' };
-  return { ok: true, value: { jti: v.value.jti as string, purpose, expiresAt: new Date((v.value.exp as number) * 1000) } };
+  return {
+    ok: true,
+    value: { jti: v.value.jti as string, purpose, expiresAt: new Date((v.value.exp as number) * 1000), uid: typeof v.value.uid === 'string' ? v.value.uid : null },
+  };
 }
 
 /** What the provider vouched for, carried through the sign-up form (S3). */

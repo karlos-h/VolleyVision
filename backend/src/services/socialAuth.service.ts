@@ -27,8 +27,20 @@ function remoteGoogleKeys(): JWTVerifyGetKey {
   return googleKeys;
 }
 
-export function issueNonce(purpose: NoncePurpose): { nonce: string; expiresIn: number } {
-  return { nonce: signNonce(jwtSecret(), purpose), expiresIn: NONCE_TTL_SECONDS };
+/**
+ * Integration tests only: swap Google's published keys for a local key set, so
+ * the real routes run without the network. Reachable only from inside the
+ * process, and refused outside NODE_ENV=test.
+ */
+export function setGoogleKeysForTests(keys: JWTVerifyGetKey | null): void {
+  if (process.env.NODE_ENV !== 'test') throw new Error('setGoogleKeysForTests is for tests only.');
+  googleKeys = keys;
+}
+
+/** Link and delete nonces belong to the signed-in user asking; sign-in nonces to nobody. */
+export function issueNonce(purpose: NoncePurpose, userId?: string): { nonce: string; expiresIn: number } {
+  if (purpose !== 'signin' && !userId) throw new AppError(401, 'Authentication required.');
+  return { nonce: signNonce(jwtSecret(), purpose, Date.now(), purpose === 'signin' ? undefined : userId), expiresIn: NONCE_TTL_SECONDS };
 }
 
 const REJECTED = 'That sign-in could not be verified. Try again.';
@@ -39,11 +51,13 @@ const REJECTED = 'That sign-in could not be verified. Try again.';
  * never to the caller.
  */
 export async function verifyGoogleSignIn(
-  input: { idToken: unknown; nonce: unknown; purpose: NoncePurpose },
+  input: { idToken: unknown; nonce: unknown; purpose: NoncePurpose; userId?: string },
   deps: { keys?: JWTVerifyGetKey; audiences?: string[] } = {},
 ): Promise<ProviderIdentity> {
   const nonce = verifyNonce(input.nonce, jwtSecret(), input.purpose);
   if (!nonce.ok) throw rejected(`nonce ${nonce.reason}`);
+  // A link/delete nonce only works for the account it was issued to.
+  if (input.purpose !== 'signin' && (!input.userId || nonce.value.uid !== input.userId)) throw rejected('nonce for another account');
 
   const token = await verifyGoogleIdToken(input.idToken, {
     keys: deps.keys ?? remoteGoogleKeys(),
