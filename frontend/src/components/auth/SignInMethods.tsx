@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { profileApi, getApiErrorMessage } from '../../lib/api';
-import { isNative } from '../../lib/native';
+import { googleSignInAvailable } from '../../lib/native';
 import GoogleButton from './GoogleButton';
 
 /**
@@ -89,7 +89,7 @@ export default function SignInMethods() {
       {error && <p className="text-sm text-error-strong mt-2" role="alert">{error}</p>}
 
       {mode === 'idle' && !hasGoogle && (
-        isNative()
+        !googleSignInAvailable()
           ? <p className="text-sm text-grey-600 mt-2">To connect Google, open VolleyVision in a web browser.</p>
           : <button type="button" onClick={() => { setNotice(''); setMode('connect'); }} className="inline-flex items-center min-h-[44px] text-sm text-navy-700 font-medium">Connect Google</button>
       )}
@@ -98,7 +98,7 @@ export default function SignInMethods() {
       )}
       {mode === 'idle' && hasGoogle && !hasPassword && (
         <p className="text-sm text-grey-600 mt-2">
-          Google is the only way into this account. Set a password before removing it, and to sign in on the Android or iPhone app, which don't have Google sign-in yet.
+          Google is the only way into this account. Set a password before removing it, and to sign in on the iPhone app, which doesn't have Google sign-in yet.
         </p>
       )}
 

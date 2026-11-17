@@ -22,7 +22,7 @@ Tracking is **No** on every row.
 | Apple category → type | Collected? | Linked? | Purpose (tick only this) | Why |
 |---|---|---|---|---|
 | Contact Info → **Name** | Yes | Yes | App Functionality | Account name; player record names |
-| Contact Info → **Email Address** | Yes | Yes | App Functionality | Sign-in, verification, invites. Includes the address Google reports if the user signs in with Google (website only in v9.20.0; neither app has a Google button yet). |
+| Contact Info → **Email Address** | Yes | Yes | App Functionality | Sign-in, verification, invites. Includes the address Google reports if the user signs in with Google (website and Android app; the iPhone app has no Google button until Sign in with Apple ships). |
 | Contact Info → **Phone Number** | Yes | Yes | App Functionality | Optional profile field, only the user sees it |
 | Contact Info → Physical Address | No | | | City and country only (see Other Data) |
 | User Content → **Photos or Videos** | Yes | Yes | App Functionality | Photos attached in team chat |

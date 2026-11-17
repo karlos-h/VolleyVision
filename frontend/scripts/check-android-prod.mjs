@@ -23,6 +23,13 @@ if (!existsSync(configPath)) {
   if (config.server?.allowNavigation?.length) problems.push('capacitor.config.json: server.allowNavigation lets the WebView navigate to other hosts');
 }
 
+// The sign-in plugin bundles a provider's SDK unless cap sync has written its
+// switches from capacitor.config.ts. Only Google is declared to the stores.
+const socialProps = path.join(root, '../node_modules/@capgo/capacitor-social-login/android/gradle.properties');
+if (existsSync(socialProps) && !/^socialLogin\.facebook\.include=false$/m.test(readFileSync(socialProps, 'utf8'))) {
+  problems.push(`${socialProps}: the Facebook SDK would be bundled; run npm run android:prod`);
+}
+
 function walk(dir) {
   for (const name of readdirSync(dir)) {
     const full = path.join(dir, name);
