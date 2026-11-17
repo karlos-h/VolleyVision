@@ -202,6 +202,9 @@ export interface User {
   // 9.3: the app asks for the Terms when true. Absent from a server older than
   // v9.17.0 (and from a user cached before it), which means "don't ask".
   termsRequired?: boolean;
+  // 9.6.S: absent from a server older than v9.20.0 and from a user cached before it.
+  hasPassword?: boolean;
+  signInMethods?: string[];
 }
 
 export interface AuthResponse {
