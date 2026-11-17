@@ -2,6 +2,43 @@
 
 All notable changes to VolleyVision, reconstructed from the repository's commit and tag history. Versions are listed newest first, in chronological order of release. Untagged commits are listed under the tagged release they shipped with.
 
+## v9.20.0 — 2026-11-17
+
+Phase 9.6.S of the rebuild roadmap: Sign in with Google. One additive migration
+(`20261117000000_user_identities`) and one new backend dependency (`jose`, to
+check Google's signed tokens). Works with the Android 9.13.0+ apps: every API
+change adds fields or routes. Not deployed to production yet.
+
+**Sign in with Google (website)**
+- New: "Sign in with Google" on the sign-in, create-account and invitation
+  pages. A new person still confirms their name and ticks the 13+ and Terms
+  box before an account exists.
+- An existing account with the same email is connected automatically only when
+  it is safe: Google has verified the address, VolleyVision has too, and it is
+  a Gmail or Google Workspace address. Otherwise you sign in with your password
+  and connect Google under Profile.
+- Profile shows how you sign in, and lets you connect or remove Google. Both
+  ask for your password first, and you get an email when either happens.
+- An account with no password deletes itself by confirming with Google, and
+  can set a password with "Forgot password".
+- Not in the apps yet: the Android app gets Google sign-in in a later release,
+  and the iPhone app when Sign in with Apple ships with it. An account made
+  with Google needs a password (Forgot password sets one) to sign in on either
+  app until then.
+
+**Security**
+- Google's token is checked on the server only: signed by Google, issued for
+  VolleyVision, not expired, and answering a one-time code that works once and
+  for one purpose (sign in, connect, or delete).
+- The sign-in session check now accepts session tokens only.
+- A password reset on an account whose email was never verified also removes
+  any Google sign-in attached to it.
+
+**Internal**
+- `user_identities` table; `users.password_hash` can be empty.
+- `/auth/me` adds `hasPassword` and `signInMethods`.
+- Privacy Policy and store data notes mention the Google account identifier.
+
 ## v9.19.0 — 2026-11-14
 
 Phase 9.6 of the rebuild roadmap: the app moves to Sydney, plus the clean-ups

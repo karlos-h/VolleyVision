@@ -119,6 +119,9 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
 }
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
+/** A first Google sign-in with no account yet: show the sign-up form (9.6.S3). */
+export type SocialSignupNeeded = { needsSignup: true; signupToken: string; suggested: { firstName: string; lastName: string; email: string } };
+
 export const authApi = {
   // acceptTerms: the 13+ / Terms tick box (9.3), from whichever form signs up.
   register: (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null; acceptTerms: boolean }) =>
@@ -128,6 +131,19 @@ export const authApi = {
   logout: (authorization: string) => api.post('/auth/logout', null, { headers: { Authorization: authorization } }).then((r) => r.data),
   logoutAll: () => api.post<{ message: string }>('/auth/logout-all').then((r) => r.data),
   me: () => api.get<User>('/auth/me').then((r) => r.data),
+  // Sign in with Google (9.6.S). These paths are in PUBLIC_AUTH_PATHS, so the
+  // stored token is not attached automatically: a link or delete nonce belongs
+  // to the signed-in user, so that call sends the token itself.
+  nonce: (purpose: 'signin' | 'link' | 'delete') => {
+    const token = purpose === 'signin' ? null : getToken();
+    return api
+      .get<{ nonce: string; expiresIn: number }>('/auth/nonce', { params: { purpose }, headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => r.data);
+  },
+  google: (data: { idToken: string; nonce: string }) =>
+    api.post<AuthResponse | SocialSignupNeeded>('/auth/google', data).then((r) => r.data),
+  socialComplete: (data: { signupToken: string; acceptTerms: boolean; firstName: string; lastName: string; signupIntent?: string | null }) =>
+    api.post<AuthResponse>('/auth/social/complete', data).then((r) => r.data),
   forgotPassword: (data: { email: string }) =>
     api.post<{ message: string }>('/auth/forgot-password', data).then((r) => r.data),
   resetPassword: (data: { token: string; password: string }) =>
@@ -441,7 +457,14 @@ export const profileApi = {
   update: (data: Partial<UserProfile>) =>
     api.patch<UserProfile>('/profile', data).then((r) => r.data),
   acceptTerms: () => api.post<{ termsRequired: boolean }>('/profile/accept-terms').then((r) => r.data),
-  deleteAccount: (password: string) => api.delete('/profile', { data: { password } }),
+  // An account with a password proves itself with it; a Google-only one with a
+  // fresh Google sign-in for a `delete` nonce (9.6.S5).
+  deleteAccount: (proof: { password: string } | { provider: 'google'; idToken: string; nonce: string }) =>
+    api.delete('/profile', { data: proof }),
+  linkGoogle: (data: { idToken: string; nonce: string; password?: string }) =>
+    api.post<{ linked: true; signInMethods: string[] }>('/profile/identities/google', data).then((r) => r.data),
+  unlinkGoogle: (password: string) =>
+    api.delete<{ linked: false; signInMethods: string[] }>('/profile/identities/google', { data: { password } }).then((r) => r.data),
 };
 
 // ─── Player Portal (Phase 5 Sprint 5) ────────────────────────────────────────

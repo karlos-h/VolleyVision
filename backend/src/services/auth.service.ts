@@ -348,6 +348,8 @@ export async function resetPassword(token: string, newPassword: string): Promise
   // otherwise it would stay a way back in after the reset (9.6.S3). The owner
   // can connect Google again from Profile.
   await prisma.userIdentity.deleteMany({ where: { user: { ...usableResetTokenWhere(token), emailVerifiedAt: null } } });
+  // And the address counts as verified from here on: only its owner gets the link.
+  await prisma.user.updateMany({ where: { ...usableResetTokenWhere(token), emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } });
 
   // Match-and-clear in one conditional updateMany rather than a lookup
   // followed by an update-by-id. The previous two-step form let a concurrent

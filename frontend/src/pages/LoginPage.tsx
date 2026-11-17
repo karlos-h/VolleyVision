@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
 import LegalLinks from '../components/legal/LegalLinks';
+import GoogleSignIn from '../components/auth/GoogleSignIn';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -90,6 +91,8 @@ export default function LoginPage() {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+
+          <GoogleSignIn text="signin_with" onError={setError} />
 
           <p className="text-center text-chalk-500 text-sm mt-4">
             <Link to="/forgot-password" className="text-navy-700 hover:text-navy-700 font-medium">

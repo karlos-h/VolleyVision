@@ -228,8 +228,8 @@ async function main() {
   world();
   db.user.findUnique = async () => me();
   db.userIdentity.findUnique = async () => { throw new Error('must be refused before any lookup'); };
-  assert.deepEqual(await failure(() => link('u1', 'u2')), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' });
-  assert.deepEqual(await failure(() => link('u1', null)), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' });
+  assert.deepEqual(await failure(() => link('u1', 'u2')), { status: 403, code: 'SOCIAL_TOKEN_REJECTED' }, '403: a 401 would sign the app out');
+  assert.deepEqual(await failure(() => link('u1', null)), { status: 403, code: 'SOCIAL_TOKEN_REJECTED' });
   // And a link nonce cannot sign anyone in.
   const ln = issueNonce('link', 'u1').nonce;
   assert.deepEqual(await failure(async () => signInWithGoogle({ idToken: await google(ln), nonce: ln }, deps)), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' });
@@ -239,8 +239,12 @@ async function main() {
   world();
   let dropped: Row | null = null;
   db.userIdentity.deleteMany = async (a: Row) => { dropped = a.where; return { count: 1 }; };
-  db.user.updateMany = async () => ({ count: 1 });
+  const updates: Row[] = [];
+  db.user.updateMany = async (u: Row) => { updates.push(u); return { count: 1 }; };
   await resetPassword('reset-token', 'a new long password');
+  assert.equal(updates.length, 2);
+  assert.ok(updates[0].where.emailVerifiedAt === null && updates[0].data.emailVerifiedAt instanceof Date, 'the reset link proves the mailbox: the address is verified');
+  assert.equal(typeof updates[1].data.passwordHash, 'string');
   assert.equal((dropped as unknown as Row).user.emailVerifiedAt, null, 'only for accounts we never verified');
   assert.ok((dropped as unknown as Row).user.passwordResetTokenHash, 'and only the account this reset link belongs to');
 

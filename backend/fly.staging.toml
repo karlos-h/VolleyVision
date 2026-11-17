@@ -16,9 +16,10 @@ kill_timeout = "15s"
   SENTRY_ENVIRONMENT = "staging"
   # Only this Netlify site (and its drafts) may use this app; see middleware/proxySignature.ts.
   API_PROXY_SITE_URL = "https://volleyvision-staging.netlify.app"
-  # Filled in 9.6.S:
-  # GOOGLE_WEB_CLIENT_ID = ""
-  # GOOGLE_IOS_CLIENT_ID = ""
+  # Sign in with Google (9.6.S): OAuth client ids, not secrets. Google Cloud
+  # project volleyvision-515003 (Himex Trading Ltd). The iOS id is for 9.7.
+  GOOGLE_WEB_CLIENT_ID = "975527779291-8d5e17etol10mfe16shq82u7uuu1naru.apps.googleusercontent.com"
+  GOOGLE_IOS_CLIENT_ID = "975527779291-1efe5f7cu1b1jrlvokp2972oof4jls4i.apps.googleusercontent.com"
 
 [http_service]
   internal_port = 8080

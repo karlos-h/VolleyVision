@@ -36,6 +36,8 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null; acceptTerms: boolean }) => Promise<void>;
+  /** A session the server just issued another way (Sign in with Google, 9.6.S). */
+  adoptSession: (session: { token: string; user: User }) => void;
   logout: () => void;
   /** Ends every session of this account (9.6.0.2); throws if the server refuses. */
   logoutAll: () => Promise<void>;
@@ -96,21 +98,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) preloadLikelyPages();
   }, [user]);
 
+  // Every way of signing in ends here. The sign-in response carries the basic
+  // user only; /auth/me adds the rest (hasPassword, signInMethods, createdAt),
+  // which Profile and Delete account depend on, so it is fetched straight away
+  // instead of waiting for the next page load (9.6.S: a just-signed-in Google
+  // account was asked for a password it doesn't have).
+  const startSession = useCallback((session: { token: string; user: User }) => {
+    storeToken(session.token);
+    switchCache(session.user);
+    setToken(session.token);
+    setUser(session.user);
+    authApi.me()
+      .then((full) => { if (getToken() === session.token) { cacheUser(full); setUser(full); } })
+      .catch(() => { /* the basic user stands; the next load asks again */ });
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login({ email, password });
-    storeToken(res.token);
-    switchCache(res.user);
-    setToken(res.token);
-    setUser(res.user);
-  }, []);
+    startSession(res);
+  }, [startSession]);
 
   const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null; acceptTerms: boolean }) => {
     const res = await authApi.register(data);
-    storeToken(res.token);
-    switchCache(res.user);
-    setToken(res.token);
-    setUser(res.user);
-  }, []);
+    startSession(res);
+  }, [startSession]);
+
+  const adoptSession = startSession;
 
   // Queued taps stay (keyed by this user, no names); the cached user and
   // match rosters don't.
@@ -160,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, logoutAll, refreshUser, onAccountDeleted }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, adoptSession, logout, logoutAll, refreshUser, onAccountDeleted }}>
       {children}
     </AuthContext.Provider>
   );

@@ -112,7 +112,7 @@ async function main() {
     assert.equal(taken.status, 409);
     assert.equal(taken.body.code, 'IDENTITY_IN_USE');
     // A link nonce issued to another signed-in user: refused.
-    assert.equal((await link(coach.token, done.body.token, `${RUN}-sub-coach`)).status, 401);
+    assert.equal((await link(coach.token, done.body.token, `${RUN}-sub-coach`)).status, 403);
     // Their own: linked, and now both ways of signing in.
     const linked = await link(coach.token, coach.token, `${RUN}-sub-coach`);
     assert.equal(linked.status, 200, JSON.stringify(linked.body));
@@ -160,10 +160,10 @@ async function main() {
     assert.equal(noProof.body.code, 'GOOGLE_CONFIRMATION_REQUIRED');
     // A sign-in nonce cannot confirm a deletion.
     const sn = await nonceFor('signin');
-    assert.equal((await del({ provider: 'google', nonce: sn, idToken: await google(sn, `${RUN}-sub-new`, { email }) })).status, 401);
+    assert.equal((await del({ provider: 'google', nonce: sn, idToken: await google(sn, `${RUN}-sub-new`, { email }) })).status, 403);
     // A delete nonce issued to someone else cannot either.
     const cn = await nonceFor('delete', coach.token);
-    assert.equal((await del({ provider: 'google', nonce: cn, idToken: await google(cn, `${RUN}-sub-new`, { email }) })).status, 401);
+    assert.equal((await del({ provider: 'google', nonce: cn, idToken: await google(cn, `${RUN}-sub-new`, { email }) })).status, 403);
     // The right nonce, but another Google account: refused, nonce spent, account intact.
     let dn = await nonceFor('delete', done.body.token);
     const other = await del({ provider: 'google', nonce: dn, idToken: await google(dn, `${RUN}-sub-coach`, { email: coach.email }) });

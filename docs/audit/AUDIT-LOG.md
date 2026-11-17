@@ -1231,5 +1231,23 @@ Privacy policy dated 14 November 2026 (Fly.io and Sydney added); no new Terms ve
 edge-hop fallback for the rate-limit key, optional `site_url` pinning, `-ApiOrigin` mandatory for prod, move and
 storage tests in CI, dockerignore globs, runbook Fly readiness and `.env` step).
 
+**9.6.S, Sign in with Google (branch `rebuild/p9-6-signin`, 17 Nov 2026, v9.20.0):**
+
+| Item | What changed | Covered by |
+|---|---|---|
+| S1 (G1 ✔) | `user_identities` (unique provider + subject, one per provider per user, cascade, RLS, grants revoked); `password_hash` nullable; `verifyPassword` never matches a null hash | `auth.test.ts`, `rls.test.ts` |
+| S2 (G2 ✔, G3 `jose` ✔) | Google ID token check (RS256, issuer, audience, exp, nonce); nonces and sign-up tokens on HKDF-derived keys with `typ`; nonce single use via `revoked_tokens`; `verifyToken` accepts sessions only | `providerToken.test.ts`, `socialTokens.test.ts`, `http.socialNonce.test.ts` |
+| S3 (G2 ✔) | `/auth/google`, `/auth/social/complete`, `/profile/identities/google`; auto-link only for a verified Gmail or Workspace address on a verified account, else `LINK_REQUIRED`; link and delete nonces bound to the signed-in user; linking needs the password | `socialSignIn.test.ts`, `__integration__/social.test.ts`, authz-matrix rows |
+| S4 (G3 plugin approved, not used yet) | Google Identity Services button on login, register and invitation pages; `/signup/google`; CSP entries for `accounts.google.com/gsi/`; client ids in `fly.*.toml`. Web only: Android follows later, iOS waits for Apple | local browser check (render only) |
+| S5 (G2 ✔) | Delete confirmed with Google for an account with no password; unlink (password required, refused for a Google-only account); email on connect and remove; privacy and store text | `__integration__/social.test.ts`, `check-legal` |
+| S6 | Sign in with Apple: skipped (account not approved), moved to 9.7 | n/a |
+
+**Reviews (9.6.S):** Opus security reviews of S2 and S3 found no critical or high issues; 2 medium (a new account trusted
+Google's `email_verified` for non-Google mailboxes; linking needed no re-authentication) and 5 low were fixed. Accepted:
+a Workspace `hd` claim trusts the domain's admin, the same trust an email password reset already gives.
+
+**Not verified at the time of writing:** a real Google sign-in end to end (the consent screen is in Testing mode;
+Karlos is a test user).
+
 **Superseded:** the 9.5.9 region recommendation (A: Netlify Pro + `sin`) is replaced by this decision; see
 `docs/region-decision.md`.
