@@ -2,29 +2,11 @@ import { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { SignupIntent } from '../types';
+import { INTENT_OPTIONS, onboardingPath } from '../lib/signupIntent';
 import { getApiErrorMessage } from '../lib/api';
 import TermsConsent from '../components/legal/TermsConsent';
+import GoogleSignIn from '../components/auth/GoogleSignIn';
 import clsx from 'clsx';
-
-// ── Onboarding redirect — isolated so it's obvious this is a one-time nudge,
-// never part of permission or auth logic. Call only immediately after registration.
-function onboardingPath(intent: SignupIntent | null): string {
-  if (intent === 'COACH')  return '/onboarding/coach';
-  if (intent === 'PLAYER') return '/onboarding/player';
-  return '/teams'; // UNSURE or null → existing default
-}
-
-interface IntentOption {
-  value: SignupIntent;
-  label: string;
-  description: string;
-}
-
-const INTENT_OPTIONS: IntentOption[] = [
-  { value: 'COACH',  label: 'Coach a team',      description: "I'll be running a team" },
-  { value: 'PLAYER', label: 'Play for a team',    description: "I'll be joining a team" },
-  { value: 'UNSURE', label: "Not sure yet",       description: "I'll figure it out later" },
-];
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -200,6 +182,8 @@ export default function RegisterPage() {
               {loading ? 'Creating account…' : 'Create account'}
             </button>
           </form>
+
+          <GoogleSignIn text="signup_with" onError={setError} />
         </div>
 
         <p className="text-center text-chalk-500 text-sm mt-4">

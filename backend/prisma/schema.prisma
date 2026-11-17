@@ -215,7 +215,9 @@ enum ApprovalStatus {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String   @map("password_hash")
+  // Null for an account that only signs in with Google (9.6.S): it has no
+  // password until the user sets one. verifyPassword() treats null as "no match".
+  passwordHash String?  @map("password_hash")
   firstName    String   @map("first_name")
   lastName     String   @map("last_name")
   role         UserRole @default(COACH)
@@ -298,6 +300,7 @@ model User {
 
   // 9.6.0.2: tokens this user signed out of, until they would have expired.
   revokedTokens RevokedToken[]
+  identities    UserIdentity[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -854,6 +857,35 @@ model RevokedToken {
 
   @@index([expiresAt])
   @@map("revoked_tokens")
+}
+
+// 9.6.S: a sign-in identity from an outside provider, linked to one account.
+// The account is found by (provider, providerSubject), the provider's own
+// stable id for the person ("sub"), never by email: an address can change
+// hands or be re-used, the subject can't. email is what the provider reported
+// when the identity was linked, kept for support questions only. (The handoff
+// names the column `subject`; `provider_subject` and one identity per provider
+// per account were kept as built, with Karlos's approval, 17 Nov.)
+enum IdentityProvider {
+  GOOGLE
+  APPLE // not used until Sign in with Apple (9.7)
+}
+
+model UserIdentity {
+  id              String           @id @default(cuid())
+  userId          String           @map("user_id")
+  provider        IdentityProvider
+  providerSubject String           @map("provider_subject")
+  email           String?
+  // What the provider said when the identity was linked or last used.
+  emailVerified   Boolean          @default(false) @map("email_verified")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  lastUsedAt      DateTime?        @map("last_used_at")
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@unique([userId, provider])
+  @@map("user_identities")
 }
 
 model FeedbackAttachment {

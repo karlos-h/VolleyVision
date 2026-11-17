@@ -6,7 +6,8 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 
 import { db, resetDb } from '../testing/installFakePrisma';
 import { requireAuth } from '../middleware/auth';
-import { generateToken } from '../services/auth.service';
+import bcrypt from 'bcryptjs';
+import { generateToken, verifyPassword } from '../services/auth.service';
 
 function fakeRes() {
   const res: any = { statusCode: null, body: null };
@@ -71,18 +72,18 @@ async function staleTvIs401SessionExpired() {
   assert.equal(calls.length, 0);
 }
 
-async function missingTvClaimTreatedAsZero() {
+async function missingTvClaimIsRefused() {
   resetDb();
   db.user.findUnique = async () => ({ tokenVersion: 0 });
-  // A pre-M7 token: no tv claim at all.
+  // A token with no tv claim. Sessions minted before tokenVersion existed all
+  // ran out long ago (7-day life), so since 9.6.S2 this is not a session at all.
   const token = generateToken({ userId: 'u1', email: 'a@b.com', role: 'PLAYER' } as any);
   const req: any = { headers: { authorization: `Bearer ${token}` } };
   const res = fakeRes();
   const { next, calls } = makeNext();
   await requireAuth(req, res, next);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0], undefined);
-  assert.equal(res.statusCode, null);
+  assert.equal(calls.length, 0);
+  assert.equal(res.statusCode, 401);
 }
 
 async function dbErrorReachesNextNotAHang() {
@@ -104,8 +105,15 @@ async function main() {
   await badSignatureIs401();
   await matchingTvCallsNext();
   await staleTvIs401SessionExpired();
-  await missingTvClaimTreatedAsZero();
+  await missingTvClaimIsRefused();
   await dbErrorReachesNextNotAHang();
+  // 9.6.S1: an account with no password (Google-only) never matches, whatever is typed.
+  const hash = await bcrypt.hash('correct horse', 4);
+  assert.equal(await verifyPassword('correct horse', hash), true);
+  assert.equal(await verifyPassword('wrong', hash), false);
+  assert.equal(await verifyPassword('correct horse', null), false, 'null hash is never a match');
+  assert.equal(await verifyPassword('', null), false);
+
   console.log('auth.test.ts passed');
 }
 

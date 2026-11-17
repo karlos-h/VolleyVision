@@ -11,11 +11,14 @@
 #   img-src                   data:/blob: for upload previews, supabase.co for
 #                             signed chat/feedback attachment URLs
 #   connect-src               the same-origin API, plus Sentry's ingest host
+#   accounts.google.com/gsi/  Sign in with Google (9.6.S4): its script, its
+#                             button iframe, its stylesheet and its calls.
+#                             Nothing else of Google's is allowed.
 #   frame-ancestors 'none'    nobody may embed the app (clickjacking)
 # Anything new that loads from another origin (a CDN, an embed, analytics)
 # must be added here or the browser will block it.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.ingest.us.sentry.io https://*.ingest.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.ingest.us.sentry.io https://*.ingest.sentry.io https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

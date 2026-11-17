@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { profileApi, getApiErrorMessage } from '../lib/api';
 import { hasQueued } from '../lib/eventQueue';
+import GoogleButton from '../components/auth/GoogleButton';
+import { isNative } from '../lib/native';
 import { legalHref } from '../lib/legal';
 
 type BlockingTeam = { id: string; name: string; reason: 'owner' | 'head_coach' };
@@ -14,24 +16,32 @@ type BlockingTeam = { id: string; name: string; reason: 'owner' | 'head_coach' }
  * account owns a team and lists them here.
  */
 export default function DeleteAccountPage() {
-  const { user, onAccountDeleted } = useAuth();
+  const { user, onAccountDeleted, refreshUser } = useAuth();
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
   const [error, setError] = useState('');
   const [teams, setTeams] = useState<BlockingTeam[]>([]);
   const [deleting, setDeleting] = useState(false);
   const unsynced = user ? hasQueued(user.id) : false;
+  // 9.6.S5: an account with no password confirms with a fresh Google sign-in.
+  const googleOnly = user?.hasPassword === false;
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
+    if (!googleOnly) void remove({ password });
+  }
+
+  async function remove(proof: Parameters<typeof profileApi.deleteAccount>[0]) {
     setError('');
     setTeams([]);
     setDeleting(true);
     try {
-      await profileApi.deleteAccount(password);
+      await profileApi.deleteAccount(proof);
       onAccountDeleted(); // clears storage and reloads into /login?deleted=1
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.code === 'ACCOUNT_HAS_TEAMS') setTeams(err.response.data.teams ?? []);
+      // The server knows this account has no password even if this page did not yet: show the Google step.
+      if (axios.isAxiosError(err) && err.response?.data?.code === 'GOOGLE_CONFIRMATION_REQUIRED') void refreshUser().catch(() => {});
       setError(getApiErrorMessage(err, "Couldn't delete your account. Check your connection and try again."));
       setDeleting(false);
     }
@@ -71,10 +81,12 @@ export default function DeleteAccountPage() {
       )}
 
       <form onSubmit={submit} className="card p-5 space-y-4">
-        <div>
-          <label htmlFor="delete-password" className="block text-sm font-medium text-grey-700 mb-1">Your password</label>
-          <input id="delete-password" type="password" autoComplete="current-password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
+        {!googleOnly && (
+          <div>
+            <label htmlFor="delete-password" className="block text-sm font-medium text-grey-700 mb-1">Your password</label>
+            <input id="delete-password" type="password" autoComplete="current-password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+        )}
         <div>
           <label htmlFor="delete-confirm" className="block text-sm font-medium text-grey-700 mb-1">Type DELETE to confirm</label>
           <input id="delete-confirm" className="input" autoCapitalize="characters" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} required />
@@ -97,9 +109,25 @@ export default function DeleteAccountPage() {
           </div>
         )}
 
-        <button type="submit" className="btn-primary w-full min-h-[44px] bg-error hover:bg-error-strong border-error" disabled={deleting || !password || typed.trim() !== 'DELETE'}>
-          {deleting ? 'Deleting…' : 'Delete my account'}
-        </button>
+        {!googleOnly && (
+          <button type="submit" className="btn-primary w-full min-h-[44px] bg-error hover:bg-error-strong border-error" disabled={deleting || !password || typed.trim() !== 'DELETE'}>
+            {deleting ? 'Deleting…' : 'Delete my account'}
+          </button>
+        )}
+        {/* No password to ask for: signing in with Google again, right now, is the confirmation. */}
+        {googleOnly && (
+          <div className="space-y-2">
+            <p className="text-sm text-grey-700">
+              You sign in with Google, so there's no password to enter. Confirm with Google to delete your account.
+            </p>
+            {isNative() && <p className="text-sm text-grey-600">Open VolleyVision in a web browser to do this.</p>}
+            {!isNative() && typed.trim() !== 'DELETE' && <p className="text-sm text-grey-600">Type DELETE above first.</p>}
+            {!isNative() && typed.trim() === 'DELETE' && !deleting && (
+              <GoogleButton purpose="delete" text="continue_with" onToken={(token) => remove({ provider: 'google', ...token })} />
+            )}
+            {deleting && <p className="text-sm text-grey-700" role="status">Deleting…</p>}
+          </div>
+        )}
       </form>
     </div>
   );

@@ -58,7 +58,8 @@ export default function ForgotPasswordPage() {
             <>
               <h1 className="text-lg font-semibold text-chalk-100 mb-1">Forgot your password?</h1>
               <p className="text-chalk-500 text-sm mb-6">
-                Enter your email and we'll send you a link to set a new one.
+                Enter your email and we'll send you a link to set a new one. No password yet, because you sign in
+                with Google? This sets one.
               </p>
 
               {error && (

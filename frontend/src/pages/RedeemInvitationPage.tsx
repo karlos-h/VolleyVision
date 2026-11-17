@@ -1,9 +1,10 @@
 import { useState, FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import JoinByCodeCard from '../components/team/JoinByCodeCard';
 import { getApiErrorMessage } from '../lib/api';
 import TermsConsent from '../components/legal/TermsConsent';
+import GoogleSignIn from '../components/auth/GoogleSignIn';
 
 /**
  * Public entry point for the join-code flow (Stabilization Pass 2).
@@ -14,6 +15,8 @@ import TermsConsent from '../components/legal/TermsConsent';
  */
 export default function RedeemInvitationPage() {
   const [params] = useSearchParams();
+  const location = useLocation();
+  const here = location.pathname + location.search;
   const { user, login, register } = useAuth();
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -105,6 +108,8 @@ export default function RedeemInvitationPage() {
                 {busy ? 'Signing in…' : authMode === 'login' ? 'Sign in' : 'Create account'}
               </button>
             </form>
+            {/* 9.6.S4: back here either way, with the invitation still in the address. */}
+            <GoogleSignIn signedInPath={here} afterSignupPath={here} onError={setError} />
           </div>
         )}
 
