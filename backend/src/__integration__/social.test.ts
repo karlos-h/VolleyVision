@@ -3,6 +3,7 @@
 // nonces, and linking conflicts. Google's keys are swapped for a local key set
 // (setGoogleKeysForTests); everything else is the production path.
 import assert from 'node:assert/strict';
+import bcrypt from 'bcryptjs';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload } from 'jose';
 import { prisma, startApp, makeUser, cleanup, call, RUN } from './harness';
 import { setGoogleKeysForTests } from '../services/socialAuth.service';
@@ -87,17 +88,25 @@ async function main() {
     assert.ok((await prisma.userIdentity.findFirstOrThrow({ where: { userId: stored.id } })).lastUsedAt);
 
     // An existing password account with a non-Google address: never auto-linked.
-    const coach = await makeUser('coach'); // <run>-coach@integration.test, verified, has a password
+    const coach = await makeUser('coach'); // <run>-coach@integration.test, verified
+    const COACH_PASSWORD = 'coach long password';
+    await prisma.user.update({ where: { id: coach.id }, data: { passwordHash: await bcrypt.hash(COACH_PASSWORD, 4) } });
     const clash = await signIn(`${RUN}-sub-coach`, { email: coach.email });
     assert.equal(clash.res.status, 409);
     assert.equal(clash.res.body.code, 'LINK_REQUIRED');
     assert.equal(await prisma.userIdentity.count({ where: { userId: coach.id } }), 0);
 
     // So the coach connects Google from Profile.
-    const link = async (token: string, userNonceToken: string, sub: string) => {
+    const link = async (token: string, userNonceToken: string, sub: string, password: unknown = COACH_PASSWORD) => {
       const nonce = await nonceFor('link', userNonceToken);
-      return call(app.base, 'POST', '/api/v1/profile/identities/google', token, { idToken: await google(nonce, sub, { email: coach.email }), nonce });
+      return call(app.base, 'POST', '/api/v1/profile/identities/google', token, { idToken: await google(nonce, sub, { email: coach.email }), nonce, password });
     };
+    // A session without the password cannot add a way to sign in.
+    assert.equal((await link(coach.token, coach.token, `${RUN}-sub-coach`, null)).status, 400);
+    const wrong = await link(coach.token, coach.token, `${RUN}-sub-coach`, 'not the password');
+    assert.equal(wrong.status, 403);
+    assert.equal(wrong.body.code, 'WRONG_PASSWORD');
+    assert.equal(await prisma.userIdentity.count({ where: { userId: coach.id } }), 0);
     // A Google account that already belongs to someone else: refused.
     const taken = await link(coach.token, coach.token, `${RUN}-sub-new`);
     assert.equal(taken.status, 409);

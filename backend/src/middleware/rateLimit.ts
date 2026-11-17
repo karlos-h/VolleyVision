@@ -231,6 +231,17 @@ export const joinCodeRateLimit = createRateLimit({
   message: 'Too many join code attempts. Wait a few minutes and try again.',
 });
 
+/**
+ * Finishing a first Google sign-up (9.6.S3). Its own bucket, so a club signing
+ * up on one wifi does not spend the password sign-up budget and vice versa.
+ */
+export const socialCompleteRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyFn: (req) => [`social-complete:ip:${clientIp(req)}`],
+  message: 'Too many sign-ups from this network. Try again later.',
+});
+
 /** Social sign-in nonces (9.6.S2): stateless to issue, so generous; per IP. */
 export const socialNonceRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,

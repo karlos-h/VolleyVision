@@ -7,10 +7,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { signSignupToken, verifySignupToken } from '../lib/socialTokens';
-import { canAutoLink } from '../lib/socialLink';
+import { canAutoLink, googleIsAuthoritative } from '../lib/socialLink';
 import { normalizeEmail } from '../lib/email';
 import { logAudit } from '../lib/audit';
-import { AuthResponse, createAccount, getCurrentUser, sessionFor } from './auth.service';
+import { AuthResponse, createAccount, getCurrentUser, sessionFor, verifyPassword } from './auth.service';
 import { verifyGoogleSignIn } from './socialAuth.service';
 
 type Deps = { keys?: JWTVerifyGetKey; audiences?: string[] };
@@ -77,10 +77,14 @@ export async function signInWithGoogle(input: { idToken: unknown; nonce: unknown
 
   // 3. A new person: no account yet. They still have to accept the Terms and
   // confirm they are 13+, so hand back what Google vouched for in a signed token.
+  // The new account starts verified only when Google is the authority for the
+  // address (gmail.com or Workspace). A Google account can sit on top of any
+  // mailbox, including one its holder no longer owns: for those we send our
+  // own verification email, like a password sign-up.
   return {
     needsSignup: true,
     signupToken: signSignupToken(jwtSecret(), {
-      provider: 'GOOGLE', subject: identity.subject, email: identity.email, emailVerified: identity.emailVerified,
+      provider: 'GOOGLE', subject: identity.subject, email: identity.email, emailVerified: identity.emailVerified && googleIsAuthoritative(identity),
       givenName: identity.givenName, familyName: identity.familyName,
     }),
     suggested: { firstName: identity.givenName ?? '', lastName: identity.familyName ?? '', email: identity.email },
@@ -125,9 +129,20 @@ export async function completeSocialSignup(input: {
 /** POST /profile/identities/google: connect Google to the signed-in account. No unlink this phase. */
 export async function linkGoogleIdentity(
   userId: string,
-  input: { idToken: unknown; nonce: unknown },
+  input: { idToken: unknown; nonce: unknown; password?: unknown },
   deps: Deps = {},
 ): Promise<{ linked: true; signInMethods: string[] }> {
+  // Adding a way to sign in is as sensitive as changing the password, and it
+  // outlives a password reset. So a session alone is not enough: an account
+  // with a password must give it (a stolen session token cannot). 403, not
+  // 401, like delete-account: the app signs out on any 401.
+  const account = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+  if (!account) throw new AppError(401, 'Your session has ended. Sign in again.');
+  if (account.passwordHash !== null) {
+    if (typeof input.password !== 'string' || !input.password) throw new AppError(400, 'Enter your password to connect Google.');
+    if (!(await verifyPassword(input.password, account.passwordHash))) throw new AppError(403, 'That password is not right.', 'WRONG_PASSWORD');
+  }
+
   const identity = await verifyGoogleSignIn({ ...input, purpose: 'link', userId }, deps);
 
   const owner = await prisma.userIdentity.findUnique({

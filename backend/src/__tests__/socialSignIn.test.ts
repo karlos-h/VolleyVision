@@ -1,6 +1,7 @@
 // 9.6.S3: every branch of Sign in with Google: known identity, auto-link,
 // LINK_REQUIRED, first-time sign-up, completing it, and linking from Profile.
 import assert from 'node:assert/strict';
+import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload } from 'jose';
 import { db, resetDb } from '../testing/installFakePrisma';
@@ -9,7 +10,7 @@ import { issueNonce } from '../services/socialAuth.service';
 import { completeSocialSignup, linkGoogleIdentity, signInWithGoogle } from '../services/socialSignIn.service';
 import { canAutoLink, googleIsAuthoritative } from '../lib/socialLink';
 import { signSignupToken, verifySignupToken } from '../lib/socialTokens';
-import { verifyToken } from '../services/auth.service';
+import { resetPassword, verifyToken } from '../services/auth.service';
 
 const SECRET = process.env.JWT_SECRET as string;
 const AUD = 'web-client-id';
@@ -129,6 +130,10 @@ async function main() {
   const carried = verifySignupToken(fresh.signupToken, SECRET);
   assert.ok(carried.ok && carried.value.subject === 'g-1' && carried.value.emailVerified === true);
   assert.throws(() => verifyToken(fresh.signupToken), /Invalid or expired token/, 'a sign-up token is not a session');
+  // A non-Google mailbox: Google saying "verified" is not enough, we send our own email.
+  const outlook = (await attempt({ email: 'ana@outlook.com' }, 'g-out')) as Row;
+  const outlookClaims = verifySignupToken(outlook.signupToken, SECRET);
+  assert.ok(outlookClaims.ok && outlookClaims.value.emailVerified === false);
   // Google shared no email: nothing to build an account on.
   assert.equal((await failure(() => attempt({ email: undefined }))).status, 400);
 
@@ -175,11 +180,13 @@ async function main() {
   assert.equal(typeof (newUser as unknown as Row).emailVerificationTokenHash, 'string');
 
   // Linking from Profile.
-  const link = async (userId: string, nonceFor: string | null, sub = 'g-1') => {
+  const PASSWORD = 'correct horse battery';
+  const hash = await bcrypt.hash(PASSWORD, 4);
+  const link = async (userId: string, nonceFor: string | null, sub = 'g-1', password: unknown = PASSWORD) => {
     const nonce = nonceFor ? issueNonce('link', nonceFor).nonce : issueNonce('signin').nonce;
-    return linkGoogleIdentity(userId, { idToken: await google(nonce, {}, sub), nonce }, deps);
+    return linkGoogleIdentity(userId, { idToken: await google(nonce, {}, sub), nonce, password }, deps);
   };
-  const me = () => ({ ...userRow(), createdAt: new Date(), passwordHash: 'hash', identities: [{ provider: 'GOOGLE' }] });
+  const me = (passwordHash: string | null = hash) => ({ ...userRow(), createdAt: new Date(), passwordHash, identities: [{ provider: 'GOOGLE' }] });
   world();
   db.userIdentity.findUnique = async () => null;
   db.userIdentity.create = async (a: Row) => { created = a.data; return { id: 'i5' }; };
@@ -196,21 +203,46 @@ async function main() {
   assert.equal(audits.length, 0);
   // That Google account belongs to someone else.
   world();
+  db.user.findUnique = async () => me();
   db.userIdentity.findUnique = async () => ({ userId: 'someone-else' });
   assert.deepEqual(await failure(() => link('u1', 'u1')), { status: 409, code: 'IDENTITY_IN_USE' });
   // This account already has a different Google account.
   world();
+  db.user.findUnique = async () => me();
   db.userIdentity.findUnique = async () => null;
   db.userIdentity.create = async () => { throw unique(); };
   assert.deepEqual(await failure(() => link('u1', 'u1', 'g-2')), { status: 409, code: 'IDENTITY_EXISTS' });
+  // A session alone is not enough: the account password is needed (a stolen token has none).
+  world();
+  db.user.findUnique = async () => me();
+  db.userIdentity.findUnique = async () => { throw new Error('must be refused before the Google check'); };
+  assert.equal((await failure(() => link('u1', 'u1', 'g-1', null))).status, 400, 'no password given');
+  assert.deepEqual(await failure(() => link('u1', 'u1', 'g-1', 'wrong password')), { status: 403, code: 'WRONG_PASSWORD' });
+  // A Google-only account has no password to ask for.
+  world();
+  db.user.findUnique = async () => me(null);
+  db.userIdentity.findUnique = async () => ({ userId: 'u1' });
+  assert.deepEqual(await link('u1', 'u1', 'g-1', null), { linked: true, signInMethods: ['google'] });
+
   // A link nonce issued to another account, or a sign-in nonce, cannot link.
   world();
+  db.user.findUnique = async () => me();
   db.userIdentity.findUnique = async () => { throw new Error('must be refused before any lookup'); };
   assert.deepEqual(await failure(() => link('u1', 'u2')), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' });
   assert.deepEqual(await failure(() => link('u1', null)), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' });
   // And a link nonce cannot sign anyone in.
   const ln = issueNonce('link', 'u1').nonce;
   assert.deepEqual(await failure(async () => signInWithGoogle({ idToken: await google(ln), nonce: ln }, deps)), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' });
+
+  // Password reset on an account whose address we never verified drops any
+  // outside sign-in attached to it; a verified account keeps its own.
+  world();
+  let dropped: Row | null = null;
+  db.userIdentity.deleteMany = async (a: Row) => { dropped = a.where; return { count: 1 }; };
+  db.user.updateMany = async () => ({ count: 1 });
+  await resetPassword('reset-token', 'a new long password');
+  assert.equal((dropped as unknown as Row).user.emailVerifiedAt, null, 'only for accounts we never verified');
+  assert.ok((dropped as unknown as Row).user.passwordResetTokenHash, 'and only the account this reset link belongs to');
 
   console.log('socialSignIn.test.ts passed');
 }

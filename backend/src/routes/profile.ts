@@ -18,7 +18,7 @@ router.post('/identities/:provider', requireAuth, loginIpRateLimit, async (req: 
   try {
     if (!req.user) throw new AppError(401, 'Authentication required.');
     if (req.params.provider !== 'google') throw new AppError(404, 'That sign-in method is not available.');
-    res.json(await linkGoogleIdentity(req.user.userId, { idToken: req.body?.idToken, nonce: req.body?.nonce }));
+    res.json(await linkGoogleIdentity(req.user.userId, { idToken: req.body?.idToken, nonce: req.body?.nonce, password: req.body?.password }));
   } catch (err) {
     next(err);
   }

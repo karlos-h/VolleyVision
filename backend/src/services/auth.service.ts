@@ -342,6 +342,13 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
+  // An account whose address WE never verified may have been made by someone
+  // else on this mailbox (password or Google sign-up). The reset link proves
+  // who owns the mailbox now, so any outside sign-in attached before that goes:
+  // otherwise it would stay a way back in after the reset (9.6.S3). The owner
+  // can connect Google again from Profile.
+  await prisma.userIdentity.deleteMany({ where: { user: { ...usableResetTokenWhere(token), emailVerifiedAt: null } } });
+
   // Match-and-clear in one conditional updateMany rather than a lookup
   // followed by an update-by-id. The previous two-step form let a concurrent
   // reset or resend win the race between the lookup and the write — either

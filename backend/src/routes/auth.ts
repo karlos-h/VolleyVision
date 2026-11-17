@@ -11,6 +11,7 @@ import {
   verifyEmailRateLimit,
   resendVerificationRateLimit,
   resendVerificationIpRateLimit,
+  socialCompleteRateLimit,
   socialNonceRateLimit,
 } from '../middleware/rateLimit';
 
@@ -40,7 +41,7 @@ router.get('/nonce', socialNonceRateLimit, optionalAuth, nonce);
 // Same exposure as /login and /register: unauthenticated and account-deciding.
 // Per IP only: these bodies carry no email for the email arm to key on.
 router.post('/google', loginIpRateLimit, google);
-router.post('/social/complete', registerRateLimit, socialComplete);
+router.post('/social/complete', socialCompleteRateLimit, socialComplete);
 // Public by design — the emailed verification token is itself the credential.
 // Rate limited on IP only (defence in depth, see rateLimit.ts).
 router.post('/verify-email', verifyEmailRateLimit, verifyEmail);
