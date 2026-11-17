@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { register, login, logout, logoutAll, me, nonce, forgotPassword, resetPassword, verifyEmail, resendVerification } from '../controllers/auth';
-import { requireAuth } from '../middleware/auth';
+import { register, login, logout, logoutAll, me, nonce, google, socialComplete, forgotPassword, resetPassword, verifyEmail, resendVerification } from '../controllers/auth';
+import { optionalAuth, requireAuth } from '../middleware/auth';
 import {
   forgotPasswordGlobalRateLimit,
   forgotPasswordRateLimit,
@@ -11,6 +11,7 @@ import {
   verifyEmailRateLimit,
   resendVerificationRateLimit,
   resendVerificationIpRateLimit,
+  socialCompleteRateLimit,
   socialNonceRateLimit,
 } from '../middleware/rateLimit';
 
@@ -35,7 +36,12 @@ router.post('/reset-password', resetPasswordRateLimit, resetPassword);
 router.get('/me', requireAuth, me);
 // Public: a nonce is only useful together with a Google token that echoes it.
 // It costs no database work, so the limit is just against being hammered.
-router.get('/nonce', socialNonceRateLimit, nonce);
+// optionalAuth: a link or delete nonce is issued to the signed-in user only (401 otherwise).
+router.get('/nonce', socialNonceRateLimit, optionalAuth, nonce);
+// Same exposure as /login and /register: unauthenticated and account-deciding.
+// Per IP only: these bodies carry no email for the email arm to key on.
+router.post('/google', loginIpRateLimit, google);
+router.post('/social/complete', socialCompleteRateLimit, socialComplete);
 // Public by design — the emailed verification token is itself the credential.
 // Rate limited on IP only (defence in depth, see rateLimit.ts).
 router.post('/verify-email', verifyEmailRateLimit, verifyEmail);

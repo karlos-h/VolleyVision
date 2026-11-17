@@ -27,7 +27,13 @@ const api = axios.create({
 // on /auth/login, sent while a valid session is stored, comes back 401 *with*
 // an Authorization header, and the interceptor below mistakes it for a revoked
 // session and logs the user out.
-const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
+// The social sign-in paths are here too (9.6.S3): a stale stored token attached
+// to them would 401 and sign the user out in the middle of signing in. A link or
+// delete nonce needs the session, so those calls pass the header explicitly.
+const PUBLIC_AUTH_PATHS = [
+  '/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email',
+  '/auth/nonce', '/auth/google', '/auth/apple', '/auth/social/complete',
+];
 
 // Attach stored JWT to every other request automatically
 api.interceptors.request.use((config) => {

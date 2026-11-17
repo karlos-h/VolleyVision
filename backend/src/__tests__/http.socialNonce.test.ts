@@ -28,13 +28,22 @@ async function main() {
   // The route: public, validates purpose, returns a nonce of that purpose.
   resetDb();
   await withServer(async (base) => {
+    db.user.findUnique = async () => ({ role: 'COACH', tokenVersion: 0, revokedTokens: [] });
+    const signedIn = { authorization: `Bearer ${tokenFor('u1')}` };
     for (const purpose of ['signin', 'link', 'delete'] as const) {
-      const res = await fetch(`${base}/api/v1/auth/nonce?purpose=${purpose}`);
+      const res = await fetch(`${base}/api/v1/auth/nonce?purpose=${purpose}`, { headers: signedIn });
       assert.equal(res.status, 200);
       const body = (await res.json()) as { nonce: string; expiresIn: number };
       assert.equal(body.expiresIn, 300);
-      assert.equal(verifyNonce(body.nonce, SECRET, purpose).ok, true);
+      const v = verifyNonce(body.nonce, SECRET, purpose);
+      assert.ok(v.ok);
+      // Link and delete nonces belong to the account that asked; a sign-in nonce to nobody.
+      assert.equal(v.value.uid, purpose === 'signin' ? null : 'u1');
     }
+    // Anonymous: a sign-in nonce only.
+    assert.equal((await fetch(`${base}/api/v1/auth/nonce?purpose=signin`)).status, 200);
+    assert.equal((await fetch(`${base}/api/v1/auth/nonce?purpose=link`)).status, 401);
+    assert.equal((await fetch(`${base}/api/v1/auth/nonce?purpose=delete`)).status, 401);
     for (const bad of ['', '?purpose=admin', '?purpose=signin&purpose=delete']) {
       assert.equal((await fetch(`${base}/api/v1/auth/nonce${bad}`)).status, 400, `purpose ${bad || '(none)'}`);
     }

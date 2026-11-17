@@ -310,6 +310,13 @@ async function main() {
     assert.equal((await call(base, 'POST', '/api/v1/events/batch', undefined, { matchId: f.match.id, events: [] })).status, 401, 'anonymous POST event batch');
     assert.equal((await call(base, 'POST', '/api/v1/auth/logout')).status, 401, 'anonymous logout: nothing to revoke');
     assert.equal((await call(base, 'POST', '/api/v1/auth/logout-all')).status, 401, 'anonymous logout-all');
+    // 9.6.S: the social routes. Anonymous callers get a sign-in nonce and nothing else.
+    assert.equal((await call(base, 'GET', '/api/v1/auth/nonce?purpose=signin')).status, 200, 'anonymous sign-in nonce');
+    assert.equal((await call(base, 'GET', '/api/v1/auth/nonce?purpose=link')).status, 401, 'anonymous link nonce');
+    assert.equal((await call(base, 'GET', '/api/v1/auth/nonce?purpose=delete')).status, 401, 'anonymous delete nonce');
+    assert.equal((await call(base, 'POST', '/api/v1/auth/google', undefined, { idToken: 'x', nonce: 'y' })).status, 401, 'anonymous google sign-in with a made-up token');
+    assert.equal((await call(base, 'POST', '/api/v1/auth/social/complete', undefined, { signupToken: 'x', acceptTerms: true, firstName: 'A', lastName: 'B' })).status, 401, 'made-up sign-up token');
+    assert.equal((await call(base, 'POST', '/api/v1/profile/identities/google', undefined, { idToken: 'x', nonce: 'y' })).status, 401, 'anonymous identity link');
 
     // 4.0.1 per-player rule: non-staff get team totals plus only their own row.
     // p2 is the test player's record; p1 (who has the event) and pDel are other players.

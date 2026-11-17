@@ -3,6 +3,7 @@ import { AppError } from '../middleware/errorHandler';
 import { isEmailAddress, normalizeEmail } from '../lib/email';
 import { isNoncePurpose } from '../lib/socialTokens';
 import { issueNonce } from '../services/socialAuth.service';
+import { completeSocialSignup, signInWithGoogle } from '../services/socialSignIn.service';
 import {
   registerUser,
   loginUser,
@@ -111,7 +112,25 @@ export function nonce(req: Request, res: Response, next: NextFunction) {
   try {
     const { purpose } = req.query;
     if (!isNoncePurpose(purpose)) throw new AppError(400, 'purpose must be signin, link or delete.');
-    res.json(issueNonce(purpose));
+    res.json(issueNonce(purpose, req.user?.userId));
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /auth/google { idToken, nonce } (9.6.S3). */
+export async function google(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await signInWithGoogle({ idToken: req.body?.idToken, nonce: req.body?.nonce }));
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /auth/social/complete { signupToken, acceptTerms, firstName, lastName, signupIntent }. */
+export async function socialComplete(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(201).json(await completeSocialSignup(req.body ?? {}));
   } catch (err) {
     next(err);
   }

@@ -166,9 +166,29 @@ export async function registerUser(
   if (existing) throw new AppError(409, 'An account with that email already exists.');
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  return createAccount({ email, passwordHash, firstName, lastName, signupIntent });
+}
 
-  const intent = signupIntent && VALID_SIGNUP_INTENTS.has(signupIntent)
-    ? (signupIntent as 'COACH' | 'PLAYER' | 'UNSURE')
+/** What a first-time social sign-up adds to a new account (9.6.S3). */
+export type NewIdentity = { provider: 'GOOGLE' | 'APPLE'; providerSubject: string; email: string | null; emailVerified: boolean };
+
+/**
+ * The one place an account is created: password sign-up and first-time social
+ * sign-up (passwordHash null, plus the identity, in the same insert). The
+ * caller has already checked the 13+ / Terms box and that the email is free.
+ */
+export async function createAccount(input: {
+  email: string;
+  passwordHash: string | null;
+  firstName: string;
+  lastName: string;
+  signupIntent: string | null;
+  /** The provider vouched for the address: no verification email needed. */
+  emailVerified?: boolean;
+  identity?: NewIdentity;
+}): Promise<AuthResponse> {
+  const intent = input.signupIntent && VALID_SIGNUP_INTENTS.has(input.signupIntent)
+    ? (input.signupIntent as 'COACH' | 'PLAYER' | 'UNSURE')
     : null;
 
   // Mint the verification token BEFORE the
@@ -176,20 +196,22 @@ export async function registerUser(
   // previous create-then-write-token-separately sequence could leave a user
   // row with no token if the second write failed — the account would then
   // exist with no way to verify, and re-registering that email 409s forever.
-  const { token: verificationToken, tokenHash, expiresAt } = mintVerificationToken();
+  const verification = input.emailVerified ? null : mintVerificationToken();
 
   const user = await prisma.user.create({
     data: {
-      email: normalizeEmail(email),
-      passwordHash,
-      firstName,
-      lastName,
+      email: normalizeEmail(input.email),
+      passwordHash: input.passwordHash,
+      firstName: input.firstName,
+      lastName: input.lastName,
       ...(intent ? { signupIntent: intent } : {}),
-      emailVerificationTokenHash: tokenHash,
-      emailVerificationExpiresAt: expiresAt,
+      ...(verification
+        ? { emailVerificationTokenHash: verification.tokenHash, emailVerificationExpiresAt: verification.expiresAt }
+        : { emailVerifiedAt: new Date() }),
       // The controller refused the signup unless the 13+ / Terms box was ticked.
       termsAcceptedAt: new Date(),
       termsVersion: CURRENT_TERMS_VERSION,
+      ...(input.identity ? { identities: { create: { ...input.identity, lastUsedAt: new Date() } } } : {}),
     },
   });
 
@@ -198,12 +220,17 @@ export async function registerUser(
 
   // The token is already persisted above; only the send is best-effort and
   // must not fail registration (sendVerificationEmailBestEffort swallows it).
-  await sendVerificationEmailBestEffort(user, verificationToken);
+  if (verification) await sendVerificationEmailBestEffort(user, verification.token);
 
   return {
     token,
     user: toAuthUser(user),
   };
+}
+
+/** A signed-in session for an existing account (password login and social sign-in). */
+export function sessionFor(user: UserRow & { tokenVersion: number }): AuthResponse {
+  return { token: generateToken({ userId: user.id, email: user.email, role: user.role, tv: user.tokenVersion }), user: toAuthUser(user) };
 }
 
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
@@ -315,6 +342,13 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
+  // An account whose address WE never verified may have been made by someone
+  // else on this mailbox (password or Google sign-up). The reset link proves
+  // who owns the mailbox now, so any outside sign-in attached before that goes:
+  // otherwise it would stay a way back in after the reset (9.6.S3). The owner
+  // can connect Google again from Profile.
+  await prisma.userIdentity.deleteMany({ where: { user: { ...usableResetTokenWhere(token), emailVerifiedAt: null } } });
+
   // Match-and-clear in one conditional updateMany rather than a lookup
   // followed by an update-by-id. The previous two-step form let a concurrent
   // reset or resend win the race between the lookup and the write — either
@@ -350,11 +384,17 @@ export async function getCurrentUser(userId: string) {
       emailVerifiedAt: true,
       termsAcceptedAt: true,
       termsVersion: true,
+      passwordHash: true,
+      identities: { select: { provider: true } },
     },
   });
   if (!user) throw new AppError(404, 'User not found.');
-  const { emailVerifiedAt, ...rest } = user;
-  return { ...rest, emailVerified: emailVerifiedAt != null, termsRequired: termsRequired(user) };
+  // The hash and the identity rows never leave the server: only whether a
+  // password exists and which ways of signing in the account has (9.6.S3).
+  const { emailVerifiedAt, passwordHash, identities, ...rest } = user;
+  const hasPassword = passwordHash != null;
+  const signInMethods = [...(hasPassword ? ['password'] : []), ...identities.map((i) => i.provider.toLowerCase()).sort()];
+  return { ...rest, emailVerified: emailVerifiedAt != null, termsRequired: termsRequired(user), hasPassword, signInMethods };
 }
 
 /** POST /profile/accept-terms (9.3): the current Terms, accepted now. */
