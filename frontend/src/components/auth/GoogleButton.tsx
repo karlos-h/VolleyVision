@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { authApi } from '../../lib/api';
 import { renderGoogleButton, type GoogleButtonText } from '../../lib/googleIdentity';
 import { googleSignInAvailable, isNative } from '../../lib/native';
@@ -44,7 +45,10 @@ function NativeGoogleButton({ purpose, text = 'continue_with', onToken }: Google
       const { nonce } = await authApi.nonce(purpose);
       const idToken = await nativeGoogleIdToken(nonce);
       if (idToken) await onToken({ idToken, nonce });
-    } catch {
+    } catch (err) {
+      // A signing key Google doesn't know fails here every time, for everyone
+      // on that build: it has to reach us, not only the user.
+      Sentry.captureException(err);
       setFailed(true);
     } finally {
       setBusy(false);
@@ -57,6 +61,7 @@ function NativeGoogleButton({ purpose, text = 'continue_with', onToken }: Google
         type="button"
         onClick={handleClick}
         disabled={busy}
+        aria-busy={busy}
         className="flex w-full items-center justify-center gap-3 min-h-[44px] rounded-full border border-grey-300 bg-white px-4 text-sm font-medium text-grey-900 disabled:opacity-60"
       >
         <GoogleMark />

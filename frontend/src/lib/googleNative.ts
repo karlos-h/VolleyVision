@@ -6,6 +6,7 @@
 // OAuth client in Google Cloud only registers the package name and signing
 // key (SHA-1) that are allowed to ask; its id is never used in code.
 import { GOOGLE_WEB_CLIENT_ID } from './googleIdentity';
+import { nativePlatform } from './native';
 
 let ready: Promise<void> | null = null;
 
@@ -41,7 +42,21 @@ export async function nativeGoogleIdToken(nonce: string): Promise<string | null>
     if (!idToken) throw new Error('Google returned no ID token.');
     return idToken;
   } catch (err) {
-    if (/cancel/i.test(err instanceof Error ? err.message : String(err))) return null;
+    const code = (err as { code?: unknown } | null)?.code;
+    if (code === 'USER_CANCELLED' || /cancel/i.test(err instanceof Error ? err.message : String(err))) return null;
     throw err;
   }
+}
+
+/**
+ * Sign-out and account deletion: the plugin keeps the last Google ID token
+ * (name, email, picture) in the app's private storage until told to forget
+ * it. The token is useless to our server by then (its nonce is spent), but
+ * nothing of a signed-out account should stay on the device. Best effort.
+ */
+export function forgetNativeGoogle(): void {
+  if (nativePlatform() !== 'android') return;
+  plugin()
+    .then((SocialLogin) => SocialLogin.logout({ provider: 'google' }))
+    .catch(() => { /* never signed in with Google here, or Google is unavailable */ });
 }
