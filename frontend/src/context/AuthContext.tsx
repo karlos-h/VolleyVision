@@ -98,28 +98,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) preloadLikelyPages();
   }, [user]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await authApi.login({ email, password });
-    storeToken(res.token);
-    switchCache(res.user);
-    setToken(res.token);
-    setUser(res.user);
-  }, []);
-
-  const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null; acceptTerms: boolean }) => {
-    const res = await authApi.register(data);
-    storeToken(res.token);
-    switchCache(res.user);
-    setToken(res.token);
-    setUser(res.user);
-  }, []);
-
-  const adoptSession = useCallback((session: { token: string; user: User }) => {
+  // Every way of signing in ends here. The sign-in response carries the basic
+  // user only; /auth/me adds the rest (hasPassword, signInMethods, createdAt),
+  // which Profile and Delete account depend on, so it is fetched straight away
+  // instead of waiting for the next page load (9.6.S: a just-signed-in Google
+  // account was asked for a password it doesn't have).
+  const startSession = useCallback((session: { token: string; user: User }) => {
     storeToken(session.token);
     switchCache(session.user);
     setToken(session.token);
     setUser(session.user);
+    authApi.me()
+      .then((full) => { if (getToken() === session.token) { cacheUser(full); setUser(full); } })
+      .catch(() => { /* the basic user stands; the next load asks again */ });
   }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await authApi.login({ email, password });
+    startSession(res);
+  }, [startSession]);
+
+  const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string; signupIntent?: string | null; acceptTerms: boolean }) => {
+    const res = await authApi.register(data);
+    startSession(res);
+  }, [startSession]);
+
+  const adoptSession = startSession;
 
   // Queued taps stay (keyed by this user, no names); the cached user and
   // match rosters don't.

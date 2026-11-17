@@ -16,7 +16,7 @@ type BlockingTeam = { id: string; name: string; reason: 'owner' | 'head_coach' }
  * account owns a team and lists them here.
  */
 export default function DeleteAccountPage() {
-  const { user, onAccountDeleted } = useAuth();
+  const { user, onAccountDeleted, refreshUser } = useAuth();
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
   const [error, setError] = useState('');
@@ -40,6 +40,8 @@ export default function DeleteAccountPage() {
       onAccountDeleted(); // clears storage and reloads into /login?deleted=1
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.code === 'ACCOUNT_HAS_TEAMS') setTeams(err.response.data.teams ?? []);
+      // The server knows this account has no password even if this page did not yet: show the Google step.
+      if (axios.isAxiosError(err) && err.response?.data?.code === 'GOOGLE_CONFIRMATION_REQUIRED') void refreshUser().catch(() => {});
       setError(getApiErrorMessage(err, "Couldn't delete your account. Check your connection and try again."));
       setDeleting(false);
     }
