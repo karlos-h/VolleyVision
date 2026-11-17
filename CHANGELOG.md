@@ -9,6 +9,9 @@ that came with it. One additive migration (`20261012000000_revoked_tokens`), no
 new dependency. Works with the Android 9.13.0+ apps: every API change adds
 fields or routes.
 
+Deployed to production on 2026-11-17, together with v9.16.0 to v9.18.1 (none of
+which had been deployed). Everyone was signed out once at the move.
+
 **Much faster: the app now runs in Sydney**
 - The server now runs on Fly.io in Sydney and the database is in Supabase
   Sydney, instead of a server in the US talking to a database in Singapore.

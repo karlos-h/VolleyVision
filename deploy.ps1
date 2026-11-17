@@ -94,7 +94,7 @@ $ProdUrl = 'https://volleyvision-app.netlify.app'
 # Prod identifiers a staging deploy must never point at (a copy-pasted
 # .env.staging would otherwise publish any branch straight to prod).
 $ProdSiteId = '7b2795e8-4722-40cf-bb35-b2fc4e17e813'
-$ProdProjectRef = 'rkkhrmhorgdqkxflipui'
+$ProdProjectRef = 'xmevhqvgoecuykufoqxy'  # Sydney, since 17 Nov 2026 (was rkkhrmhorgdqkxflipui, Singapore)
 
 # Parameter checks first: every refusal below happens before any git, network
 # or CLI call.

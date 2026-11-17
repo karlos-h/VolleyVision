@@ -1225,7 +1225,7 @@ Privacy policy dated 14 November 2026 (Fly.io and Sydney added); no new Terms ve
 | R4 | 6-hourly keep-alive ping, serializable-transaction integration test, session-pooler notes | `keepAlive.test.ts`, `serializable.test.ts` |
 | R5 | `move-db.ps1`, `copy-storage.ts`, `rewrite-storage-urls.ts`, region-move runbook; scripts read the env file themselves (`-EnvFile`, `--env-file`) and use the local PostgreSQL client when installed; local export to import verified 9/9 | `move-db.test.ps1`, `copy-storage.test.ts`, `rewrite-storage-urls.test.ts`, `envFile.test.ts` |
 | R6 (16 Nov) | Staging moved to Fly `syd` + Supabase Sydney: import verified 9/9, smoke 10/10, signed proxy and client-IP header confirmed, 20 MB upload 201; medians about 0.1 s (`docs/region-decision.md`). Not run on staging: `serializable.test.ts` (tests never point at a non-local database) | `smoke.mjs`, `measure.mjs` |
-| R7 | Production move | **pending** |
+| R7 (17 Nov) | Production moved: export from `rkkhrmhorgdqkxflipui` (20 tables, 321 rows), import into Sydney `xmevhqvgoecuykufoqxy` verified 9/9, 4 storage objects match, no URLs to rewrite; Fly `vv-api-himex` + site deployed with `-ApiOrigin fly`; `/health` via Fly `syd` in about 0.17 s; Karlos signed in on web and Android. New `JWT_SECRET` (Netlify hides the old one): every user signed out once. Old project paused; it and `~v-move-prod` are kept until 24 Nov. Not done: `API_PROXY_SITE_URL` for prod | `smoke.mjs` (read-only 3/3) |
 
 **Reviews:** independent Opus audit of R1-R5 found 1 HIGH, 3 MED and 6 LOW; 9 fixed (shutdown and keep-alive wired in,
 edge-hop fallback for the rate-limit key, optional `site_url` pinning, `-ApiOrigin` mandatory for prod, move and
