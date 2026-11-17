@@ -18,7 +18,9 @@ CREATE TABLE "user_identities" (
     "provider" "IdentityProvider" NOT NULL,
     "provider_subject" TEXT NOT NULL,
     "email" TEXT,
+    "email_verified" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_used_at" TIMESTAMP(3),
 
     CONSTRAINT "user_identities_pkey" PRIMARY KEY ("id")
 );
