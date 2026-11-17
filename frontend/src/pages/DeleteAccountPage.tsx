@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { profileApi, getApiErrorMessage } from '../lib/api';
 import { hasQueued } from '../lib/eventQueue';
 import GoogleButton from '../components/auth/GoogleButton';
-import { isNative } from '../lib/native';
+import { googleSignInAvailable } from '../lib/native';
 import { legalHref } from '../lib/legal';
 
 type BlockingTeam = { id: string; name: string; reason: 'owner' | 'head_coach' };
@@ -120,9 +120,9 @@ export default function DeleteAccountPage() {
             <p className="text-sm text-grey-700">
               You sign in with Google, so there's no password to enter. Confirm with Google to delete your account.
             </p>
-            {isNative() && <p className="text-sm text-grey-600">Open VolleyVision in a web browser to do this.</p>}
-            {!isNative() && typed.trim() !== 'DELETE' && <p className="text-sm text-grey-600">Type DELETE above first.</p>}
-            {!isNative() && typed.trim() === 'DELETE' && !deleting && (
+            {!googleSignInAvailable() && <p className="text-sm text-grey-600">Open VolleyVision in a web browser to do this.</p>}
+            {googleSignInAvailable() && typed.trim() !== 'DELETE' && <p className="text-sm text-grey-600">Type DELETE above first.</p>}
+            {googleSignInAvailable() && typed.trim() === 'DELETE' && !deleting && (
               <GoogleButton purpose="delete" text="continue_with" onToken={(token) => remove({ provider: 'google', ...token })} />
             )}
             {deleting && <p className="text-sm text-grey-700" role="status">Deleting…</p>}
