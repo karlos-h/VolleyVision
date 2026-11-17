@@ -14,6 +14,7 @@ Netlify and Fly.io, all overseas.
 | Data | Why | Who can see it | Optional? | Kept until |
 |---|---|---|---|---|
 | **Account:** email, name, password (as a bcrypt hash) | Sign-in, and your name in your teams | Name: your teams. Email: members who manage the roster, and team owners. Password hash: nobody. | Required | Account deletion |
+| **Sign in with Google (optional, v9.20.0):** Google account identifier (`sub`), the email Google reports and whether Google verified it | Sign-in without a password | Nobody | Optional | Account deletion; removing Google under Profile; a password reset on an account whose email was never verified |
 | Email verification and password-reset tokens (hashes) | Prove email ownership; reset a password | Nobody | n/a | Used, replaced or account deletion (valid 24 h and 1 h) |
 | Terms acceptance (date and version) | Record of consent to the Terms (13+) | You | Required to post in chat | Account deletion |
 | **Profile:** bio, phone, date of birth, city, country, height, weight, preferred position | Your own profile | Only you (no team, member or admin screen shows them) | All optional | Account deletion (or you clear them) |

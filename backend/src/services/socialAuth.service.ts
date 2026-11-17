@@ -51,7 +51,7 @@ const REJECTED = 'That sign-in could not be verified. Try again.';
  * never to the caller.
  */
 export async function verifyGoogleSignIn(
-  input: { idToken: unknown; nonce: unknown; purpose: NoncePurpose; userId?: string },
+  input: { idToken: unknown; nonce: unknown; purpose: NoncePurpose; userId?: string; maxTokenAgeSeconds?: number },
   deps: { keys?: JWTVerifyGetKey; audiences?: string[] } = {},
 ): Promise<ProviderIdentity> {
   const nonce = verifyNonce(input.nonce, jwtSecret(), input.purpose);
@@ -63,6 +63,7 @@ export async function verifyGoogleSignIn(
     keys: deps.keys ?? remoteGoogleKeys(),
     audiences: deps.audiences ?? googleAudiences(),
     expectedNonce: input.nonce as string,
+    maxTokenAgeSeconds: input.maxTokenAgeSeconds,
   });
   if (!token.ok) {
     if (token.reason === 'not-configured' || token.reason === 'unavailable') {

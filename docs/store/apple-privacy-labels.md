@@ -22,14 +22,14 @@ Tracking is **No** on every row.
 | Apple category → type | Collected? | Linked? | Purpose (tick only this) | Why |
 |---|---|---|---|---|
 | Contact Info → **Name** | Yes | Yes | App Functionality | Account name; player record names |
-| Contact Info → **Email Address** | Yes | Yes | App Functionality | Sign-in, verification, invites |
+| Contact Info → **Email Address** | Yes | Yes | App Functionality | Sign-in, verification, invites. Includes the address Google reports if the user signs in with Google (web and Android; the iOS app has no Google button until Sign in with Apple ships). |
 | Contact Info → **Phone Number** | Yes | Yes | App Functionality | Optional profile field, only the user sees it |
 | Contact Info → Physical Address | No | | | City and country only (see Other Data) |
 | User Content → **Photos or Videos** | Yes | Yes | App Functionality | Photos attached in team chat |
 | User Content → **Emails or Text Messages** | Yes | Yes | App Functionality | Team chat messages |
 | User Content → **Other User Content** | Yes | Yes | App Functionality | Match stats and notes, player records, chat files (up to 25 MB), bio |
 | User Content → **Customer Support** | Yes | Yes | App Functionality | Feedback and message reports |
-| Identifiers → **User ID** | Yes | Yes | App Functionality | Account id |
+| Identifiers → **User ID** | Yes | Yes | App Functionality | Account id; the Google account identifier for users who choose Sign in with Google |
 | Identifiers → Device ID | No | | | No advertising id, no device id |
 | Diagnostics → **Crash Data** | Yes | **No** | App Functionality | Sentry. No user id, email or IP. |
 | Diagnostics → **Performance Data** | Yes | **No** | App Functionality | Sentry: app version, device type |

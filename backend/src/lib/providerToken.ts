@@ -32,7 +32,7 @@ export function coerceEmailVerified(v: unknown): boolean {
 
 export async function verifyGoogleIdToken(
   idToken: unknown,
-  opts: { keys: JWTVerifyGetKey; audiences: string[]; expectedNonce: string; now?: Date },
+  opts: { keys: JWTVerifyGetKey; audiences: string[]; expectedNonce: string; now?: Date; maxTokenAgeSeconds?: number },
 ): Promise<ProviderTokenResult> {
   if (typeof idToken !== 'string' || !idToken) return { ok: false, reason: 'missing' };
   // No configured client id must refuse everything: jose treats an empty
@@ -49,6 +49,9 @@ export async function verifyGoogleIdToken(
       algorithms: ['RS256'],
       clockTolerance: CLOCK_TOLERANCE_SECONDS,
       requiredClaims: ['exp', 'sub', 'aud', 'iss'],
+      // For re-authentication (delete account): the sign-in itself must be recent.
+      // jose then also requires `iat`.
+      ...(opts.maxTokenAgeSeconds ? { maxTokenAge: opts.maxTokenAgeSeconds } : {}),
       currentDate: opts.now,
     }));
   } catch (err) {

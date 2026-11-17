@@ -10,6 +10,7 @@ import { signSignupToken, verifySignupToken } from '../lib/socialTokens';
 import { canAutoLink, googleIsAuthoritative } from '../lib/socialLink';
 import { normalizeEmail } from '../lib/email';
 import { logAudit } from '../lib/audit';
+import { sendSignInMethodEmail } from '../lib/mailer';
 import { AuthResponse, createAccount, getCurrentUser, sessionFor, verifyPassword } from './auth.service';
 import { verifyGoogleSignIn } from './socialAuth.service';
 
@@ -72,6 +73,7 @@ export async function signInWithGoogle(input: { idToken: unknown; nonce: unknown
     }
     logAudit(existing.id, 'IDENTITY_LINKED', 'user', existing.id, { provider: 'GOOGLE', how: 'auto' });
     logAudit(existing.id, 'SOCIAL_SIGN_IN', 'user', existing.id, { provider: 'GOOGLE' });
+    await notify(existing.email, existing.firstName, 'connected');
     return sessionFor(existing);
   }
 
@@ -165,5 +167,45 @@ export async function linkGoogleIdentity(
     logAudit(userId, 'IDENTITY_LINKED', 'user', userId, { provider: 'GOOGLE', how: 'profile' });
   }
   const me = await getCurrentUser(userId);
+  if (!owner) await notify(me.email, me.firstName, 'connected');
   return { linked: true, signInMethods: me.signInMethods };
+}
+
+/**
+ * DELETE /profile/identities/google (9.6.S5): disconnect Google. Only for an
+ * account that has a password, and only with that password: otherwise removing
+ * Google would lock the owner out, or let a stolen session cut them off.
+ */
+export async function unlinkGoogleIdentity(userId: string, password: unknown): Promise<{ linked: false; signInMethods: string[] }> {
+  const account = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, email: true, firstName: true } });
+  if (!account) throw new AppError(401, 'Your session has ended. Sign in again.');
+  if (account.passwordHash === null) {
+    throw new AppError(409, 'Set a password first (use Forgot password on the sign-in page), so you can still sign in after removing Google.', 'PASSWORD_REQUIRED');
+  }
+  if (typeof password !== 'string' || !password) throw new AppError(400, 'Enter your password to remove Google.');
+  if (!(await verifyPassword(password, account.passwordHash))) throw new AppError(403, 'That password is not right.', 'WRONG_PASSWORD');
+
+  const removed = await prisma.userIdentity.deleteMany({ where: { userId, provider: 'GOOGLE' } });
+  if (removed.count === 0) throw new AppError(404, 'Google is not connected to this account.');
+  logAudit(userId, 'IDENTITY_UNLINKED', 'user', userId, { provider: 'GOOGLE' });
+  await notify(account.email, account.firstName, 'removed');
+  const me = await getCurrentUser(userId);
+  return { linked: false, signInMethods: me.signInMethods };
+}
+
+/**
+ * Delete-account confirmation for an account with no password (9.6.S5): a
+ * fresh Google sign-in, with a `delete` nonce issued to this user, for a
+ * Google account that is already connected to it. Throws unless all hold.
+ */
+export async function confirmDeletionWithGoogle(userId: string, input: { idToken: unknown; nonce: unknown }, deps: Deps = {}): Promise<void> {
+  const identity = await verifyGoogleSignIn({ ...input, purpose: 'delete', userId, maxTokenAgeSeconds: 5 * 60 }, deps);
+  const mine = await prisma.userIdentity.findFirst({ where: { userId, provider: 'GOOGLE', providerSubject: identity.subject }, select: { id: true } });
+  // 403, not 401: the app signs out on any 401, and this is "wrong Google account".
+  if (!mine) throw new AppError(403, 'That Google account is not the one connected to this VolleyVision account.', 'WRONG_GOOGLE_ACCOUNT');
+}
+
+/** Best effort: a sign-in change never fails because the email did not send. */
+async function notify(email: string, firstName: string, change: 'connected' | 'removed'): Promise<void> {
+  await sendSignInMethodEmail(email, firstName, change).catch(() => false);
 }
