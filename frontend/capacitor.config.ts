@@ -23,6 +23,9 @@ const config: CapacitorConfig = {
     // status and gesture bars, and 'css' hands us --safe-area-inset-* values
     // to pad the header and bottom controls with. The app is light-only, so
     // the bar icons stay dark even when the phone is in dark mode.
+    // Sign in with Google in the Android app. Only Google's code is bundled;
+    // Apple is switched on with Sign in with Apple (9.7).
+    SocialLogin: { providers: { google: true, facebook: false, apple: false, twitter: false } },
     SystemBars: { insetsHandling: 'css', initialViewportFitValueHint: 'cover', style: 'LIGHT' },
   },
 };

@@ -12,6 +12,13 @@ export const isNative = (): boolean => capacitor()?.isNativePlatform?.() === tru
 /** 'android' or 'ios' in the apps, 'web' in a browser. */
 export const nativePlatform = (): string => capacitor()?.getPlatform?.() ?? 'web';
 
+/**
+ * Whether this build can show Sign in with Google: the website and the Android
+ * app. The iPhone app may not show it until Sign in with Apple ships beside it
+ * (App Store guideline 4.8).
+ */
+export const googleSignInAvailable = (): boolean => !isNative() || nativePlatform() === 'android';
+
 /** Native-only setup, called from main.tsx inside `if (isNative())`. */
 export async function initNative(): Promise<void> {
   // iPhones have no Back button (every screen has an in-app way back), and

@@ -8,6 +8,7 @@ import { forgetSession, purgeUserQueue } from '../lib/eventQueue';
 import { setLeaveGuard } from '../lib/leaveGuard';
 import { flushStorage } from '../lib/nativeStorage';
 import { initialAuthState } from '../lib/authStart';
+import { forgetNativeGoogle } from '../lib/googleNative';
 import { endSession } from '../lib/logoutRequest';
 import { preloadLikelyPages } from '../lib/preloadPages';
 
@@ -130,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const forgetDevice = useCallback(() => {
     clearOfflineCache();
     forgetSession();
+    forgetNativeGoogle();
     void flushStorage(); // the apps: the token removal reaches Preferences now
     setToken(null);
     setUser(null);
@@ -155,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const onAccountDeleted = useCallback(() => {
     const id = user?.id;
     clearToken();
+    forgetNativeGoogle();
     clearOfflineCache();
     if (id) purgeUserQueue(id);
     else forgetSession();

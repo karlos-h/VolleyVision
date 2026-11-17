@@ -2,6 +2,30 @@
 
 All notable changes to VolleyVision, reconstructed from the repository's commit and tag history. Versions are listed newest first, in chronological order of release. Untagged commits are listed under the tagged release they shipped with.
 
+## v9.21.0 — 2026-11-17
+
+Phase 9.7.A of the rebuild roadmap: Sign in with Google in the Android app.
+One new app dependency (`@capgo/capacitor-social-login`, pinned at 8.7.11). No
+database or API change: the Android app sends the same Google token the
+website does, to the same endpoints. Android `versionCode` 6. Not deployed yet.
+
+**Sign in with Google (Android app)**
+- New: "Sign in with Google" in the Android app on the sign-in, create-account
+  and invitation screens. It opens Android's own Google account sheet.
+- Profile can connect Google, and an account with no password can delete
+  itself by confirming with Google, in the Android app as on the website.
+- The iPhone app still has no Google button: it arrives with Sign in with
+  Apple. An account made with Google needs a password (Forgot password sets
+  one) to sign in on the iPhone app until then.
+
+**For whoever builds the app**
+- Google only accepts the app when its signing key is registered. The debug
+  key is registered. The upload key (release APKs) and the Play App Signing
+  key each need their own Android client in Google Cloud before a release
+  build's Google button works.
+- Android builds need JDK 21. Android Studio's bundled Java 25 is too new for
+  the project's Gradle.
+
 ## v9.20.0 — 2026-11-17
 
 Phase 9.6.S of the rebuild roadmap: Sign in with Google. One additive migration

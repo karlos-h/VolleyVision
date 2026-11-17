@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authApi, getApiErrorMessage } from '../../lib/api';
-import { isNative } from '../../lib/native';
+import { googleSignInAvailable } from '../../lib/native';
 import type { GoogleButtonText } from '../../lib/googleIdentity';
 import GoogleButton from './GoogleButton';
 
@@ -17,12 +17,12 @@ interface GoogleSignInProps {
 /**
  * "or continue with Google" under a sign-in or sign-up form (9.6.S4). A known
  * Google account is signed in; a new one goes to the short sign-up form for
- * the Terms and 13+ tick. Renders nothing in the apps (see GoogleButton).
+ * the Terms and 13+ tick. Renders nothing in the iPhone app (see GoogleButton).
  */
 export default function GoogleSignIn({ text, signedInPath = '/dashboard', afterSignupPath, onError }: GoogleSignInProps) {
   const { adoptSession } = useAuth();
   const navigate = useNavigate();
-  if (isNative()) return null;
+  if (!googleSignInAvailable()) return null;
 
   async function handleToken(token: { idToken: string; nonce: string }) {
     onError('');
