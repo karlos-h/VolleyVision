@@ -457,7 +457,14 @@ export const profileApi = {
   update: (data: Partial<UserProfile>) =>
     api.patch<UserProfile>('/profile', data).then((r) => r.data),
   acceptTerms: () => api.post<{ termsRequired: boolean }>('/profile/accept-terms').then((r) => r.data),
-  deleteAccount: (password: string) => api.delete('/profile', { data: { password } }),
+  // An account with a password proves itself with it; a Google-only one with a
+  // fresh Google sign-in for a `delete` nonce (9.6.S5).
+  deleteAccount: (proof: { password: string } | { provider: 'google'; idToken: string; nonce: string }) =>
+    api.delete('/profile', { data: proof }),
+  linkGoogle: (data: { idToken: string; nonce: string; password?: string }) =>
+    api.post<{ linked: true; signInMethods: string[] }>('/profile/identities/google', data).then((r) => r.data),
+  unlinkGoogle: (password: string) =>
+    api.delete<{ linked: false; signInMethods: string[] }>('/profile/identities/google', { data: { password } }).then((r) => r.data),
 };
 
 // ─── Player Portal (Phase 5 Sprint 5) ────────────────────────────────────────

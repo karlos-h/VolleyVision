@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import SignInMethods from '../components/auth/SignInMethods';
 import { useProfile, useUpdateProfile, usePlayerBests, usePlayerDashboard } from '../hooks';
 import type { PlayerBestEntry, Position, DevelopmentPoint } from '../types';
 import { POSITION_FULL_LABELS } from '../types';
@@ -283,6 +284,7 @@ export default function ProfilePage() {
           <Link to="/profile/delete-account" className="inline-flex items-center min-h-[44px] text-sm text-error-strong font-medium">Delete account</Link>
         </div>
         {signOutAllError && <p className="text-sm text-error-strong" role="alert">{signOutAllError}</p>}
+        <SignInMethods />
       </div>
     </div>
   );
