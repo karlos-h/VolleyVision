@@ -13,7 +13,7 @@ Facts: `data-inventory.md`. Where: Play Console → App content → Data safety.
 | Does your app collect or share any required user data types? | Yes (collect). Nothing shared. |
 | Is all user data encrypted in transit? | **Yes** (HTTPS/TLS everywhere) |
 | Do you provide a way for users to request data deletion? | **Yes** |
-| Account creation method | Email and password |
+| Account creation method | Email and password, or Sign in with Google (OAuth) |
 | Delete account URL | https://volleyvision-app.netlify.app/delete-account |
 | Partial deletion without deleting the account? | Yes: users can delete their own chat messages; coaches can delete player records. **Karlos to confirm** you want to state this. |
 | Independent security review | No |

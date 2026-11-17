@@ -20,6 +20,7 @@ import { removeStoredFiles } from '../lib/storageCleanup';
 import { DELETED_USER_ID, blockersMessage, deletionBlockers } from '../lib/accountDeletion';
 import { REMOVED_SNAPSHOT, SNAPSHOT_MARKER } from '../lib/messageReport';
 import { verifyPassword } from './auth.service';
+import { confirmDeletionWithGoogle } from './socialSignIn.service';
 
 type Db = Prisma.TransactionClient;
 
@@ -139,13 +140,26 @@ export async function deleteAccount(userId: string, deps: DeletionDeps = default
   await deps.notify(files.email).catch(() => undefined);
 }
 
-/** DELETE /profile: the account's own password, then the deletion. */
-export async function deleteAccountWithPassword(userId: string, password: unknown): Promise<void> {
-  if (typeof password !== 'string' || !password) throw new AppError(400, 'Enter your password.');
+/**
+ * DELETE /profile: prove it is the owner, then the deletion. An account with a
+ * password gives the password. One without (Google-only, 9.6.S5) confirms with
+ * a fresh Google sign-in instead: `{ provider: 'google', idToken, nonce }`.
+ */
+export async function deleteAccountWithPassword(
+  userId: string,
+  password: unknown,
+  google?: { provider?: unknown; idToken?: unknown; nonce?: unknown },
+): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, role: true } });
   if (!user) throw new AppError(401, 'Your session has ended. Sign in again.');
-  // 403, not 401: the app signs out on any 401, and this is only a typo.
-  if (!(await verifyPassword(password, user.passwordHash))) throw new AppError(403, "That password isn't right.", 'WRONG_PASSWORD');
+  if (user.passwordHash === null) {
+    if (google?.provider !== 'google') throw new AppError(400, 'Confirm with Google to delete this account.', 'GOOGLE_CONFIRMATION_REQUIRED');
+    await confirmDeletionWithGoogle(userId, { idToken: google.idToken, nonce: google.nonce });
+  } else {
+    if (typeof password !== 'string' || !password) throw new AppError(400, 'Enter your password.');
+    // 403, not 401: the app signs out on any 401, and this is only a typo.
+    if (!(await verifyPassword(password, user.passwordHash))) throw new AppError(403, "That password isn't right.", 'WRONG_PASSWORD');
+  }
   if (user.role === 'ADMIN') throw new AppError(403, 'An admin account is deleted with the admin script, not in the app.');
   // Checked here too, so a blocked request is refused without a transaction.
   const found = await blockers(prisma, userId);

@@ -39,7 +39,7 @@ export async function acceptTermsHandler(req: Request, res: Response, next: Next
 /** DELETE /api/v1/profile (9.4): the caller's own account, with their password. */
 export async function deleteAccountHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    await deleteAccountWithPassword(req.user!.userId, req.body?.password);
+    await deleteAccountWithPassword(req.user!.userId, req.body?.password, { provider: req.body?.provider, idToken: req.body?.idToken, nonce: req.body?.nonce });
     res.status(204).send();
   } catch (err) {
     next(err);

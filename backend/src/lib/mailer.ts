@@ -177,3 +177,32 @@ export async function sendVerificationEmail(to: string, firstName: string, token
 
   return sendMail({ to, subject: 'Verify your VolleyVision email address', html });
 }
+
+// ── Sign-in method changes (9.6.S5) ──────────────────────────────────────────
+
+/**
+ * Tells the account's own address that a way of signing in was added or
+ * removed, so a change the owner didn't make doesn't go unnoticed. Best
+ * effort: callers never fail the change because the email didn't send.
+ */
+export async function sendSignInMethodEmail(to: string, firstName: string, change: 'connected' | 'removed'): Promise<boolean> {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const what = change === 'connected'
+    ? 'Sign in with Google was connected to your VolleyVision account. You can now sign in with Google as well.'
+    : 'Sign in with Google was removed from your VolleyVision account. You can still sign in with your password.';
+  const next = change === 'connected'
+    ? 'If this was not you, reset your password now, then remove Google under Profile.'
+    : 'If this was not you, reset your password now.';
+
+  const html = `
+  <div style="font-family:'Inter',system-ui,sans-serif;background:#111C36;color:#E4E9F4;padding:32px;border-radius:12px;max-width:520px;margin:0 auto;">
+    <h1 style="font-family:'Barlow Semi Condensed',sans-serif;color:#FFB81C;font-size:24px;margin:0 0 4px;">VolleyVision</h1>
+    <p style="color:#8FA0C4;font-size:13px;margin:0 0 24px;">See the game. Raise your game.</p>
+    <p style="font-size:15px;line-height:1.5;">Hi ${escapeHtml(firstName)}, ${what}</p>
+    <a href="${clientUrl}/forgot-password" style="display:inline-block;background:#FFB81C;color:#111C36;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;margin:16px 0;">Reset password</a>
+    <p style="color:#8FA0C4;font-size:12px;line-height:1.5;margin:20px 0 0;">${next}</p>
+  </div>`;
+
+  const subject = change === 'connected' ? 'Google was connected to your VolleyVision account' : 'Google was removed from your VolleyVision account';
+  return sendMail({ to, subject, html });
+}

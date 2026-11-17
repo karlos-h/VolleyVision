@@ -136,6 +136,48 @@ async function main() {
     assert.equal(held.res.status, 409);
     assert.equal(held.res.body.code, 'LINK_REQUIRED');
 
+    // 9.6.S5: disconnect Google. Needs the password; afterwards Google no longer signs the coach in.
+    const unlink = (token: string, password?: unknown) => call(app.base, 'DELETE', '/api/v1/profile/identities/google', token, { password });
+    assert.equal((await call(app.base, 'DELETE', '/api/v1/profile/identities/google', undefined, {})).status, 401, 'anonymous unlink');
+    assert.equal((await unlink(coach.token)).status, 400, 'no password');
+    assert.equal((await unlink(coach.token, 'not the password')).body.code, 'WRONG_PASSWORD');
+    assert.equal(await prisma.userIdentity.count({ where: { userId: coach.id } }), 1);
+    const unlinked = await unlink(coach.token, COACH_PASSWORD);
+    assert.equal(unlinked.status, 200, JSON.stringify(unlinked.body));
+    assert.deepEqual(unlinked.body.signInMethods, ['password']);
+    assert.equal((await unlink(coach.token, COACH_PASSWORD)).status, 404, 'nothing left to remove');
+    assert.equal((await signIn(`${RUN}-sub-coach`, { email: coach.email })).res.body.code, 'LINK_REQUIRED', 'Google no longer opens the account');
+    // A Google-only account cannot remove its only way in.
+    const locked = await unlink(done.body.token, 'anything');
+    assert.equal(locked.status, 409);
+    assert.equal(locked.body.code, 'PASSWORD_REQUIRED');
+    assert.equal(await prisma.userIdentity.count({ where: { userId: stored.id } }), 1);
+
+    // 9.6.S5: deleting a Google-only account is confirmed with Google, not a password.
+    const del = (body: Record<string, unknown>) => call(app.base, 'DELETE', '/api/v1/profile', done.body.token, body);
+    const noProof = await del({ password: 'anything' });
+    assert.equal(noProof.status, 400);
+    assert.equal(noProof.body.code, 'GOOGLE_CONFIRMATION_REQUIRED');
+    // A sign-in nonce cannot confirm a deletion.
+    const sn = await nonceFor('signin');
+    assert.equal((await del({ provider: 'google', nonce: sn, idToken: await google(sn, `${RUN}-sub-new`, { email }) })).status, 401);
+    // A delete nonce issued to someone else cannot either.
+    const cn = await nonceFor('delete', coach.token);
+    assert.equal((await del({ provider: 'google', nonce: cn, idToken: await google(cn, `${RUN}-sub-new`, { email }) })).status, 401);
+    // The right nonce, but another Google account: refused, nonce spent, account intact.
+    let dn = await nonceFor('delete', done.body.token);
+    const other = await del({ provider: 'google', nonce: dn, idToken: await google(dn, `${RUN}-sub-coach`, { email: coach.email }) });
+    assert.equal(other.status, 403);
+    assert.equal(other.body.code, 'WRONG_GOOGLE_ACCOUNT');
+    assert.equal(await prisma.user.count({ where: { id: stored.id } }), 1);
+    // Their own Google account, freshly signed in: deleted, identity and all.
+    dn = await nonceFor('delete', done.body.token);
+    const gone = await del({ provider: 'google', nonce: dn, idToken: await google(dn, `${RUN}-sub-new`, { email }) });
+    assert.equal(gone.status, 204, JSON.stringify(gone.body));
+    assert.equal(await prisma.user.count({ where: { id: stored.id } }), 0);
+    assert.equal(await prisma.userIdentity.count({ where: { providerSubject: `${RUN}-sub-new` } }), 0);
+    // An account WITH a password still deletes with the password, as before (not exercised here: accountDeletion.test.ts).
+
     // Deleting the account takes its identities with it.
     await prisma.user.delete({ where: { id: owner.id } });
     assert.equal(await prisma.userIdentity.count({ where: { providerSubject: `${RUN}-sub-auto` } }), 0);
