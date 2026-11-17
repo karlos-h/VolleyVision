@@ -1246,8 +1246,13 @@ storage tests in CI, dockerignore globs, runbook Fly readiness and `.env` step).
 Google's `email_verified` for non-Google mailboxes; linking needed no re-authentication) and 5 low were fixed. Accepted:
 a Workspace `hd` claim trusts the domain's admin, the same trust an email password reset already gives.
 
-**Not verified at the time of writing:** a real Google sign-in end to end (the consent screen is in Testing mode;
-Karlos is a test user).
+**Staging and production (17 Nov 2026):** Karlos tested on the `signin--` staging draft: Google sign-up, returning
+sign-in, the Profile sign-in card and reset email delivery. A bug found there (the sign-in response lacked
+`hasPassword`/`signInMethods`, so Delete account asked a Google-only user for a password) was fixed before release.
+v9.20.0 was tagged and deployed to production the same day: backup, `prisma migrate deploy`, Fly, then Netlify.
+Read-only smoke 3/3 on production; the Google button renders under the production CSP. The consent screen is
+published ("In production"). Found on the way: with no card on the Fly account, Fly stops trial machines every
+5 minutes; Karlos added a card.
 
 **Superseded:** the 9.5.9 region recommendation (A: Netlify Pro + `sin`) is replaced by this decision; see
 `docs/region-decision.md`.
