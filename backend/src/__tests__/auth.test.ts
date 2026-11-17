@@ -6,7 +6,8 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 
 import { db, resetDb } from '../testing/installFakePrisma';
 import { requireAuth } from '../middleware/auth';
-import { generateToken } from '../services/auth.service';
+import bcrypt from 'bcryptjs';
+import { generateToken, verifyPassword } from '../services/auth.service';
 
 function fakeRes() {
   const res: any = { statusCode: null, body: null };
@@ -106,6 +107,13 @@ async function main() {
   await staleTvIs401SessionExpired();
   await missingTvClaimTreatedAsZero();
   await dbErrorReachesNextNotAHang();
+  // 9.6.S1: an account with no password (Google-only) never matches, whatever is typed.
+  const hash = await bcrypt.hash('correct horse', 4);
+  assert.equal(await verifyPassword('correct horse', hash), true);
+  assert.equal(await verifyPassword('wrong', hash), false);
+  assert.equal(await verifyPassword('correct horse', null), false, 'null hash is never a match');
+  assert.equal(await verifyPassword('', null), false);
+
   console.log('auth.test.ts passed');
 }
 
