@@ -13,7 +13,7 @@ Facts: `data-inventory.md`. Where: Play Console → App content → Data safety.
 | Does your app collect or share any required user data types? | Yes (collect). Nothing shared. |
 | Is all user data encrypted in transit? | **Yes** (HTTPS/TLS everywhere) |
 | Do you provide a way for users to request data deletion? | **Yes** |
-| Account creation method | Email and password. (Sign in with Google exists on the website only in v9.20.0; add OAuth here when the Android app gets it.) |
+| Account creation method | Email and password, and OAuth (Sign in with Google, in the Android app from v9.21.0). |
 | Delete account URL | https://volleyvision-app.netlify.app/delete-account |
 | Partial deletion without deleting the account? | Yes: users can delete their own chat messages; coaches can delete player records. **Karlos to confirm** you want to state this. |
 | Independent security review | No |
@@ -68,5 +68,5 @@ Purposes are **App functionality** (plus **Account management** where noted). Do
 ## Before you submit
 
 1. The privacy policy URL loads and matches this form.
-2. Answers match the real SDKs: Sentry only. No Firebase, no ads.
+2. Answers match the real SDKs: Sentry, and Google's sign-in (Android Credential Manager and Google Play services, from v9.21.0). No Firebase, no ads.
 3. App access instructions are filled in (`review-notes.md`).
