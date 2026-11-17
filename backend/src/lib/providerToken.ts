@@ -53,7 +53,11 @@ export async function verifyGoogleIdToken(
     }));
   } catch (err) {
     const code = (err as { code?: string }).code;
-    return { ok: false, reason: code === 'ERR_JWT_EXPIRED' ? 'expired' : 'invalid' };
+    if (code === 'ERR_JWT_EXPIRED') return { ok: false, reason: 'expired' };
+    // Google's key server timing out or answering badly (or a plain network
+    // error, which has no jose code) is an outage, not a bad token. Still refused.
+    if (code === undefined || code === 'ERR_JWKS_TIMEOUT' || code === 'ERR_JOSE_GENERIC') return { ok: false, reason: 'unavailable' };
+    return { ok: false, reason: 'invalid' };
   }
 
   // The token must answer the nonce WE issued for THIS attempt; a token minted

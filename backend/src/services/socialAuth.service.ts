@@ -51,7 +51,10 @@ export async function verifyGoogleSignIn(
     expectedNonce: input.nonce as string,
   });
   if (!token.ok) {
-    if (token.reason === 'not-configured') throw new AppError(503, 'Sign in with Google is not available right now.');
+    if (token.reason === 'not-configured' || token.reason === 'unavailable') {
+      console.warn(`social sign-in unavailable: ${token.reason}`);
+      throw new AppError(503, 'Sign in with Google is not available right now. Try again in a minute.');
+    }
     throw rejected(`id token ${token.reason}`);
   }
 
@@ -63,6 +66,8 @@ export async function verifyGoogleSignIn(
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw rejected('nonce replayed');
     throw err;
   }
+  // Same best-effort sweep as sign-out: rows nothing can use any more.
+  await prisma.revokedToken.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
   return token.identity;
 }
 

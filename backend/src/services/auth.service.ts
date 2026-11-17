@@ -32,9 +32,9 @@ export interface AuthPayload {
   userId: string;
   email: string;
   role: string;
-  // Token-revocation version (audit M7 part 2). Optional on the decoded side
-  // only: a token minted before this shipped carries no `tv` at all, and
-  // requireAuth/optionalAuth treat that as tv 0 — see lib/tokenVersion.ts.
+  // Token-revocation version (audit M7 part 2). Every session carries it:
+  // verifyToken refuses a token without one (9.6.S2). Optional in the type only
+  // because callers build the payload before generateToken signs it.
   tv?: number;
   // 9.6.0.2: each token's own id, so signing out can revoke just that one.
   // Absent on tokens minted before then; those simply run out (exp).

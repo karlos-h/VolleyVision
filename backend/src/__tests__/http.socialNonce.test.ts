@@ -59,6 +59,8 @@ async function main() {
   // verifyGoogleSignIn: the happy path spends the nonce; a replay is refused.
   resetDb();
   const spent = new Set<string>();
+  let sweeps = 0;
+  db.revokedToken.deleteMany = async () => { sweeps++; return { count: 0 }; };
   db.revokedToken.create = async (a: { data: { jti: string; userId?: string; expiresAt: Date } }) => {
     if (spent.has(a.data.jti)) throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
     assert.equal(a.data.userId, undefined, 'a nonce row is tied to no account');
@@ -72,6 +74,7 @@ async function main() {
   const identity = await verifyGoogleSignIn({ idToken, nonce, purpose: 'signin' }, deps);
   assert.equal(identity.subject, 'g-1');
   assert.equal(spent.size, 1);
+  assert.equal(sweeps, 1, 'expired rows are swept after a successful sign-in');
   assert.deepEqual(await status(() => verifyGoogleSignIn({ idToken, nonce, purpose: 'signin' }, deps)), { status: 401, code: 'SOCIAL_TOKEN_REJECTED' }, 'replay');
 
   // Every refusal is the same 401, and none of them spends the nonce.
@@ -94,6 +97,13 @@ async function main() {
   // No client id configured: 503, not "any audience".
   nn = fresh();
   assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(nn), nonce: nn, purpose: 'signin' }, { keys, audiences: [] })), { status: 503, code: undefined });
+  // Google's key server unreachable: 503 (an outage), still refused, nonce not spent.
+  nn = fresh();
+  const spentBefore = spent.size;
+  const down = async () => { throw new TypeError('fetch failed'); };
+  assert.deepEqual(await status(async () => verifyGoogleSignIn({ idToken: await googleToken(nn), nonce: nn, purpose: 'signin' }, { keys: down, audiences: [AUD] })), { status: 503, code: undefined });
+  assert.equal(spent.size, spentBefore);
+
   assert.deepEqual(googleAudiences({ GOOGLE_WEB_CLIENT_ID: ' web ', GOOGLE_IOS_CLIENT_ID: '' }), ['web']);
   assert.deepEqual(googleAudiences({}), []);
 
