@@ -7,7 +7,8 @@ All notable changes to VolleyVision, reconstructed from the repository's commit 
 Phase 9.7.A of the rebuild roadmap: Sign in with Google in the Android app.
 One new app dependency (`@capgo/capacitor-social-login`, pinned at 8.7.11). No
 database or API change: the Android app sends the same Google token the
-website does, to the same endpoints. Android `versionCode` 6. Not deployed yet.
+website does, to the same endpoints. Android `versionCode` 6. Website deployed to production on 2026-11-17; the
+Android app gets the button from the next signed APK.
 
 **Sign in with Google (Android app)**
 - New: "Sign in with Google" in the Android app on the sign-in, create-account
