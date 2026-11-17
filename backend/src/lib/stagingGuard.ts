@@ -2,8 +2,12 @@
 // users with a shared password, so pointing it at prod would plant known
 // logins in the live app.
 
-/** The live Supabase project ("Volley Vision"). Nothing staging-only may touch it. */
-export const PROD_PROJECT_REF = 'rkkhrmhorgdqkxflipui';
+/**
+ * The live Supabase project (Sydney, since the 17 Nov 2026 move; the Singapore
+ * one, rkkhrmhorgdqkxflipui, is paused and stays refused by the move scripts).
+ * Nothing staging-only may touch it.
+ */
+export const PROD_PROJECT_REF = 'xmevhqvgoecuykufoqxy';
 
 /**
  * Returns an error message, or null when `env` clearly targets staging.
