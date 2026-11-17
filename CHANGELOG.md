@@ -7,7 +7,7 @@ All notable changes to VolleyVision, reconstructed from the repository's commit 
 Phase 9.6.S of the rebuild roadmap: Sign in with Google. One additive migration
 (`20261117000000_user_identities`) and one new backend dependency (`jose`, to
 check Google's signed tokens). Works with the Android 9.13.0+ apps: every API
-change adds fields or routes. Not deployed to production yet.
+change adds fields or routes. Deployed to production on 2026-11-17.
 
 **Sign in with Google (website)**
 - New: "Sign in with Google" on the sign-in, create-account and invitation
